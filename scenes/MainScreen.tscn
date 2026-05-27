@@ -1,0 +1,81 @@
+[gd_scene format=3 uid="uid://dn73vrwm222a8"]
+
+[node name="Background" type="Panel" unique_id=842209418]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"Background"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=593441855]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MenuBar" type="MenuBar" parent="VBoxContainer" unique_id=842074199]
+layout_mode = 2
+
+[node name="File" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=1726703787]
+oversampling_override = 1.0
+item_count = 5
+item_0/text = "New"
+item_0/id = 0
+item_1/text = "Open..."
+item_1/id = 1
+item_2/text = "Save..."
+item_2/id = 2
+item_3/id = 999
+item_3/separator = true
+item_4/text = "Quit"
+item_4/id = 3
+
+[node name="Edit" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=1360064780]
+item_count = 2
+item_0/text = "Undo"
+item_0/id = 0
+item_1/text = "Redo"
+item_1/id = 1
+
+[node name="Settings" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=126768983]
+item_count = 2
+item_0/text = "Preferences..."
+item_0/id = 0
+item_1/text = "Keybindings..."
+item_1/id = 1
+
+[node name="About" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=2023836840]
+item_count = 1
+item_0/text = "About..."
+item_0/id = 0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1871764707]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ToolBar" type="PanelContainer" parent="VBoxContainer/HBoxContainer" unique_id=1424092572]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_type_variation = &"ToolBar"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/ToolBar" unique_id=814978836]
+layout_mode = 2
+
+[node name="Select" type="Button" parent="VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=379052501]
+layout_mode = 2
+text = "SEL"
+
+[node name="Edit" type="Button" parent="VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=10300524]
+layout_mode = 2
+text = "EDIT"
+
+[node name="Create" type="Button" parent="VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1279165071]
+layout_mode = 2
+text = "CREAT"
+
+[node name="StatusBar" type="PanelContainer" parent="VBoxContainer" unique_id=2080243300]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
