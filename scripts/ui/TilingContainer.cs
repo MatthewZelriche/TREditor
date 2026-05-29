@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Godot;
 
 [GlobalClass]
@@ -17,24 +17,14 @@ public partial class TilingContainer : Container
         After,
     }
 
-    public abstract class LayoutSnapshotNode { }
-
-    public sealed class PaneLayoutSnapshotNode(string paneId) : LayoutSnapshotNode
+    public sealed class LayoutSnapshotNode
     {
-        public string PaneId { get; } = paneId;
-    }
-
-    public sealed class SplitLayoutSnapshotNode(
-        SplitAxis axis,
-        float ratio,
-        LayoutSnapshotNode first,
-        LayoutSnapshotNode second
-    ) : LayoutSnapshotNode
-    {
-        public SplitAxis Axis { get; } = axis;
-        public float Ratio { get; } = ratio;
-        public LayoutSnapshotNode First { get; } = first;
-        public LayoutSnapshotNode Second { get; } = second;
+        public string Type { get; set; } = "";
+        public string PaneId { get; set; } = "";
+        public string Axis { get; set; } = "";
+        public float Ratio { get; set; } = DefaultSplitRatio;
+        public LayoutSnapshotNode First { get; set; }
+        public LayoutSnapshotNode Second { get; set; }
     }
 
     [Signal]
@@ -48,6 +38,7 @@ public partial class TilingContainer : Container
 
     private const float DefaultSplitRatio = 0.5f;
 
+    // Reusable scratch space for various operations.
     private readonly List<SplitNode> _scratchSplits = [];
     private readonly List<LeafNode> _scratchLeaves = [];
 
@@ -68,7 +59,7 @@ public partial class TilingContainer : Container
         set
         {
             _borderThickness = Mathf.Max(0.0f, value);
-            InvalidateLayout(true);
+            InvalidateLayout();
         }
     }
 
@@ -79,7 +70,7 @@ public partial class TilingContainer : Container
         set
         {
             _grabThickness = Mathf.Max(0.0f, value);
-            InvalidateLayout(true);
+            InvalidateLayout();
         }
     }
 
@@ -90,7 +81,7 @@ public partial class TilingContainer : Container
         set
         {
             _minimumPaneSize = Mathf.Max(0.0f, value);
-            InvalidateLayout(true);
+            InvalidateLayout();
         }
     }
 
@@ -105,6 +96,7 @@ public partial class TilingContainer : Container
         }
     }
 
+    // Sets the new root pane. Detaches all other panes.
     public bool SetRoot(Control child)
     {
         if (!CanManageChild(child))
@@ -112,19 +104,17 @@ public partial class TilingContainer : Container
             return false;
         }
 
-        if (!EnsureChildAttached(child))
-        {
-            return false;
-        }
-
-        DetachOldPanesExcept(child);
+        DetachAllManagedPanes(false);
         DestroySplitHandles(_root);
+        Debug.Assert(TryAttachChild(child)); // Shouldn't be possible to fail here.
         _root = new LeafNode(child);
 
-        InvalidateLayout(true);
+        InvalidateLayout();
         return true;
     }
 
+    // Insert a new pane as a child of the target pane. Fails if the new child is already
+    // a child of this container.
     public bool InsertSplit(
         Control target,
         Control newChild,
@@ -143,7 +133,7 @@ public partial class TilingContainer : Container
             return false;
         }
 
-        if (!EnsureChildAttached(newChild))
+        if (!TryAttachChild(newChild))
         {
             return false;
         }
@@ -156,9 +146,8 @@ public partial class TilingContainer : Container
                 : new SplitNode(axis, newLeaf, targetLeaf);
 
         ReplaceNode(targetLeaf, targetParent, split);
-        EnsureHandle(split);
 
-        InvalidateLayout(true);
+        InvalidateLayout();
         return true;
     }
 
@@ -173,7 +162,7 @@ public partial class TilingContainer : Container
             return false;
         }
 
-        if (!EnsureChildAttached(newChild))
+        if (!TryAttachChild(newChild))
         {
             return false;
         }
@@ -186,12 +175,12 @@ public partial class TilingContainer : Container
 
         _root = split;
         _root.Parent = null;
-        EnsureHandle(split);
 
-        InvalidateLayout(true);
+        InvalidateLayout();
         return true;
     }
 
+    // Removes a pane, re-adjusting the layout as necessary. Optionally queue free the child.
     public bool RemovePane(Control child, bool queueFreeChild = false)
     {
         if (!CanManageChild(child) || _root == null)
@@ -208,10 +197,11 @@ public partial class TilingContainer : Container
         CollapseLeaf(leaf);
         DetachManagedChild(child, queueFreeChild);
 
-        InvalidateLayout(true);
+        InvalidateLayout();
         return true;
     }
 
+    // Removes a pane from its current slot and reinserts it as a sibling of the target under a new split.
     public bool MovePane(
         Control movingPane,
         Control targetPane,
@@ -240,70 +230,6 @@ public partial class TilingContainer : Container
         return InsertSplit(targetPane, movingPane, axis, placement);
     }
 
-    public LayoutSnapshotNode CaptureLayout(Func<Control, string> getPaneId)
-    {
-        if (_root == null || getPaneId == null)
-        {
-            return null;
-        }
-
-        return CaptureNode(_root, getPaneId);
-    }
-
-    public bool RestoreLayout(
-        LayoutSnapshotNode snapshot,
-        Func<string, Control> paneFactory,
-        bool queueFreeReplacedPanes = false
-    )
-    {
-        if (snapshot == null || paneFactory == null)
-        {
-            return false;
-        }
-
-        List<Control> panes = [];
-        LayoutNode newRoot = CreateNodeFromSnapshot(snapshot, paneFactory, panes);
-        if (newRoot == null || panes.Count == 0 || HasDuplicatePanes(panes))
-        {
-            return false;
-        }
-
-        foreach (Control pane in panes)
-        {
-            if (!CanManageChild(pane))
-            {
-                return false;
-            }
-
-            Node parent = pane.GetParent();
-            if (parent != null && parent != this)
-            {
-                return false;
-            }
-        }
-
-        DestroySplitHandles(_root);
-        DetachAllManagedPanes(queueFreeReplacedPanes);
-
-        _root = newRoot;
-
-        foreach (Control pane in panes)
-        {
-            if (!EnsureChildAttached(pane))
-            {
-                DestroySplitHandles(_root);
-                DetachAllManagedPanes(false);
-                _root = null;
-                InvalidateLayout(true);
-                return false;
-            }
-        }
-
-        EnsureSplitHandles(_root);
-        InvalidateLayout(true);
-        return true;
-    }
-
     public bool ContainsPane(Control child)
     {
         return child != null && _root != null && _root.FindLeaf(child) != null;
@@ -327,6 +253,7 @@ public partial class TilingContainer : Container
         return _root?.GetMinimumSize(this) ?? new Vector2(MinimumPaneSize, MinimumPaneSize);
     }
 
+    // Overridden to draw the custom border lines for the split nodes.
     public override void _Draw()
     {
         if (_root == null || BorderThickness <= 0.0f || BorderColor.A <= 0.0f)
@@ -356,7 +283,7 @@ public partial class TilingContainer : Container
         {
             if (!_suppressChildOrderPrune && PruneDetachedPanes())
             {
-                InvalidateLayout(true);
+                InvalidateLayout();
             }
         }
         else if (what == NotificationSortChildren)
@@ -390,386 +317,12 @@ public partial class TilingContainer : Container
         QueueRedraw();
     }
 
-    private bool CanManageChild(Control child)
-    {
-        return child != null
-            && child != this
-            && GodotObject.IsInstanceValid(child)
-            && !IsHandle(child);
-    }
-
-    private bool EnsureChildAttached(Control child)
-    {
-        Node parent = child.GetParent();
-        if (parent == this)
-        {
-            return true;
-        }
-
-        if (parent != null)
-        {
-            return false;
-        }
-
-        _suppressChildOrderPrune = true;
-        AddChild(child);
-        _suppressChildOrderPrune = false;
-        return true;
-    }
-
-    private void DetachManagedChild(Control child, bool queueFreeChild)
-    {
-        if (queueFreeChild)
-        {
-            child.QueueFree();
-            return;
-        }
-
-        if (child.GetParent() == this)
-        {
-            _suppressChildOrderPrune = true;
-            RemoveChild(child);
-            _suppressChildOrderPrune = false;
-        }
-    }
-
-    private void DetachOldPanesExcept(Control childToKeep)
-    {
-        if (_root == null)
-        {
-            return;
-        }
-
-        _scratchLeaves.Clear();
-        _root.CollectLeaves(_scratchLeaves);
-
-        _suppressChildOrderPrune = true;
-
-        foreach (LeafNode leaf in _scratchLeaves)
-        {
-            Control child = leaf.Child;
-            if (
-                child == childToKeep
-                || !GodotObject.IsInstanceValid(child)
-                || child.GetParent() != this
-            )
-            {
-                continue;
-            }
-
-            RemoveChild(child);
-        }
-
-        _suppressChildOrderPrune = false;
-    }
-
-    private void DetachAllManagedPanes(bool queueFreeChildren)
-    {
-        if (_root == null)
-        {
-            return;
-        }
-
-        _scratchLeaves.Clear();
-        _root.CollectLeaves(_scratchLeaves);
-
-        _suppressChildOrderPrune = true;
-
-        foreach (LeafNode leaf in _scratchLeaves)
-        {
-            Control child = leaf.Child;
-            if (!GodotObject.IsInstanceValid(child) || child.GetParent() != this)
-            {
-                continue;
-            }
-
-            if (queueFreeChildren)
-            {
-                child.QueueFree();
-            }
-            else
-            {
-                RemoveChild(child);
-            }
-        }
-
-        _suppressChildOrderPrune = false;
-    }
-
-    private void AdoptSingleExistingChildIfNeeded()
-    {
-        if (_root != null)
-        {
-            return;
-        }
-
-        Control firstPane = null;
-        int paneCount = 0;
-
-        foreach (Node child in GetChildren())
-        {
-            if (child is not Control control || IsHandle(control))
-            {
-                continue;
-            }
-
-            firstPane = control;
-            paneCount++;
-            if (paneCount > 1)
-            {
-                return;
-            }
-        }
-
-        if (firstPane != null)
-        {
-            SetRoot(firstPane);
-        }
-    }
-
-    private void ReplaceNode(LayoutNode oldNode, SplitNode oldParent, LayoutNode newNode)
-    {
-        newNode.Parent = oldParent;
-
-        if (oldParent == null)
-        {
-            _root = newNode;
-            return;
-        }
-
-        if (oldParent.First == oldNode)
-        {
-            oldParent.First = newNode;
-        }
-        else
-        {
-            oldParent.Second = newNode;
-        }
-    }
-
-    private void CollapseLeaf(LeafNode leaf)
-    {
-        SplitNode parent = leaf.Parent;
-        if (parent == null)
-        {
-            _root = null;
-            return;
-        }
-
-        LayoutNode sibling = parent.First == leaf ? parent.Second : parent.First;
-        SplitNode grandparent = parent.Parent;
-
-        DestroyHandle(parent);
-        sibling.Parent = grandparent;
-
-        if (grandparent == null)
-        {
-            _root = sibling;
-        }
-        else if (grandparent.First == parent)
-        {
-            grandparent.First = sibling;
-        }
-        else
-        {
-            grandparent.Second = sibling;
-        }
-    }
-
-    private bool PruneDetachedPanes()
-    {
-        if (_root == null)
-        {
-            return false;
-        }
-
-        _scratchLeaves.Clear();
-        _root.CollectLeaves(_scratchLeaves);
-
-        bool changed = false;
-        foreach (LeafNode leaf in _scratchLeaves)
-        {
-            Control child = leaf.Child;
-            if (!GodotObject.IsInstanceValid(child) || child.GetParent() != this)
-            {
-                CollapseLeaf(leaf);
-                changed = true;
-            }
-        }
-
-        return changed;
-    }
-
-    private void EnsureHandle(SplitNode split)
-    {
-        if (split.Handle != null && GodotObject.IsInstanceValid(split.Handle))
-        {
-            return;
-        }
-
-        Control handle = new()
-        {
-            Name = "_TilingSplitHandle",
-            MouseFilter = MouseFilterEnum.Stop,
-            FocusMode = FocusModeEnum.None,
-            ClipContents = false,
-        };
-
-        handle.SetMeta("tiling_container_handle", true);
-        handle.GuiInput += @event => OnHandleGuiInput(split, @event);
-
-        _suppressChildOrderPrune = true;
-        AddChild(handle, false, InternalMode.Back);
-        _suppressChildOrderPrune = false;
-
-        split.Handle = handle;
-    }
-
-    private void DestroySplitHandles(LayoutNode node)
-    {
-        if (node == null)
-        {
-            return;
-        }
-
-        if (node is not SplitNode split)
-        {
-            return;
-        }
-
-        DestroySplitHandles(split.First);
-        DestroySplitHandles(split.Second);
-        DestroyHandle(split);
-    }
-
-    private void EnsureSplitHandles(LayoutNode node)
-    {
-        if (node == null || node is not SplitNode split)
-        {
-            return;
-        }
-
-        EnsureHandle(split);
-        EnsureSplitHandles(split.First);
-        EnsureSplitHandles(split.Second);
-    }
-
-    private void DestroyHandle(SplitNode split)
-    {
-        if (split.Handle == null || !GodotObject.IsInstanceValid(split.Handle))
-        {
-            split.Handle = null;
-            return;
-        }
-
-        split.Handle.QueueFree();
-        split.Handle = null;
-    }
-
-    private void HideAllHandles()
-    {
-        foreach (Node child in GetChildren(true))
-        {
-            if (child is Control control && IsHandle(control))
-            {
-                control.Visible = false;
-            }
-        }
-    }
-
-    private bool IsHandle(Control control)
-    {
-        return control.HasMeta("tiling_container_handle");
-    }
-
-    private void OnHandleGuiInput(SplitNode split, InputEvent @event)
-    {
-        if (
-            @event is InputEventMouseButton mouseButton
-            && mouseButton.ButtonIndex == MouseButton.Left
-        )
-        {
-            if (mouseButton.Pressed)
-            {
-                StartDragging(split);
-            }
-            else if (_draggingSplit == split)
-            {
-                StopDragging();
-            }
-
-            split.Handle?.AcceptEvent();
-        }
-        else if (@event is InputEventMouseMotion && _draggingSplit == split)
-        {
-            UpdateDraggedSplit(split);
-            split.Handle?.AcceptEvent();
-        }
-    }
-
-    private void StartDragging(SplitNode split)
-    {
-        _draggingSplit = split;
-        Vector2 mousePosition = GetLocalMousePosition();
-
-        _dragPointerOffset =
-            split.Axis == SplitAxis.Horizontal
-                ? mousePosition.X - split.BorderRect.Position.X
-                : mousePosition.Y - split.BorderRect.Position.Y;
-
-        EmitSignal(SignalName.SplitDragStarted);
-    }
-
-    private void StopDragging()
-    {
-        _draggingSplit = null;
-        EmitSignal(SignalName.SplitDragEnded);
-    }
-
-    private void UpdateDraggedSplit(SplitNode split)
-    {
-        if (split.Rect.Size.X <= 0.0f || split.Rect.Size.Y <= 0.0f)
-        {
-            return;
-        }
-
-        Vector2 mousePosition = GetLocalMousePosition();
-        float borderThickness = GetVisibleBorderThickness();
-        float contentSpan;
-        float desiredFirstSpan;
-
-        if (split.Axis == SplitAxis.Horizontal)
-        {
-            contentSpan = Mathf.Max(0.0f, split.Rect.Size.X - borderThickness);
-            desiredFirstSpan = mousePosition.X - split.Rect.Position.X - _dragPointerOffset;
-        }
-        else
-        {
-            contentSpan = Mathf.Max(0.0f, split.Rect.Size.Y - borderThickness);
-            desiredFirstSpan = mousePosition.Y - split.Rect.Position.Y - _dragPointerOffset;
-        }
-
-        if (contentSpan <= 0.0f)
-        {
-            return;
-        }
-
-        float clampedFirstSpan = ClampFirstSpan(split, contentSpan, desiredFirstSpan);
-        split.Ratio = Mathf.Clamp(clampedFirstSpan / contentSpan, 0.0f, 1.0f);
-
-        InvalidateLayout(true);
-    }
-
-    private void InvalidateLayout(bool emitLayoutChanged)
+    private void InvalidateLayout()
     {
         QueueSort();
         QueueRedraw();
         UpdateMinimumSize();
-
-        if (emitLayoutChanged)
-        {
-            EmitSignal(SignalName.LayoutChanged);
-        }
+        EmitSignal(SignalName.LayoutChanged);
     }
 
     private float GetVisibleBorderThickness()
@@ -847,262 +400,5 @@ public partial class TilingContainer : Container
             split.Rect.Size.X,
             handleThickness
         );
-    }
-
-    private LayoutSnapshotNode CaptureNode(LayoutNode node, Func<Control, string> getPaneId)
-    {
-        if (node is LeafNode leaf)
-        {
-            return new PaneLayoutSnapshotNode(getPaneId(leaf.Child));
-        }
-
-        SplitNode split = (SplitNode)node;
-        return new SplitLayoutSnapshotNode(
-            split.Axis,
-            split.Ratio,
-            CaptureNode(split.First, getPaneId),
-            CaptureNode(split.Second, getPaneId)
-        );
-    }
-
-    private LayoutNode CreateNodeFromSnapshot(
-        LayoutSnapshotNode snapshot,
-        Func<string, Control> paneFactory,
-        List<Control> panes
-    )
-    {
-        switch (snapshot)
-        {
-            case PaneLayoutSnapshotNode paneSnapshot:
-                if (string.IsNullOrEmpty(paneSnapshot.PaneId))
-                {
-                    return null;
-                }
-
-                Control pane = paneFactory(paneSnapshot.PaneId);
-                if (!CanManageChild(pane))
-                {
-                    return null;
-                }
-
-                panes.Add(pane);
-                return new LeafNode(pane);
-
-            case SplitLayoutSnapshotNode splitSnapshot:
-                LayoutNode first = CreateNodeFromSnapshot(
-                    splitSnapshot.First,
-                    paneFactory,
-                    panes
-                );
-                LayoutNode second = CreateNodeFromSnapshot(
-                    splitSnapshot.Second,
-                    paneFactory,
-                    panes
-                );
-
-                if (first == null || second == null)
-                {
-                    return null;
-                }
-
-                return new SplitNode(splitSnapshot.Axis, first, second)
-                {
-                    Ratio = Mathf.Clamp(splitSnapshot.Ratio, 0.0f, 1.0f),
-                };
-        }
-
-        return null;
-    }
-
-    private static bool HasDuplicatePanes(List<Control> panes)
-    {
-        HashSet<Control> seen = [];
-        foreach (Control pane in panes)
-        {
-            if (!seen.Add(pane))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private abstract class LayoutNode
-    {
-        public SplitNode Parent;
-        public Rect2 Rect;
-
-        public abstract Vector2 GetMinimumSize(TilingContainer owner);
-        public abstract LeafNode FindLeaf(Control child);
-        public abstract void Layout(TilingContainer owner, Rect2 rect);
-        public abstract void CollectPanes(Godot.Collections.Array<Control> panes);
-        public abstract void CollectLeaves(List<LeafNode> leaves);
-        public abstract void CollectSplits(List<SplitNode> splits);
-    }
-
-    private sealed class LeafNode(Control child) : LayoutNode
-    {
-        public Control Child = child;
-
-        public override Vector2 GetMinimumSize(TilingContainer owner)
-        {
-            if (!GodotObject.IsInstanceValid(Child))
-            {
-                return new Vector2(owner.MinimumPaneSize, owner.MinimumPaneSize);
-            }
-
-            return owner.GetPaneMinimumSize(Child);
-        }
-
-        public override LeafNode FindLeaf(Control child)
-        {
-            return Child == child ? this : null;
-        }
-
-        public override void Layout(TilingContainer owner, Rect2 rect)
-        {
-            Rect = rect;
-
-            if (GodotObject.IsInstanceValid(Child) && Child.GetParent() == owner)
-            {
-                owner.FitChildInRect(Child, rect);
-            }
-        }
-
-        public override void CollectPanes(Godot.Collections.Array<Control> panes)
-        {
-            if (GodotObject.IsInstanceValid(Child))
-            {
-                panes.Add(Child);
-            }
-        }
-
-        public override void CollectLeaves(List<LeafNode> leaves)
-        {
-            leaves.Add(this);
-        }
-
-        public override void CollectSplits(List<SplitNode> splits) { }
-    }
-
-    private sealed class SplitNode : LayoutNode
-    {
-        public readonly SplitAxis Axis;
-        public float Ratio = DefaultSplitRatio;
-        public LayoutNode First;
-        public LayoutNode Second;
-        public Control Handle;
-        public Rect2 BorderRect;
-        public Rect2 HandleRect;
-
-        public SplitNode(SplitAxis axis, LayoutNode first, LayoutNode second)
-        {
-            Axis = axis;
-            First = first;
-            Second = second;
-            First.Parent = this;
-            Second.Parent = this;
-        }
-
-        public override Vector2 GetMinimumSize(TilingContainer owner)
-        {
-            Vector2 firstMinimum = First.GetMinimumSize(owner);
-            Vector2 secondMinimum = Second.GetMinimumSize(owner);
-            float borderThickness = owner.GetVisibleBorderThickness();
-
-            if (Axis == SplitAxis.Horizontal)
-            {
-                return new Vector2(
-                    firstMinimum.X + secondMinimum.X + borderThickness,
-                    Mathf.Max(firstMinimum.Y, secondMinimum.Y)
-                );
-            }
-
-            return new Vector2(
-                Mathf.Max(firstMinimum.X, secondMinimum.X),
-                firstMinimum.Y + secondMinimum.Y + borderThickness
-            );
-        }
-
-        public override LeafNode FindLeaf(Control child)
-        {
-            return First.FindLeaf(child) ?? Second.FindLeaf(child);
-        }
-
-        public override void Layout(TilingContainer owner, Rect2 rect)
-        {
-            Rect = rect;
-
-            float borderThickness = owner.GetVisibleBorderThickness();
-
-            if (Axis == SplitAxis.Horizontal)
-            {
-                float contentSpan = Mathf.Max(0.0f, rect.Size.X - borderThickness);
-                float firstSpan = owner.ClampFirstSpan(this, contentSpan, contentSpan * Ratio);
-                float secondSpan = Mathf.Max(0.0f, contentSpan - firstSpan);
-
-                Rect2 firstRect = new(rect.Position, new Vector2(firstSpan, rect.Size.Y));
-                BorderRect = new Rect2(
-                    rect.Position.X + firstSpan,
-                    rect.Position.Y,
-                    borderThickness,
-                    rect.Size.Y
-                );
-                Rect2 secondRect = new(
-                    rect.Position.X + firstSpan + borderThickness,
-                    rect.Position.Y,
-                    secondSpan,
-                    rect.Size.Y
-                );
-
-                First.Layout(owner, firstRect);
-                Second.Layout(owner, secondRect);
-            }
-            else
-            {
-                float contentSpan = Mathf.Max(0.0f, rect.Size.Y - borderThickness);
-                float firstSpan = owner.ClampFirstSpan(this, contentSpan, contentSpan * Ratio);
-                float secondSpan = Mathf.Max(0.0f, contentSpan - firstSpan);
-
-                Rect2 firstRect = new(rect.Position, new Vector2(rect.Size.X, firstSpan));
-                BorderRect = new Rect2(
-                    rect.Position.X,
-                    rect.Position.Y + firstSpan,
-                    rect.Size.X,
-                    borderThickness
-                );
-                Rect2 secondRect = new(
-                    rect.Position.X,
-                    rect.Position.Y + firstSpan + borderThickness,
-                    rect.Size.X,
-                    secondSpan
-                );
-
-                First.Layout(owner, firstRect);
-                Second.Layout(owner, secondRect);
-            }
-
-            HandleRect = owner.GetHandleRect(this);
-        }
-
-        public override void CollectPanes(Godot.Collections.Array<Control> panes)
-        {
-            First.CollectPanes(panes);
-            Second.CollectPanes(panes);
-        }
-
-        public override void CollectLeaves(List<LeafNode> leaves)
-        {
-            First.CollectLeaves(leaves);
-            Second.CollectLeaves(leaves);
-        }
-
-        public override void CollectSplits(List<SplitNode> splits)
-        {
-            splits.Add(this);
-            First.CollectSplits(splits);
-            Second.CollectSplits(splits);
-        }
     }
 }

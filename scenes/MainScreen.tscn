@@ -1,5 +1,7 @@
 [gd_scene format=3 uid="uid://dn73vrwm222a8"]
 
+[ext_resource type="Script" uid="uid://d3edn2aqc0dar" path="res://scripts/ui/ViewportWorkspace.cs" id="1_j6ixq"]
+
 [node name="Background" type="Panel" unique_id=842209418]
 anchors_preset = 15
 anchor_right = 1.0
@@ -75,6 +77,10 @@ text = "EDIT"
 [node name="Create" type="Button" parent="VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1279165071]
 layout_mode = 2
 text = "CREAT"
+
+[node name="ViewportWorkspace" type="Container" parent="VBoxContainer/HBoxContainer" unique_id=1771627047]
+layout_mode = 2
+script = ExtResource("1_j6ixq")
 
 [node name="StatusBar" type="PanelContainer" parent="VBoxContainer" unique_id=2080243300]
 custom_minimum_size = Vector2(0, 20)

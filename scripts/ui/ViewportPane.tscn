@@ -1,0 +1,137 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/ViewportPane.cs" id="1_pane"]
+[ext_resource type="Script" path="res://scripts/ui/ViewportPaneDragHandle.cs" id="2_drag"]
+[ext_resource type="Script" path="res://scripts/ui/PaneDropOverlay.cs" id="3_overlay"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
+bg_color = Color(0.07, 0.08, 0.09, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.2, 0.23, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header"]
+content_margin_left = 6.0
+content_margin_top = 3.0
+content_margin_right = 4.0
+content_margin_bottom = 3.0
+bg_color = Color(0.08, 0.09, 0.1, 1)
+
+[node name="ViewportPane" type="Control"]
+custom_minimum_size = Vector2(180, 140)
+clip_contents = true
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_pane")
+
+[node name="Frame" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+
+[node name="Column" type="VBoxContainer" parent="Frame"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 1
+
+[node name="Header" type="PanelContainer" parent="Frame/Column"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_header")
+
+[node name="Row" type="HBoxContainer" parent="Frame/Column/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 1
+
+[node name="DragHandle" type="Button" parent="Frame/Column/Header/Row"]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+focus_mode = 0
+flat = true
+tooltip_text = "Drag viewport"
+text = "::"
+script = ExtResource("2_drag")
+
+[node name="TitleLabel" type="Label" parent="Frame/Column/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+vertical_alignment = 1
+
+[node name="SplitButton" type="MenuButton" parent="Frame/Column/Header/Row"]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+focus_mode = 0
+flat = true
+tooltip_text = "Split viewport"
+text = "+"
+
+[node name="CloseButton" type="Button" parent="Frame/Column/Header/Row"]
+custom_minimum_size = Vector2(26, 22)
+layout_mode = 2
+focus_mode = 0
+flat = true
+tooltip_text = "Close viewport"
+text = "x"
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Frame/Column"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+stretch = true
+
+[node name="Viewport" type="SubViewport" parent="Frame/Column/ViewportContainer"]
+size = Vector2i(640, 480)
+disable_3d = true
+render_target_update_mode = 4
+
+[node name="ViewportRoot" type="Control" parent="Frame/Column/ViewportContainer/Viewport"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Background" type="ColorRect" parent="Frame/Column/ViewportContainer/Viewport/ViewportRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ViewportLabel" type="Label" parent="Frame/Column/ViewportContainer/Viewport/ViewportRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DropOverlay" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_overlay")
