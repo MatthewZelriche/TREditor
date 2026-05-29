@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Godot;
 
@@ -14,6 +15,26 @@ public partial class TilingContainer : Container
     {
         Before,
         After,
+    }
+
+    public abstract class LayoutSnapshotNode { }
+
+    public sealed class PaneLayoutSnapshotNode(string paneId) : LayoutSnapshotNode
+    {
+        public string PaneId { get; } = paneId;
+    }
+
+    public sealed class SplitLayoutSnapshotNode(
+        SplitAxis axis,
+        float ratio,
+        LayoutSnapshotNode first,
+        LayoutSnapshotNode second
+    ) : LayoutSnapshotNode
+    {
+        public SplitAxis Axis { get; } = axis;
+        public float Ratio { get; } = ratio;
+        public LayoutSnapshotNode First { get; } = first;
+        public LayoutSnapshotNode Second { get; } = second;
     }
 
     [Signal]
@@ -191,6 +212,98 @@ public partial class TilingContainer : Container
         return true;
     }
 
+    public bool MovePane(
+        Control movingPane,
+        Control targetPane,
+        SplitAxis axis,
+        InsertPlacement placement = InsertPlacement.After
+    )
+    {
+        if (
+            !CanManageChild(movingPane)
+            || !CanManageChild(targetPane)
+            || movingPane == targetPane
+            || _root == null
+        )
+        {
+            return false;
+        }
+
+        LeafNode movingLeaf = _root.FindLeaf(movingPane);
+        LeafNode targetLeaf = _root.FindLeaf(targetPane);
+        if (movingLeaf == null || targetLeaf == null)
+        {
+            return false;
+        }
+
+        CollapseLeaf(movingLeaf);
+        return InsertSplit(targetPane, movingPane, axis, placement);
+    }
+
+    public LayoutSnapshotNode CaptureLayout(Func<Control, string> getPaneId)
+    {
+        if (_root == null || getPaneId == null)
+        {
+            return null;
+        }
+
+        return CaptureNode(_root, getPaneId);
+    }
+
+    public bool RestoreLayout(
+        LayoutSnapshotNode snapshot,
+        Func<string, Control> paneFactory,
+        bool queueFreeReplacedPanes = false
+    )
+    {
+        if (snapshot == null || paneFactory == null)
+        {
+            return false;
+        }
+
+        List<Control> panes = [];
+        LayoutNode newRoot = CreateNodeFromSnapshot(snapshot, paneFactory, panes);
+        if (newRoot == null || panes.Count == 0 || HasDuplicatePanes(panes))
+        {
+            return false;
+        }
+
+        foreach (Control pane in panes)
+        {
+            if (!CanManageChild(pane))
+            {
+                return false;
+            }
+
+            Node parent = pane.GetParent();
+            if (parent != null && parent != this)
+            {
+                return false;
+            }
+        }
+
+        DestroySplitHandles(_root);
+        DetachAllManagedPanes(queueFreeReplacedPanes);
+
+        _root = newRoot;
+
+        foreach (Control pane in panes)
+        {
+            if (!EnsureChildAttached(pane))
+            {
+                DestroySplitHandles(_root);
+                DetachAllManagedPanes(false);
+                _root = null;
+                InvalidateLayout(true);
+                return false;
+            }
+        }
+
+        EnsureSplitHandles(_root);
+        InvalidateLayout(true);
+        return true;
+    }
+
     public bool ContainsPane(Control child)
     {
         return child != null && _root != null && _root.FindLeaf(child) != null;
@@ -350,6 +463,39 @@ public partial class TilingContainer : Container
         _suppressChildOrderPrune = false;
     }
 
+    private void DetachAllManagedPanes(bool queueFreeChildren)
+    {
+        if (_root == null)
+        {
+            return;
+        }
+
+        _scratchLeaves.Clear();
+        _root.CollectLeaves(_scratchLeaves);
+
+        _suppressChildOrderPrune = true;
+
+        foreach (LeafNode leaf in _scratchLeaves)
+        {
+            Control child = leaf.Child;
+            if (!GodotObject.IsInstanceValid(child) || child.GetParent() != this)
+            {
+                continue;
+            }
+
+            if (queueFreeChildren)
+            {
+                child.QueueFree();
+            }
+            else
+            {
+                RemoveChild(child);
+            }
+        }
+
+        _suppressChildOrderPrune = false;
+    }
+
     private void AdoptSingleExistingChildIfNeeded()
     {
         if (_root != null)
@@ -494,6 +640,18 @@ public partial class TilingContainer : Container
         DestroySplitHandles(split.First);
         DestroySplitHandles(split.Second);
         DestroyHandle(split);
+    }
+
+    private void EnsureSplitHandles(LayoutNode node)
+    {
+        if (node == null || node is not SplitNode split)
+        {
+            return;
+        }
+
+        EnsureHandle(split);
+        EnsureSplitHandles(split.First);
+        EnsureSplitHandles(split.Second);
     }
 
     private void DestroyHandle(SplitNode split)
@@ -691,6 +849,85 @@ public partial class TilingContainer : Container
         );
     }
 
+    private LayoutSnapshotNode CaptureNode(LayoutNode node, Func<Control, string> getPaneId)
+    {
+        if (node is LeafNode leaf)
+        {
+            return new PaneLayoutSnapshotNode(getPaneId(leaf.Child));
+        }
+
+        SplitNode split = (SplitNode)node;
+        return new SplitLayoutSnapshotNode(
+            split.Axis,
+            split.Ratio,
+            CaptureNode(split.First, getPaneId),
+            CaptureNode(split.Second, getPaneId)
+        );
+    }
+
+    private LayoutNode CreateNodeFromSnapshot(
+        LayoutSnapshotNode snapshot,
+        Func<string, Control> paneFactory,
+        List<Control> panes
+    )
+    {
+        switch (snapshot)
+        {
+            case PaneLayoutSnapshotNode paneSnapshot:
+                if (string.IsNullOrEmpty(paneSnapshot.PaneId))
+                {
+                    return null;
+                }
+
+                Control pane = paneFactory(paneSnapshot.PaneId);
+                if (!CanManageChild(pane))
+                {
+                    return null;
+                }
+
+                panes.Add(pane);
+                return new LeafNode(pane);
+
+            case SplitLayoutSnapshotNode splitSnapshot:
+                LayoutNode first = CreateNodeFromSnapshot(
+                    splitSnapshot.First,
+                    paneFactory,
+                    panes
+                );
+                LayoutNode second = CreateNodeFromSnapshot(
+                    splitSnapshot.Second,
+                    paneFactory,
+                    panes
+                );
+
+                if (first == null || second == null)
+                {
+                    return null;
+                }
+
+                return new SplitNode(splitSnapshot.Axis, first, second)
+                {
+                    Ratio = Mathf.Clamp(splitSnapshot.Ratio, 0.0f, 1.0f),
+                };
+        }
+
+        return null;
+    }
+
+    private static bool HasDuplicatePanes(List<Control> panes)
+    {
+        HashSet<Control> seen = [];
+        foreach (Control pane in panes)
+        {
+            if (!seen.Add(pane))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private abstract class LayoutNode
     {
         public SplitNode Parent;
@@ -706,7 +943,7 @@ public partial class TilingContainer : Container
 
     private sealed class LeafNode(Control child) : LayoutNode
     {
-        public readonly Control Child = child;
+        public Control Child = child;
 
         public override Vector2 GetMinimumSize(TilingContainer owner)
         {
