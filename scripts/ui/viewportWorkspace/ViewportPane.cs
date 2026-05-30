@@ -3,7 +3,7 @@ using Godot;
 
 public partial class ViewportPane : Control
 {
-    private const string ScenePath = "res://scripts/ui/ViewportPane.tscn";
+    private const string ScenePath = "res://scripts/ui/viewportWorkspace/ViewportPane.tscn";
 
     private ViewportWorkspace _workspace;
     private PaneDropOverlay _dropOverlay;

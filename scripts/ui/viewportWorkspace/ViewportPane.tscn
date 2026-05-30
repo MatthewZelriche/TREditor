@@ -1,8 +1,8 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/ui/ViewportPane.cs" id="1_pane"]
-[ext_resource type="Script" path="res://scripts/ui/ViewportPaneDragHandle.cs" id="2_drag"]
-[ext_resource type="Script" path="res://scripts/ui/PaneDropOverlay.cs" id="3_overlay"]
+[ext_resource type="Script" path="res://scripts/ui/viewportWorkspace/ViewportPane.cs" id="1_pane"]
+[ext_resource type="Script" path="res://scripts/ui/viewportWorkspace/ViewportPaneDragHandle.cs" id="2_drag"]
+[ext_resource type="Script" path="res://scripts/ui/viewportWorkspace/PaneDropOverlay.cs" id="3_overlay"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
 bg_color = Color(0.07, 0.08, 0.09, 1)

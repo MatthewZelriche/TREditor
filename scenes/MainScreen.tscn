@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dn73vrwm222a8"]
 
-[ext_resource type="Script" uid="uid://d3edn2aqc0dar" path="res://scripts/ui/ViewportWorkspace.cs" id="1_j6ixq"]
+[ext_resource type="Script" uid="uid://d3edn2aqc0dar" path="res://scripts/ui/viewportWorkspace/ViewportWorkspace.cs" id="1_j6ixq"]
 
 [node name="Background" type="Panel" unique_id=842209418]
 anchors_preset = 15
