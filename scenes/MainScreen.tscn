@@ -1,9 +1,32 @@
 [gd_scene format=3 uid="uid://dn73vrwm222a8"]
 
 [ext_resource type="Script" uid="uid://d3edn2aqc0dar" path="res://scripts/ui/viewportWorkspace/ViewportWorkspace.cs" id="1_j6ixq"]
+[ext_resource type="Shader" uid="uid://bs5jr6a14cmdj" path="res://shaders/grid.gdshader" id="2_grid"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_grid"]
+size = Vector2(10000, 10000)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grid"]
+render_priority = 0
+shader = ExtResource("2_grid")
+shader_parameter/minor_line_width = 0.01
+shader_parameter/major_line_width = 0.03
+shader_parameter/line_opacity = 1.0
+shader_parameter/major_line_rgb = Color(1, 1, 1, 1)
+shader_parameter/minor_line_rgb = Color(0.5, 0.5, 0.5, 1)
+shader_parameter/major_line_fade_rgb = Color(0.8, 0.8, 0.8, 1)
+shader_parameter/axis_x_color = Color(1, 0.25, 0.25, 1)
+shader_parameter/axis_z_color = Color(0.25, 0.25, 1, 1)
+shader_parameter/lod_base_cell_size = 1.0
+shader_parameter/lod_multiplier = 5.0
+shader_parameter/major_every_n = 10
+shader_parameter/lod_crossfade_width = 0.35
+shader_parameter/lod_reference_height = 8.0
+shader_parameter/lod_level_max = 6.0
+shader_parameter/lod_camera_distance = 0.0
 
 [node name="ROOT" type="Node" unique_id=1547358614]
 
@@ -95,3 +118,7 @@ layout_mode = 2
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="WORLD_ROOT" unique_id=885986579]
 environment = SubResource("Environment_j6ixq")
+
+[node name="Grid" type="MeshInstance3D" parent="WORLD_ROOT" unique_id=1237723809]
+mesh = SubResource("PlaneMesh_grid")
+surface_material_override/0 = SubResource("ShaderMaterial_grid")

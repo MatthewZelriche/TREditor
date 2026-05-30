@@ -36,7 +36,6 @@ public partial class ViewCamera : Camera3D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        GD.Print("Unhandled input: ", @event);
         if (@event is InputEventMouseMotion motionEvent)
         {
             pitch -= motionEvent.Relative.Y * vertSens;
