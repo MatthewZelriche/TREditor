@@ -2,7 +2,12 @@
 
 [ext_resource type="Script" uid="uid://d3edn2aqc0dar" path="res://scripts/ui/viewportWorkspace/ViewportWorkspace.cs" id="1_j6ixq"]
 
-[node name="Background" type="Panel" unique_id=842209418]
+[sub_resource type="Environment" id="Environment_j6ixq"]
+background_mode = 1
+
+[node name="ROOT" type="Node" unique_id=1547358614]
+
+[node name="UI_ROOT" type="Panel" parent="." unique_id=904112679]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -10,7 +15,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_type_variation = &"Background"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=593441855]
+[node name="VBoxContainer" type="VBoxContainer" parent="UI_ROOT" unique_id=1768441735]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -18,10 +23,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="MenuBar" type="MenuBar" parent="VBoxContainer" unique_id=842074199]
+[node name="MenuBar" type="MenuBar" parent="UI_ROOT/VBoxContainer" unique_id=226739852]
 layout_mode = 2
 
-[node name="File" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=1726703787]
+[node name="File" type="PopupMenu" parent="UI_ROOT/VBoxContainer/MenuBar" unique_id=1524785351]
 oversampling_override = 1.0
 item_count = 5
 item_0/text = "New"
@@ -35,53 +40,58 @@ item_3/separator = true
 item_4/text = "Quit"
 item_4/id = 3
 
-[node name="Edit" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=1360064780]
+[node name="Edit" type="PopupMenu" parent="UI_ROOT/VBoxContainer/MenuBar" unique_id=1214600955]
 item_count = 2
 item_0/text = "Undo"
 item_0/id = 0
 item_1/text = "Redo"
 item_1/id = 1
 
-[node name="Settings" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=126768983]
+[node name="Settings" type="PopupMenu" parent="UI_ROOT/VBoxContainer/MenuBar" unique_id=1810097744]
 item_count = 2
 item_0/text = "Preferences..."
 item_0/id = 0
 item_1/text = "Keybindings..."
 item_1/id = 1
 
-[node name="About" type="PopupMenu" parent="VBoxContainer/MenuBar" unique_id=2023836840]
+[node name="About" type="PopupMenu" parent="UI_ROOT/VBoxContainer/MenuBar" unique_id=1431649981]
 item_count = 1
 item_0/text = "About..."
 item_0/id = 0
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1871764707]
+[node name="HBoxContainer" type="HBoxContainer" parent="UI_ROOT/VBoxContainer" unique_id=2060904442]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ToolBar" type="PanelContainer" parent="VBoxContainer/HBoxContainer" unique_id=1424092572]
+[node name="ToolBar" type="PanelContainer" parent="UI_ROOT/VBoxContainer/HBoxContainer" unique_id=1906288004]
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_type_variation = &"ToolBar"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/ToolBar" unique_id=814978836]
+[node name="VBoxContainer" type="VBoxContainer" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar" unique_id=379885437]
 layout_mode = 2
 
-[node name="Select" type="Button" parent="VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=379052501]
+[node name="Select" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1583802580]
 layout_mode = 2
 text = "SEL"
 
-[node name="Edit" type="Button" parent="VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=10300524]
+[node name="Edit" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=172951472]
 layout_mode = 2
 text = "EDIT"
 
-[node name="Create" type="Button" parent="VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1279165071]
+[node name="Create" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1914731574]
 layout_mode = 2
 text = "CREAT"
 
-[node name="ViewportWorkspace" type="Container" parent="VBoxContainer/HBoxContainer" unique_id=1771627047]
+[node name="ViewportWorkspace" type="Container" parent="UI_ROOT/VBoxContainer/HBoxContainer" unique_id=614406088]
 layout_mode = 2
 script = ExtResource("1_j6ixq")
 
-[node name="StatusBar" type="PanelContainer" parent="VBoxContainer" unique_id=2080243300]
+[node name="StatusBar" type="PanelContainer" parent="UI_ROOT/VBoxContainer" unique_id=313682688]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
+
+[node name="WORLD_ROOT" type="Node3D" parent="." unique_id=1918487018]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="WORLD_ROOT" unique_id=885986579]
+environment = SubResource("Environment_j6ixq")
