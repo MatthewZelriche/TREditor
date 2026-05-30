@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cd44lnwarubkd"]
 
-[ext_resource type="Script" path="res://scripts/ui/viewportWorkspace/ViewportPane.cs" id="1_pane"]
-[ext_resource type="Script" path="res://scripts/ui/viewportWorkspace/ViewportPaneDragHandle.cs" id="2_drag"]
-[ext_resource type="Script" path="res://scripts/ui/viewportWorkspace/PaneDropOverlay.cs" id="3_overlay"]
+[ext_resource type="Script" uid="uid://bdqqq18rabyxn" path="res://scripts/ui/viewportWorkspace/ViewportPane.cs" id="1_pane"]
+[ext_resource type="Script" uid="uid://dnmdevh0jbioy" path="res://scripts/ui/viewportWorkspace/ViewportPaneDragHandle.cs" id="2_drag"]
+[ext_resource type="Script" uid="uid://c5r6g7enp5u5r" path="res://scripts/ui/viewportWorkspace/PaneDropOverlay.cs" id="3_overlay"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
 bg_color = Color(0.07, 0.08, 0.09, 1)
@@ -19,14 +19,16 @@ content_margin_right = 4.0
 content_margin_bottom = 3.0
 bg_color = Color(0.08, 0.09, 0.1, 1)
 
-[node name="ViewportPane" type="Control"]
+[node name="ViewportPane" type="Control" unique_id=1099777858]
 custom_minimum_size = Vector2(180, 140)
 clip_contents = true
+layout_mode = 3
+anchors_preset = 0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_pane")
 
-[node name="Frame" type="PanelContainer" parent="."]
+[node name="Frame" type="PanelContainer" parent="." unique_id=258650289]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -36,96 +38,66 @@ grow_vertical = 2
 mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
 
-[node name="Column" type="VBoxContainer" parent="Frame"]
+[node name="Column" type="VBoxContainer" parent="Frame" unique_id=1036672774]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-mouse_filter = 1
 
-[node name="Header" type="PanelContainer" parent="Frame/Column"]
+[node name="Header" type="PanelContainer" parent="Frame/Column" unique_id=1866064772]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 mouse_filter = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_header")
 
-[node name="Row" type="HBoxContainer" parent="Frame/Column/Header"]
+[node name="Row" type="HBoxContainer" parent="Frame/Column/Header" unique_id=574036836]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
-mouse_filter = 1
 
-[node name="DragHandle" type="Button" parent="Frame/Column/Header/Row"]
+[node name="DragHandle" type="Button" parent="Frame/Column/Header/Row" unique_id=1300782963]
 custom_minimum_size = Vector2(26, 22)
 layout_mode = 2
-focus_mode = 0
-flat = true
 tooltip_text = "Drag viewport"
+focus_mode = 0
 text = "::"
+flat = true
 script = ExtResource("2_drag")
 
-[node name="TitleLabel" type="Label" parent="Frame/Column/Header/Row"]
+[node name="TitleLabel" type="Label" parent="Frame/Column/Header/Row" unique_id=823244897]
 layout_mode = 2
 size_flags_horizontal = 3
-mouse_filter = 2
 vertical_alignment = 1
 
-[node name="SplitButton" type="MenuButton" parent="Frame/Column/Header/Row"]
+[node name="SplitButton" type="MenuButton" parent="Frame/Column/Header/Row" unique_id=1676439679]
 custom_minimum_size = Vector2(26, 22)
 layout_mode = 2
-focus_mode = 0
-flat = true
 tooltip_text = "Split viewport"
+focus_mode = 0
 text = "+"
 
-[node name="CloseButton" type="Button" parent="Frame/Column/Header/Row"]
+[node name="CloseButton" type="Button" parent="Frame/Column/Header/Row" unique_id=1493669122]
 custom_minimum_size = Vector2(26, 22)
 layout_mode = 2
-focus_mode = 0
-flat = true
 tooltip_text = "Close viewport"
+focus_mode = 0
 text = "x"
+flat = true
 
-[node name="ViewportContainer" type="SubViewportContainer" parent="Frame/Column"]
+[node name="ViewportContainer" type="SubViewportContainer" parent="Frame/Column" unique_id=1925711809]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 mouse_filter = 2
 stretch = true
 
-[node name="Viewport" type="SubViewport" parent="Frame/Column/ViewportContainer"]
-size = Vector2i(640, 480)
-disable_3d = true
+[node name="Viewport" type="SubViewport" parent="Frame/Column/ViewportContainer" unique_id=1166941552]
+handle_input_locally = false
+size = Vector2i(178, 97)
 render_target_update_mode = 4
 
-[node name="ViewportRoot" type="Control" parent="Frame/Column/ViewportContainer/Viewport"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
+[node name="Camera3D" type="Camera3D" parent="Frame/Column/ViewportContainer/Viewport" unique_id=121608507]
 
-[node name="Background" type="ColorRect" parent="Frame/Column/ViewportContainer/Viewport/ViewportRoot"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="ViewportLabel" type="Label" parent="Frame/Column/ViewportContainer/Viewport/ViewportRoot"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="DropOverlay" type="Control" parent="."]
+[node name="DropOverlay" type="Control" parent="." unique_id=958055059]
 visible = false
 layout_mode = 1
 anchors_preset = 15

@@ -9,8 +9,6 @@ public partial class ViewportPane : Control
     private PaneDropOverlay _dropOverlay;
     private ViewportPaneDragHandle _dragHandle;
     private Label _titleLabel;
-    private Label _viewportLabel;
-    private ColorRect _background;
     private MenuButton _splitButton;
     private Button _closeButton;
     private bool _uiWired;
@@ -111,19 +109,11 @@ public partial class ViewportPane : Control
         _titleLabel = GetNode<Label>("Frame/Column/Header/Row/TitleLabel");
         _splitButton = GetNode<MenuButton>("Frame/Column/Header/Row/SplitButton");
         _closeButton = GetNode<Button>("Frame/Column/Header/Row/CloseButton");
-        _background = GetNode<ColorRect>(
-            "Frame/Column/ViewportContainer/Viewport/ViewportRoot/Background"
-        );
-        _viewportLabel = GetNode<Label>(
-            "Frame/Column/ViewportContainer/Viewport/ViewportRoot/ViewportLabel"
-        );
     }
 
     private void ApplyPaneState()
     {
         _titleLabel.Text = Title;
-        _viewportLabel.Text = Title;
-        _background.Color = PaneColor;
     }
 
     private void WireSceneNodes()
