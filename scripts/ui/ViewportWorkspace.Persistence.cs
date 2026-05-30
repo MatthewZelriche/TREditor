@@ -16,6 +16,11 @@ public partial class ViewportWorkspace
 
     private void SaveLayout()
     {
+        if (!CanPersistLayout())
+        {
+            return;
+        }
+
         LayoutSnapshotNode snapshot = CaptureLayout(control =>
             control is ViewportPane pane ? pane.PaneId : ""
         );

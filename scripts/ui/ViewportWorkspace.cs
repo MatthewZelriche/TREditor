@@ -40,6 +40,7 @@ public partial class ViewportWorkspace : TilingContainer
     private string _activeDragPaneId = "";
     private int _nextPaneNumber = 1;
     private bool _suppressPersistence;
+    private bool _isShuttingDown;
 
     private enum WorkspaceLayoutPreset
     {
@@ -72,6 +73,12 @@ public partial class ViewportWorkspace : TilingContainer
 
         SaveLayout();
         SetupLayoutMenu();
+        GetWindow().CloseRequested += OnWindowCloseRequested;
+    }
+
+    public override void _ExitTree()
+    {
+        _isShuttingDown = true;
     }
 
     internal void BeginPaneDrag(string paneId)
@@ -154,7 +161,7 @@ public partial class ViewportWorkspace : TilingContainer
 
     private void OnTilingLayoutChanged()
     {
-        if (!_suppressPersistence)
+        if (CanPersistLayout())
         {
             SaveLayout();
         }
@@ -203,7 +210,7 @@ public partial class ViewportWorkspace : TilingContainer
             }
         });
 
-        if (save && !_suppressPersistence)
+        if (save && CanPersistLayout())
         {
             SaveLayout();
         }
@@ -295,6 +302,11 @@ public partial class ViewportWorkspace : TilingContainer
         ApplyPreset((WorkspaceLayoutPreset)(int)id);
     }
 
+    private void OnWindowCloseRequested()
+    {
+        _isShuttingDown = true;
+    }
+
     private void HideDropOverlays()
     {
         foreach (ViewportPane pane in GetViewportPanes())
@@ -371,5 +383,10 @@ public partial class ViewportWorkspace : TilingContainer
         {
             _suppressPersistence = wasSuppressingPersistence;
         }
+    }
+
+    private bool CanPersistLayout()
+    {
+        return !_suppressPersistence && !_isShuttingDown && IsInsideTree() && !IsQueuedForDeletion();
     }
 }
