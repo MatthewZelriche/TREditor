@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bdqqq18rabyxn" path="res://scripts/ui/viewportWorkspace/ViewportPane.cs" id="1_pane"]
 [ext_resource type="Script" uid="uid://dnmdevh0jbioy" path="res://scripts/ui/viewportWorkspace/ViewportPaneDragHandle.cs" id="2_drag"]
+[ext_resource type="Script" uid="uid://bfoo4pac5g38e" path="res://scripts/ui/viewportWorkspace/ViewCamera.cs" id="3_2lbid"]
 [ext_resource type="Script" uid="uid://c5r6g7enp5u5r" path="res://scripts/ui/viewportWorkspace/PaneDropOverlay.cs" id="3_overlay"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
@@ -87,7 +88,7 @@ flat = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-mouse_filter = 2
+mouse_filter = 1
 stretch = true
 
 [node name="Viewport" type="SubViewport" parent="Frame/Column/ViewportContainer" unique_id=1166941552]
@@ -96,6 +97,7 @@ size = Vector2i(178, 97)
 render_target_update_mode = 4
 
 [node name="Camera3D" type="Camera3D" parent="Frame/Column/ViewportContainer/Viewport" unique_id=121608507]
+script = ExtResource("3_2lbid")
 
 [node name="DropOverlay" type="Control" parent="." unique_id=958055059]
 visible = false

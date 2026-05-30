@@ -81,14 +81,29 @@ public partial class ViewportWorkspace : TilingContainer
         _isShuttingDown = true;
     }
 
+    public override void _Notification(int what)
+    {
+        base._Notification(what);
+
+        if (what == NotificationDragEnd)
+        {
+            EndPaneDrag();
+        }
+    }
+
     internal void BeginPaneDrag(string paneId)
     {
         _activeDragPaneId = paneId;
+        // Viewport containers are valid mouse targets for camera input, but they would
+        // intercept drag/drop hit testing from the pane while rearranging viewports.
+        SetViewportInputEnabledForPanes(false);
     }
 
     internal void EndPaneDrag()
     {
         _activeDragPaneId = "";
+        // Restore camera input after both successful and canceled drag operations.
+        SetViewportInputEnabledForPanes(true);
         HideDropOverlays();
     }
 
@@ -318,6 +333,17 @@ public partial class ViewportWorkspace : TilingContainer
         }
     }
 
+    private void SetViewportInputEnabledForPanes(bool enabled)
+    {
+        foreach (ViewportPane pane in GetViewportPanes())
+        {
+            if (GodotObject.IsInstanceValid(pane))
+            {
+                pane.SetViewportInputEnabled(enabled);
+            }
+        }
+    }
+
     private ViewportPane FindPane(string paneId)
     {
         if (string.IsNullOrEmpty(paneId))
@@ -387,6 +413,9 @@ public partial class ViewportWorkspace : TilingContainer
 
     private bool CanPersistLayout()
     {
-        return !_suppressPersistence && !_isShuttingDown && IsInsideTree() && !IsQueuedForDeletion();
+        return !_suppressPersistence
+            && !_isShuttingDown
+            && IsInsideTree()
+            && !IsQueuedForDeletion();
     }
 }

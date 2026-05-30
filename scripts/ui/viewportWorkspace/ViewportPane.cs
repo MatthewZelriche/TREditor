@@ -8,6 +8,7 @@ public partial class ViewportPane : Control
     private ViewportWorkspace _workspace;
     private PaneDropOverlay _dropOverlay;
     private ViewportPaneDragHandle _dragHandle;
+    private SubViewportContainer _viewportContainer;
     private Label _titleLabel;
     private MenuButton _splitButton;
     private Button _closeButton;
@@ -76,6 +77,18 @@ public partial class ViewportPane : Control
         _dropOverlay?.HideZone();
     }
 
+    internal void SetViewportInputEnabled(bool enabled)
+    {
+        if (_viewportContainer != null)
+        {
+            // Pass lets SubViewportContainer forward events to the camera. During pane drags,
+            // Ignore lets the parent ViewportPane remain the drop target over the viewport body.
+            _viewportContainer.MouseFilter = enabled
+                ? MouseFilterEnum.Pass
+                : MouseFilterEnum.Ignore;
+        }
+    }
+
     internal void BeginDrag()
     {
         _workspace?.BeginPaneDrag(PaneId);
@@ -106,6 +119,7 @@ public partial class ViewportPane : Control
     {
         _dropOverlay = GetNode<PaneDropOverlay>("DropOverlay");
         _dragHandle = GetNode<ViewportPaneDragHandle>("Frame/Column/Header/Row/DragHandle");
+        _viewportContainer = GetNode<SubViewportContainer>("Frame/Column/ViewportContainer");
         _titleLabel = GetNode<Label>("Frame/Column/Header/Row/TitleLabel");
         _splitButton = GetNode<MenuButton>("Frame/Column/Header/Row/SplitButton");
         _closeButton = GetNode<Button>("Frame/Column/Header/Row/CloseButton");
