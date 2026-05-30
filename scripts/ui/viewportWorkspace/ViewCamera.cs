@@ -3,13 +3,17 @@ using Godot;
 public partial class ViewCamera : Camera3D
 {
     [Export]
-    private float horzSens = 0.4f;
+    private float horzSens = 0.3f;
 
     [Export]
-    private float vertSens = 0.4f;
+    private float vertSens = 0.3f;
+
+    [Export]
+    private float moveSpeed = 8.0f;
 
     private float pitch = 0.0f;
     private float yaw = 0.0f;
+    private bool isGrabbed;
 
     public override void _Ready()
     {
@@ -34,10 +38,50 @@ public partial class ViewCamera : Camera3D
         return GlobalTransform.Basis.X;
     }
 
+    public override void _Process(double delta)
+    {
+        if (!isGrabbed)
+        {
+            return;
+        }
+
+        Vector3 move = Vector3.Zero;
+
+        if (Input.IsKeyPressed(Key.W))
+        {
+            move -= GetForwardVector();
+        }
+
+        if (Input.IsKeyPressed(Key.S))
+        {
+            move += GetForwardVector();
+        }
+
+        if (Input.IsKeyPressed(Key.A))
+        {
+            move -= GetRightVector();
+        }
+
+        if (Input.IsKeyPressed(Key.D))
+        {
+            move += GetRightVector();
+        }
+
+        if (!move.IsZeroApprox())
+        {
+            GlobalPosition += move.Normalized() * moveSpeed * (float)delta;
+        }
+    }
+
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is InputEventMouseMotion motionEvent)
         {
+            if (!isGrabbed)
+            {
+                return;
+            }
+
             pitch -= motionEvent.Relative.Y * vertSens;
             yaw -= motionEvent.Relative.X * horzSens;
 
@@ -52,10 +96,12 @@ public partial class ViewCamera : Camera3D
         {
             if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
             {
+                isGrabbed = true;
                 Input.MouseMode = Input.MouseModeEnum.Captured;
             }
             else if (mouseButton.ButtonIndex == MouseButton.Right && !mouseButton.Pressed)
             {
+                isGrabbed = false;
                 Input.MouseMode = Input.MouseModeEnum.Visible;
             }
         }
