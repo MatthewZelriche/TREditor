@@ -4,6 +4,8 @@
 [ext_resource type="Shader" uid="uid://bs5jr6a14cmdj" path="res://shaders/grid.gdshader" id="2_grid"]
 [ext_resource type="Script" path="res://scripts/EditorSession.cs" id="3_session"]
 [ext_resource type="Script" path="res://scripts/ui/EditorMenuBar.cs" id="4_menu_bar"]
+[ext_resource type="Script" path="res://scripts/ui/EditorToolBar.cs" id="5_tool_bar"]
+[ext_resource type="PackedScene" path="res://scripts/ui/PrimitiveCreatePopup.tscn" id="6_create_popup"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
@@ -93,6 +95,7 @@ size_flags_vertical = 3
 custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 theme_type_variation = &"ToolBar"
+script = ExtResource("5_tool_bar")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar" unique_id=379885437]
 layout_mode = 2
@@ -108,6 +111,8 @@ text = "EDIT"
 [node name="Create" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1914731574]
 layout_mode = 2
 text = "CREAT"
+
+[node name="PrimitiveCreatePopup" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar" instance=ExtResource("6_create_popup")]
 
 [node name="ViewportWorkspace" type="Container" parent="UI_ROOT/VBoxContainer/HBoxContainer" unique_id=614406088]
 layout_mode = 2
