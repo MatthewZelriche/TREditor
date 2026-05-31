@@ -19,6 +19,8 @@ internal readonly record struct ViewportSplitOption(
 
 public partial class ViewportWorkspace : TilingContainer
 {
+    private const string DefaultPaneTitle = "Perspective";
+
     internal static readonly ViewportSplitOption[] SplitOptions =
     [
         new("Split Left", ViewportDropZone.Left, SplitAxis.Horizontal, InsertPlacement.Before),
@@ -236,7 +238,7 @@ public partial class ViewportWorkspace : TilingContainer
         int paneNumber = _nextPaneNumber++;
         return CreatePane(
             $"viewport-{paneNumber}",
-            $"Viewport {paneNumber}",
+            DefaultPaneTitle,
             PanePalette[(paneNumber - 1) % PanePalette.Length]
         );
     }

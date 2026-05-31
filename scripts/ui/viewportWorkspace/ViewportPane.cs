@@ -9,7 +9,10 @@ public partial class ViewportPane : Control
     private PaneDropOverlay _dropOverlay;
     private ViewportPaneDragHandle _dragHandle;
     private SubViewportContainer _viewportContainer;
+    private ViewCamera _camera;
     private Label _titleLabel;
+    private Button _cameraSettingsButton;
+    private ViewportCameraSettingsPopup _cameraSettingsPopup;
     private MenuButton _splitButton;
     private Button _closeButton;
     private bool _uiWired;
@@ -120,7 +123,10 @@ public partial class ViewportPane : Control
         _dropOverlay = GetNode<PaneDropOverlay>("DropOverlay");
         _dragHandle = GetNode<ViewportPaneDragHandle>("Frame/Column/Header/Row/DragHandle");
         _viewportContainer = GetNode<SubViewportContainer>("Frame/Column/ViewportContainer");
+        _camera = GetNode<ViewCamera>("Frame/Column/ViewportContainer/Viewport/Camera3D");
         _titleLabel = GetNode<Label>("Frame/Column/Header/Row/TitleLabel");
+        _cameraSettingsButton = GetNode<Button>("Frame/Column/Header/Row/CameraSettingsButton");
+        _cameraSettingsPopup = GetNode<ViewportCameraSettingsPopup>("CameraSettingsPopup");
         _splitButton = GetNode<MenuButton>("Frame/Column/Header/Row/SplitButton");
         _closeButton = GetNode<Button>("Frame/Column/Header/Row/CloseButton");
     }
@@ -128,6 +134,7 @@ public partial class ViewportPane : Control
     private void ApplyPaneState()
     {
         _titleLabel.Text = Title;
+        _cameraSettingsPopup.Initialize(_camera);
     }
 
     private void WireSceneNodes()
@@ -139,6 +146,7 @@ public partial class ViewportPane : Control
 
         MouseExited += HideDropOverlay;
         _dragHandle.Initialize(this);
+        _cameraSettingsButton.Pressed += OnCameraSettingsPressed;
         _closeButton.Pressed += OnClosePressed;
 
         PopupMenu popup = _splitButton.GetPopup();
@@ -150,6 +158,11 @@ public partial class ViewportPane : Control
         popup.IdPressed += OnSplitMenuIdPressed;
 
         _uiWired = true;
+    }
+
+    private void OnCameraSettingsPressed()
+    {
+        _cameraSettingsPopup?.ToggleBelow(_cameraSettingsButton);
     }
 
     private void OnClosePressed()

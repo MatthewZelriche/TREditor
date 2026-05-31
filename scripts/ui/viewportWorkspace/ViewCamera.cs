@@ -15,6 +15,24 @@ public partial class ViewCamera : Camera3D
     private float yaw = 0.0f;
     private bool isGrabbed;
 
+    public float HorizontalSensitivity
+    {
+        get => horzSens;
+        set => horzSens = value;
+    }
+
+    public float VerticalSensitivity
+    {
+        get => vertSens;
+        set => vertSens = value;
+    }
+
+    public float MoveSpeed
+    {
+        get => moveSpeed;
+        set => moveSpeed = value;
+    }
+
     public override void _Ready()
     {
         var euler = Rotation;
