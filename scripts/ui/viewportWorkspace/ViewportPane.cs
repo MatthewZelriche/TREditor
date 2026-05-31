@@ -146,6 +146,7 @@ public partial class ViewportPane : Control
 
         MouseExited += HideDropOverlay;
         _dragHandle.Initialize(this);
+        _viewportContainer.GuiInput += OnViewportContainerGuiInput;
         _cameraSettingsButton.Pressed += OnCameraSettingsPressed;
         _closeButton.Pressed += OnClosePressed;
 
@@ -158,6 +159,68 @@ public partial class ViewportPane : Control
         popup.IdPressed += OnSplitMenuIdPressed;
 
         _uiWired = true;
+    }
+
+    // Globally publish viewport input events via the EventBus.
+    private void OnViewportContainerGuiInput(InputEvent @event)
+    {
+        if (ViewportInputEvents.Instance == null || _camera == null)
+        {
+            return;
+        }
+
+        if (@event is InputEventMouseButton mouseButton)
+        {
+            Vector3 rayOrigin = _camera.ProjectRayOrigin(mouseButton.Position);
+            Vector3 rayDirection = _camera.ProjectRayNormal(mouseButton.Position);
+
+            ViewportInputEvents.Instance.Publish(
+                new ViewportMouseButtonEvent(
+                    PaneId,
+                    mouseButton.Position,
+                    _viewportContainer.Size,
+                    mouseButton.ButtonIndex,
+                    mouseButton.Pressed,
+                    mouseButton.DoubleClick,
+                    GetModifiers(mouseButton),
+                    rayOrigin,
+                    rayDirection
+                )
+            );
+        }
+        else if (@event is InputEventMouseMotion mouseMotion)
+        {
+            // Don't publish bogus motion events.
+            if (mouseMotion.Relative.IsZeroApprox())
+            {
+                return;
+            }
+
+            Vector3 rayOrigin = _camera.ProjectRayOrigin(mouseMotion.Position);
+            Vector3 rayDirection = _camera.ProjectRayNormal(mouseMotion.Position);
+
+            ViewportInputEvents.Instance.Publish(
+                new ViewportMouseMotionEvent(
+                    PaneId,
+                    mouseMotion.Position,
+                    mouseMotion.Relative,
+                    _viewportContainer.Size,
+                    GetModifiers(mouseMotion),
+                    rayOrigin,
+                    rayDirection
+                )
+            );
+        }
+    }
+
+    private static ViewportInputModifiers GetModifiers(InputEventWithModifiers @event)
+    {
+        return new ViewportInputModifiers(
+            @event.ShiftPressed,
+            @event.CtrlPressed,
+            @event.AltPressed,
+            @event.MetaPressed
+        );
     }
 
     private void OnCameraSettingsPressed()

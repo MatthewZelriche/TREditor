@@ -15,6 +15,10 @@ run/main_scene="uid://dn73vrwm222a8"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+ViewportInputEvents="*res://scripts/input/ViewportInputEvents.cs"
+
 [dotnet]
 
 project/assembly_name="TREditor2026"
