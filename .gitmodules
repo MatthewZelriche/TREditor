@@ -1,0 +1,3 @@
+[submodule "submodules/TRMesh"]
+	path = submodules/TRMesh
+	url = https://github.com/MatthewZelriche/TRMesh.git
