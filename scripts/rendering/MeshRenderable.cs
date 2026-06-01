@@ -40,10 +40,17 @@ public partial class MeshRenderable : MeshInstance3D
                 continue;
             }
 
-            foreach (int index in faceIndices)
+            for (int i = 0; i < faceIndices.Count; i += 3)
             {
-                indices.Add(index);
-                highestDenseIndex = Math.Max(highestDenseIndex, index);
+                int a = faceIndices[i];
+                int b = faceIndices[i + 1];
+                int c = faceIndices[i + 2];
+
+                // TRMesh stores outward faces CCW; Godot expects the opposite winding here.
+                indices.Add(a);
+                indices.Add(c);
+                indices.Add(b);
+                highestDenseIndex = Math.Max(highestDenseIndex, Math.Max(a, Math.Max(b, c)));
             }
         }
 
