@@ -78,9 +78,12 @@ public partial class MeshRenderable : MeshInstance3D
         Mesh = renderMesh;
     }
 
-    public override void _ExitTree()
+    public override void _Notification(int what)
     {
-        SourceMesh.Dispose();
+        if (what == NotificationPredelete)
+        {
+            SourceMesh.Dispose();
+        }
     }
 
     private static Vector3 ToGodotVector3(NumericsVector3 vector) =>

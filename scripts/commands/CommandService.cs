@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 
 public sealed partial class CommandService : GodotObject
@@ -7,17 +8,20 @@ public sealed partial class CommandService : GodotObject
     public delegate void CommandHistoryChangedEventHandler();
 
     private readonly UndoRedo _undoRedo = new();
+    private readonly List<EditorCommand> _commands = [];
 
     public bool CanUndo => _undoRedo.HasUndo();
     public bool CanRedo => _undoRedo.HasRedo();
 
-    public void Execute(IEditorCommand command)
+    public void Execute(EditorCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        _commands.Add(command);
+
         _undoRedo.CreateAction(command.Name);
-        _undoRedo.AddDoMethod(Callable.From(command.Do));
-        _undoRedo.AddUndoMethod(Callable.From(command.Undo));
+        _undoRedo.AddDoMethod(new Callable(command, nameof(EditorCommand.Do)));
+        _undoRedo.AddUndoMethod(new Callable(command, nameof(EditorCommand.Undo)));
         _undoRedo.CommitAction();
         EmitCommandHistoryChanged();
     }

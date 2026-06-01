@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" uid="uid://d3edn2aqc0dar" path="res://scripts/ui/viewportWorkspace/ViewportWorkspace.cs" id="1_j6ixq"]
 [ext_resource type="Shader" uid="uid://bs5jr6a14cmdj" path="res://shaders/grid.gdshader" id="2_grid"]
-[ext_resource type="Script" path="res://scripts/EditorSession.cs" id="3_session"]
-[ext_resource type="Script" path="res://scripts/ui/EditorMenuBar.cs" id="4_menu_bar"]
-[ext_resource type="Script" path="res://scripts/ui/EditorToolBar.cs" id="5_tool_bar"]
-[ext_resource type="PackedScene" path="res://scripts/ui/PrimitiveCreatePopup.tscn" id="6_create_popup"]
+[ext_resource type="Script" uid="uid://dqu0ckkvataf1" path="res://scripts/EditorSession.cs" id="3_session"]
+[ext_resource type="Script" uid="uid://c82u5iq2ct5sh" path="res://scripts/ui/EditorMenuBar.cs" id="4_menu_bar"]
+[ext_resource type="Script" uid="uid://cmjc2wcihswc5" path="res://scripts/ui/EditorToolBar.cs" id="5_tool_bar"]
+[ext_resource type="PackedScene" uid="uid://cejinipmyk6rw" path="res://scripts/ui/PrimitiveCreatePopup.tscn" id="6_create_popup"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
@@ -112,7 +112,7 @@ text = "EDIT"
 layout_mode = 2
 text = "CREAT"
 
-[node name="PrimitiveCreatePopup" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar" instance=ExtResource("6_create_popup")]
+[node name="PrimitiveCreatePopup" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar" unique_id=547702506 instance=ExtResource("6_create_popup")]
 
 [node name="ViewportWorkspace" type="Container" parent="UI_ROOT/VBoxContainer/HBoxContainer" unique_id=614406088]
 layout_mode = 2

@@ -1,13 +1,24 @@
 using Godot;
+using TREditorSharp;
+using TREditorSharp.Builders;
+using NumericsVector3 = System.Numerics.Vector3;
 
 public partial class PrimitiveCreatePopup : PopupPanel
 {
+    private enum PrimitiveType
+    {
+        Box = 0,
+        Cylinder = 1,
+        Sphere = 2,
+        Plane = 3,
+    }
+
+    private EditorSession _session;
     private OptionButton _primitiveTypeOption;
     private Control _boxSettings;
     private Control _cylinderSettings;
     private Control _sphereSettings;
     private Control _planeSettings;
-    private Control _coneSettings;
     private Button _createButton;
     private bool _nodesCached;
     private bool _signalsWired;
@@ -52,8 +63,8 @@ public partial class PrimitiveCreatePopup : PopupPanel
         _cylinderSettings = GetNode<Control>("Margin/Column/Settings/CylinderSettings");
         _sphereSettings = GetNode<Control>("Margin/Column/Settings/SphereSettings");
         _planeSettings = GetNode<Control>("Margin/Column/Settings/PlaneSettings");
-        _coneSettings = GetNode<Control>("Margin/Column/Settings/ConeSettings");
         _createButton = GetNode<Button>("Margin/Column/Actions/CreateButton");
+        _session = GetNodeOrNull<EditorSession>("%WORLD_ROOT");
 
         _nodesCached = true;
     }
@@ -66,7 +77,7 @@ public partial class PrimitiveCreatePopup : PopupPanel
         }
 
         _primitiveTypeOption.ItemSelected += ShowPrimitiveSettings;
-        _createButton.Pressed += Hide;
+        _createButton.Pressed += OnCreatePressed;
 
         _signalsWired = true;
     }
@@ -77,6 +88,111 @@ public partial class PrimitiveCreatePopup : PopupPanel
         _cylinderSettings.Visible = index == 1;
         _sphereSettings.Visible = index == 2;
         _planeSettings.Visible = index == 3;
-        _coneSettings.Visible = index == 4;
     }
+
+    private void OnCreatePressed()
+    {
+        if (_session == null)
+        {
+            GD.PushWarning("PrimitiveCreatePopup could not find EditorSession.");
+            return;
+        }
+
+        PrimitiveType primitiveType = (PrimitiveType)_primitiveTypeOption.Selected;
+        SpatialMesh mesh = BuildPrimitiveMesh(primitiveType);
+        _session.Commands.Execute(
+            new CreateMeshCommand(_session, mesh, GetPrimitiveDisplayName(primitiveType))
+        );
+        Hide();
+    }
+
+    private SpatialMesh BuildPrimitiveMesh(PrimitiveType primitiveType)
+    {
+        return primitiveType switch
+        {
+            PrimitiveType.Box => BuildBoxMesh(),
+            PrimitiveType.Cylinder => BuildCylinderMesh(),
+            PrimitiveType.Sphere => BuildSphereMesh(),
+            PrimitiveType.Plane => BuildPlaneMesh(),
+            _ => throw new System.ArgumentOutOfRangeException(
+                nameof(primitiveType),
+                primitiveType,
+                null
+            ),
+        };
+    }
+
+    private SpatialMesh BuildBoxMesh()
+    {
+        float width = GetFloat("Margin/Column/Settings/BoxSettings/Width");
+        float height = GetFloat("Margin/Column/Settings/BoxSettings/Height");
+        float depth = GetFloat("Margin/Column/Settings/BoxSettings/Depth");
+
+        return MeshBuilders.Build(
+            new BlockOptions
+            {
+                Min = new NumericsVector3(-width * 0.5f, -height * 0.5f, -depth * 0.5f),
+                Max = new NumericsVector3(width * 0.5f, height * 0.5f, depth * 0.5f),
+            }
+        );
+    }
+
+    private SpatialMesh BuildCylinderMesh()
+    {
+        return MeshBuilders.Build(
+            new CylinderOptions
+            {
+                Center = NumericsVector3.Zero,
+                Radius = GetFloat("Margin/Column/Settings/CylinderSettings/Radius"),
+                Height = GetFloat("Margin/Column/Settings/CylinderSettings/Height"),
+                RadialSegments = GetInt("Margin/Column/Settings/CylinderSettings/Sides"),
+            }
+        );
+    }
+
+    private SpatialMesh BuildSphereMesh()
+    {
+        return MeshBuilders.Build(
+            new UvSphereOptions
+            {
+                Center = NumericsVector3.Zero,
+                Radius = GetFloat("Margin/Column/Settings/SphereSettings/Radius"),
+                LonSegments = GetInt("Margin/Column/Settings/SphereSettings/Segments"),
+                LatSegments = GetInt("Margin/Column/Settings/SphereSettings/Rings"),
+            }
+        );
+    }
+
+    private SpatialMesh BuildPlaneMesh()
+    {
+        int subdivisions = GetInt("Margin/Column/Settings/PlaneSettings/Subdivisions");
+
+        return MeshBuilders.Build(
+            new PlaneOptions
+            {
+                Center = NumericsVector3.Zero,
+                Width = GetFloat("Margin/Column/Settings/PlaneSettings/Width"),
+                Height = GetFloat("Margin/Column/Settings/PlaneSettings/Depth"),
+                WidthSegments = subdivisions,
+                HeightSegments = subdivisions,
+            }
+        );
+    }
+
+    private static string GetPrimitiveDisplayName(PrimitiveType primitiveType)
+    {
+        return primitiveType switch
+        {
+            PrimitiveType.Box => "Box",
+            PrimitiveType.Cylinder => "Cylinder",
+            PrimitiveType.Sphere => "Sphere",
+            PrimitiveType.Plane => "Plane",
+            _ => "Primitive",
+        };
+    }
+
+    private float GetFloat(NodePath spinBoxPath) => (float)GetNode<SpinBox>(spinBoxPath).Value;
+
+    private int GetInt(NodePath spinBoxPath) =>
+        Mathf.RoundToInt((float)GetNode<SpinBox>(spinBoxPath).Value);
 }
