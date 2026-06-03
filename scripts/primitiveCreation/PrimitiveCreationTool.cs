@@ -88,7 +88,7 @@ public sealed class PrimitiveCreationTool : IDisposable
         {
             StartDrawing(input);
         }
-        else if (_state == CreationState.DrawingFootprint && !input.Pressed)
+        else if (_state == CreationState.DrawingFootprint && input.Pressed)
         {
             StartRaisingHeight(input);
         }
