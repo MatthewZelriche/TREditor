@@ -181,8 +181,12 @@ public sealed class PrimitiveCreationTool : IDisposable
 
     private bool TryPickCreationPoint(Vector3 rayOrigin, Vector3 rayDirection, out Vector3 point)
     {
-        // TODO: Try mesh collider picking first, then fall back to the grid so primitive
-        // creation can start on existing mesh surfaces.
+        if (_session.RayPicking.TryPick(rayOrigin, rayDirection, out RayPickHit hit))
+        {
+            point = hit.Position;
+            return true;
+        }
+
         return _session.RayPicking.TryPickGrid(rayOrigin, rayDirection, out point);
     }
 

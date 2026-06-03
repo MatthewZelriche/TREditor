@@ -40,7 +40,13 @@ public partial class MeshCollider : StaticBody3D
             return;
         }
 
-        var shape = new ConcavePolygonShape3D();
+        var shape = new ConcavePolygonShape3D
+        {
+            // Enable backface collision - easy fix for our Trimesh colliders having a different
+            // winding order than Godot's default. We should probably revisit this to properly
+            // handle winding order on the Trimesh colliders in the future.
+            BackfaceCollision = true,
+        };
         shape.SetFaces(faces.ToArray());
         _shapeNode.Shape = shape;
     }
