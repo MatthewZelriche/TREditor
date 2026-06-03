@@ -143,7 +143,8 @@ public partial class PrimitiveCreatePopup : PopupPanel
             new CylinderOptions
             {
                 Center = NumericsVector3.Zero,
-                Radius = GetFloat("Margin/Column/Settings/CylinderSettings/Radius"),
+                RadiusX = GetFloat("Margin/Column/Settings/CylinderSettings/Radius"),
+                RadiusZ = GetFloat("Margin/Column/Settings/CylinderSettings/Radius"),
                 Height = GetFloat("Margin/Column/Settings/CylinderSettings/Height"),
                 RadialSegments = GetInt("Margin/Column/Settings/CylinderSettings/Sides"),
             }
