@@ -27,6 +27,7 @@ public sealed class PrimitiveCreationTool : IDisposable
     private float _baseY;
     private float _heightReferenceScreenY;
     private float _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
+    private PrimitiveCreationPreview _preview;
     private bool _disposed;
 
     // TODO: Not sure how I feel about passing the entire session object in here.
@@ -65,6 +66,10 @@ public sealed class PrimitiveCreationTool : IDisposable
         }
 
         _disposed = true;
+        ClearPreview();
+        _preview?.QueueFree();
+        _preview = null;
+
         if (ViewportInputEvents.Instance != null)
         {
             ViewportInputEvents.Instance.ViewportMouseButton -= OnViewportMouseButton;
@@ -183,13 +188,24 @@ public sealed class PrimitiveCreationTool : IDisposable
 
     private void UpdatePreview(PrimitiveBounds bounds)
     {
-        // TODO: Wire Phase 4 preview rendering here. This is intentionally a no-op for
-        // the Phase 5 smoke-test path.
+        EnsurePreview();
+        _preview.UpdatePreview(_settings, bounds);
     }
 
     private void ClearPreview()
     {
-        // TODO: Clear the Phase 4 preview node here once preview rendering exists.
+        _preview?.Clear();
+    }
+
+    private void EnsurePreview()
+    {
+        if (_preview != null)
+        {
+            return;
+        }
+
+        _preview = new PrimitiveCreationPreview { Name = "PrimitiveCreationPreview" };
+        _session.AddChild(_preview);
     }
 
     private static string GetPrimitiveDisplayName(PrimitiveKind kind)
