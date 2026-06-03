@@ -10,51 +10,44 @@ public partial class MeshRenderable : MeshInstance3D
     private const string DefaultMaterialPath = "res://resource/matcap_material.tres";
     private static Material _defaultMaterial;
 
-    public SpatialMesh SourceMesh { get; private set; } = new();
-
-    // Can't have parameter constructors for Godot, so this is like a re-usable constructor.
-    public void TakeMesh(SpatialMesh mesh)
+    /// <summary>
+    /// Appends one render triangle into caller-owned rebuild scratch lists
+    /// (e.g. <see cref="TRMeshGD"/> scratch buffers). Does not update this node.
+    /// </summary>
+    public static void AppendRebuildTriangle(
+        SpatialMesh sourceMesh,
+        List<Vector3> vertices,
+        List<Vector3> normals,
+        List<int> indices,
+        int aIndex,
+        int bIndex,
+        int cIndex
+    )
     {
-        ArgumentNullException.ThrowIfNull(mesh);
+        ArgumentNullException.ThrowIfNull(sourceMesh);
 
-        if (!ReferenceEquals(SourceMesh, mesh))
-        {
-            // MeshRenderable owns its SpatialMesh so callers can hand off generated meshes cleanly.
-            SourceMesh.Dispose();
-            SourceMesh = mesh;
-        }
+        Vector3 a = ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(aIndex));
+        Vector3 b = ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(bIndex));
+        Vector3 c = ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(cIndex));
+        Vector3 normal = CalculateTriangleNormal(a, b, c);
+        int firstRenderIndex = vertices.Count;
 
-        RebuildRenderableMesh();
+        vertices.Add(a);
+        vertices.Add(b);
+        vertices.Add(c);
+        normals.Add(normal);
+        normals.Add(normal);
+        normals.Add(normal);
+        indices.Add(firstRenderIndex);
+        indices.Add(firstRenderIndex + 1);
+        indices.Add(firstRenderIndex + 2);
     }
 
-    public void RebuildRenderableMesh()
+    /// <summary>
+    /// Commits filled rebuild scratch lists to this node's <see cref="MeshInstance3D.Mesh"/>.
+    /// </summary>
+    public void Rebuild(List<Vector3> vertices, List<Vector3> normals, List<int> indices)
     {
-        var vertices = new List<Vector3>();
-        var normals = new List<Vector3>();
-        var indices = new List<int>();
-        var faceIndices = new List<int>();
-
-        foreach (var face in SourceMesh.EnumerateLiveFaces())
-        {
-            faceIndices.Clear();
-
-            if (!SourceMesh.TriangulateFace(face, faceIndices))
-            {
-                GD.PushWarning($"MeshRenderable skipped face {face}: triangulation failed.");
-                continue;
-            }
-
-            for (int i = 0; i < faceIndices.Count; i += 3)
-            {
-                int a = faceIndices[i];
-                int b = faceIndices[i + 1];
-                int c = faceIndices[i + 2];
-
-                // TRMesh stores outward faces CCW; Godot expects the opposite winding here.
-                AddRenderTriangle(vertices, normals, indices, a, c, b);
-            }
-        }
-
         if (indices.Count == 0)
         {
             Mesh = null;
@@ -73,42 +66,8 @@ public partial class MeshRenderable : MeshInstance3D
         ApplyDefaultMaterialIfNeeded();
     }
 
-    public override void _Notification(int what)
-    {
-        if (what == NotificationPredelete)
-        {
-            SourceMesh.Dispose();
-        }
-    }
-
     private static Vector3 ToGodotVector3(NumericsVector3 vector) =>
         new(vector.X, vector.Y, vector.Z);
-
-    private void AddRenderTriangle(
-        List<Vector3> vertices,
-        List<Vector3> normals,
-        List<int> indices,
-        int aIndex,
-        int bIndex,
-        int cIndex
-    )
-    {
-        Vector3 a = ToGodotVector3(SourceMesh.GetVertexPositionByDenseIndex(aIndex));
-        Vector3 b = ToGodotVector3(SourceMesh.GetVertexPositionByDenseIndex(bIndex));
-        Vector3 c = ToGodotVector3(SourceMesh.GetVertexPositionByDenseIndex(cIndex));
-        Vector3 normal = CalculateTriangleNormal(a, b, c);
-        int firstRenderIndex = vertices.Count;
-
-        vertices.Add(a);
-        vertices.Add(b);
-        vertices.Add(c);
-        normals.Add(normal);
-        normals.Add(normal);
-        normals.Add(normal);
-        indices.Add(firstRenderIndex);
-        indices.Add(firstRenderIndex + 1);
-        indices.Add(firstRenderIndex + 2);
-    }
 
     private static Vector3 CalculateTriangleNormal(Vector3 a, Vector3 b, Vector3 c)
     {
@@ -134,5 +93,4 @@ public partial class MeshRenderable : MeshInstance3D
 
         MaterialOverride = _defaultMaterial;
     }
-
 }

@@ -5,7 +5,7 @@ using TREditorSharp;
 public sealed partial class CreateMeshCommand : EditorCommand
 {
     private readonly Node3D _parent;
-    private readonly MeshRenderable _renderable;
+    private readonly TRMeshGD _meshNode;
 
     public override string Name { get; }
 
@@ -15,22 +15,22 @@ public sealed partial class CreateMeshCommand : EditorCommand
         ArgumentNullException.ThrowIfNull(mesh);
 
         _parent = parent;
-        _renderable = new MeshRenderable { Name = primitiveName };
-        _renderable.TakeMesh(mesh);
+        _meshNode = new TRMeshGD { Name = primitiveName };
+        _meshNode.TakeMesh(mesh);
         Name = $"Create {primitiveName}";
     }
 
     public override void Do()
     {
-        if (_renderable.GetParent() == null)
+        if (_meshNode.GetParent() == null)
         {
-            _parent.AddChild(_renderable);
+            _parent.AddChild(_meshNode);
         }
     }
 
     public override void Undo()
     {
-        Node parent = _renderable.GetParent();
-        parent?.RemoveChild(_renderable);
+        Node parent = _meshNode.GetParent();
+        parent?.RemoveChild(_meshNode);
     }
 }
