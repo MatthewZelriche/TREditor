@@ -15,7 +15,12 @@ public readonly record struct PrimitiveBounds(Vector3 Min, Vector3 Max)
     /// <summary>
     /// Builds normalized bounds from two footprint points on XZ plus the vertical Y range.
     /// </summary>
-    public static PrimitiveBounds FromXzAndY(Vector3 firstXzPoint, Vector3 secondXzPoint, float baseY, float maxY)
+    public static PrimitiveBounds FromXzAndY(
+        Vector3 firstXzPoint,
+        Vector3 secondXzPoint,
+        float baseY,
+        float maxY
+    )
     {
         return new PrimitiveBounds(
             new Vector3(

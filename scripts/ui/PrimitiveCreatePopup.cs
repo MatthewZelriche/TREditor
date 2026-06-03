@@ -99,6 +99,12 @@ public partial class PrimitiveCreatePopup : PopupPanel
         }
 
         PrimitiveType primitiveType = (PrimitiveType)_primitiveTypeOption.Selected;
+        if (TryBeginInteractiveCreation(primitiveType))
+        {
+            Hide();
+            return;
+        }
+
         SpatialMesh mesh = BuildPrimitiveMesh(primitiveType);
         _session.Commands.Execute(
             new CreateMeshCommand(_session, mesh, GetPrimitiveDisplayName(primitiveType))
@@ -106,12 +112,29 @@ public partial class PrimitiveCreatePopup : PopupPanel
         Hide();
     }
 
+    private bool TryBeginInteractiveCreation(PrimitiveType primitiveType)
+    {
+        switch (primitiveType)
+        {
+            case PrimitiveType.Box:
+                _session.BeginPrimitiveCreation(PrimitiveCreationSettings.Box());
+                return true;
+            case PrimitiveType.Cylinder:
+                _session.BeginPrimitiveCreation(
+                    PrimitiveCreationSettings.Cylinder(
+                        GetInt("Margin/Column/Settings/CylinderSettings/Sides")
+                    )
+                );
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private SpatialMesh BuildPrimitiveMesh(PrimitiveType primitiveType)
     {
         return primitiveType switch
         {
-            PrimitiveType.Box => BuildBoxMesh(),
-            PrimitiveType.Cylinder => BuildCylinderMesh(),
             PrimitiveType.Sphere => BuildSphereMesh(),
             PrimitiveType.Plane => BuildPlaneMesh(),
             _ => throw new System.ArgumentOutOfRangeException(
@@ -120,37 +143,6 @@ public partial class PrimitiveCreatePopup : PopupPanel
                 null
             ),
         };
-    }
-
-    private SpatialMesh BuildBoxMesh()
-    {
-        float width = GetFloat("Margin/Column/Settings/BoxSettings/Width");
-        float height = GetFloat("Margin/Column/Settings/BoxSettings/Height");
-        float depth = GetFloat("Margin/Column/Settings/BoxSettings/Depth");
-
-        return PrimitiveMeshFactory.Build(
-            PrimitiveCreationSettings.Box(),
-            new PrimitiveBounds(
-                new Vector3(-width * 0.5f, -height * 0.5f, -depth * 0.5f),
-                new Vector3(width * 0.5f, height * 0.5f, depth * 0.5f)
-            )
-        );
-    }
-
-    private SpatialMesh BuildCylinderMesh()
-    {
-        float radius = GetFloat("Margin/Column/Settings/CylinderSettings/Radius");
-        float height = GetFloat("Margin/Column/Settings/CylinderSettings/Height");
-
-        return PrimitiveMeshFactory.Build(
-            PrimitiveCreationSettings.Cylinder(
-                GetInt("Margin/Column/Settings/CylinderSettings/Sides")
-            ),
-            new PrimitiveBounds(
-                new Vector3(-radius, -height * 0.5f, -radius),
-                new Vector3(radius, height * 0.5f, radius)
-            )
-        );
     }
 
     private SpatialMesh BuildSphereMesh()
