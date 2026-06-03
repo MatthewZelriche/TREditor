@@ -128,26 +128,28 @@ public partial class PrimitiveCreatePopup : PopupPanel
         float height = GetFloat("Margin/Column/Settings/BoxSettings/Height");
         float depth = GetFloat("Margin/Column/Settings/BoxSettings/Depth");
 
-        return MeshBuilders.Build(
-            new BlockOptions
-            {
-                Min = new NumericsVector3(-width * 0.5f, -height * 0.5f, -depth * 0.5f),
-                Max = new NumericsVector3(width * 0.5f, height * 0.5f, depth * 0.5f),
-            }
+        return PrimitiveMeshFactory.Build(
+            PrimitiveCreationSettings.Box(),
+            new PrimitiveBounds(
+                new Vector3(-width * 0.5f, -height * 0.5f, -depth * 0.5f),
+                new Vector3(width * 0.5f, height * 0.5f, depth * 0.5f)
+            )
         );
     }
 
     private SpatialMesh BuildCylinderMesh()
     {
-        return MeshBuilders.Build(
-            new CylinderOptions
-            {
-                Center = NumericsVector3.Zero,
-                RadiusX = GetFloat("Margin/Column/Settings/CylinderSettings/Radius"),
-                RadiusZ = GetFloat("Margin/Column/Settings/CylinderSettings/Radius"),
-                Height = GetFloat("Margin/Column/Settings/CylinderSettings/Height"),
-                RadialSegments = GetInt("Margin/Column/Settings/CylinderSettings/Sides"),
-            }
+        float radius = GetFloat("Margin/Column/Settings/CylinderSettings/Radius");
+        float height = GetFloat("Margin/Column/Settings/CylinderSettings/Height");
+
+        return PrimitiveMeshFactory.Build(
+            PrimitiveCreationSettings.Cylinder(
+                GetInt("Margin/Column/Settings/CylinderSettings/Sides")
+            ),
+            new PrimitiveBounds(
+                new Vector3(-radius, -height * 0.5f, -radius),
+                new Vector3(radius, height * 0.5f, radius)
+            )
         );
     }
 
