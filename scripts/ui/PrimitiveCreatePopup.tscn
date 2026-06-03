@@ -59,7 +59,7 @@ popup/item_3/text = "Plane"
 popup/item_3/id = 3
 
 [node name="Settings" type="Control" parent="Margin/Column" unique_id=13701201]
-custom_minimum_size = Vector2(0, 112)
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 size_flags_horizontal = 3
 
@@ -72,42 +72,6 @@ grow_horizontal = 2
 grow_vertical = 2
 columns = 2
 
-[node name="WidthLabel" type="Label" parent="Margin/Column/Settings/BoxSettings" unique_id=1230615408]
-layout_mode = 2
-text = "Width"
-
-[node name="Width" type="SpinBox" parent="Margin/Column/Settings/BoxSettings" unique_id=1313875642]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 1.01
-
-[node name="HeightLabel" type="Label" parent="Margin/Column/Settings/BoxSettings" unique_id=322250958]
-layout_mode = 2
-text = "Height"
-
-[node name="Height" type="SpinBox" parent="Margin/Column/Settings/BoxSettings" unique_id=1218216308]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 1.01
-
-[node name="DepthLabel" type="Label" parent="Margin/Column/Settings/BoxSettings" unique_id=1963504990]
-layout_mode = 2
-text = "Depth"
-
-[node name="Depth" type="SpinBox" parent="Margin/Column/Settings/BoxSettings" unique_id=808500207]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 1.01
-
 [node name="CylinderSettings" type="GridContainer" parent="Margin/Column/Settings" unique_id=1912353861]
 visible = false
 layout_mode = 1
@@ -117,30 +81,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 columns = 2
-
-[node name="RadiusLabel" type="Label" parent="Margin/Column/Settings/CylinderSettings" unique_id=628224636]
-layout_mode = 2
-text = "Radius"
-
-[node name="Radius" type="SpinBox" parent="Margin/Column/Settings/CylinderSettings" unique_id=1152861424]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 0.51
-
-[node name="HeightLabel" type="Label" parent="Margin/Column/Settings/CylinderSettings" unique_id=731734416]
-layout_mode = 2
-text = "Height"
-
-[node name="Height" type="SpinBox" parent="Margin/Column/Settings/CylinderSettings" unique_id=1147312281]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 1.01
 
 [node name="SidesLabel" type="Label" parent="Margin/Column/Settings/CylinderSettings" unique_id=1329802691]
 layout_mode = 2
