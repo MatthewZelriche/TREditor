@@ -6,6 +6,13 @@ public partial class EditorSession : Node3D
 
     public RayPickingService RayPicking { get; private set; }
 
+    public float GridSnapSize
+    {
+        get => _gridSnapSize;
+        set => _gridSnapSize = Mathf.Max(GridSnap.Off, value);
+    }
+
+    private float _gridSnapSize = GridSnap.Off;
     private PrimitiveCreationTool _primitiveCreationTool;
 
     public override void _EnterTree()

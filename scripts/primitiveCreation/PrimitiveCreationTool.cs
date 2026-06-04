@@ -143,7 +143,7 @@ public sealed class PrimitiveCreationTool : IDisposable
     private void StartRaisingHeight(ViewportMouseButtonEvent input)
     {
         _heightReferenceScreenY = input.ViewportPosition.Y;
-        _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
+        _currentHeight = SnapHeight(PrimitiveBounds.DefaultMinimumExtent);
         _state = CreationState.RaisingHeight;
         UpdatePreview(GetCurrentBounds());
     }
@@ -151,10 +151,11 @@ public sealed class PrimitiveCreationTool : IDisposable
     private void UpdateHeight(float currentScreenY)
     {
         float upwardPixels = _heightReferenceScreenY - currentScreenY;
-        _currentHeight = Mathf.Max(
+        float height = Mathf.Max(
             PrimitiveBounds.DefaultMinimumExtent,
             upwardPixels * HeightPerScreenPixel
         );
+        _currentHeight = SnapHeight(height);
         UpdatePreview(GetCurrentBounds());
     }
 
@@ -179,15 +180,33 @@ public sealed class PrimitiveCreationTool : IDisposable
         );
     }
 
+    private float SnapHeight(float height)
+    {
+        float snapSize = _session.GridSnapSize;
+        if (snapSize <= 0.0f)
+        {
+            return height;
+        }
+
+        Vector3 snappedTop = GridSnap.Snap(new Vector3(0.0f, _baseY + height, 0.0f), snapSize);
+        return Mathf.Max(snapSize, snappedTop.Y - _baseY);
+    }
+
     private bool TryPickCreationPoint(Vector3 rayOrigin, Vector3 rayDirection, out Vector3 point)
     {
         if (_session.RayPicking.TryPick(rayOrigin, rayDirection, out RayPickHit hit))
         {
-            point = hit.Position;
+            point = GridSnap.Snap(hit.Position, _session.GridSnapSize);
             return true;
         }
 
-        return _session.RayPicking.TryPickGrid(rayOrigin, rayDirection, out point);
+        if (_session.RayPicking.TryPickGrid(rayOrigin, rayDirection, out point))
+        {
+            point = GridSnap.Snap(point, _session.GridSnapSize);
+            return true;
+        }
+
+        return false;
     }
 
     private void UpdatePreview(PrimitiveBounds bounds)

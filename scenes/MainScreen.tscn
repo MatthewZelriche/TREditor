@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://c82u5iq2ct5sh" path="res://scripts/ui/EditorMenuBar.cs" id="4_menu_bar"]
 [ext_resource type="Script" uid="uid://cmjc2wcihswc5" path="res://scripts/ui/EditorToolBar.cs" id="5_tool_bar"]
 [ext_resource type="PackedScene" uid="uid://cejinipmyk6rw" path="res://scripts/ui/PrimitiveCreatePopup.tscn" id="6_create_popup"]
+[ext_resource type="Script" uid="uid://c07mdoaqm7i8j" path="res://scripts/ui/StatusBar.cs" id="7_status_bar"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
@@ -120,6 +121,18 @@ script = ExtResource("1_j6ixq")
 
 [node name="StatusBar" type="PanelContainer" parent="UI_ROOT/VBoxContainer" unique_id=313682688]
 custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+script = ExtResource("7_status_bar")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="UI_ROOT/VBoxContainer/StatusBar"]
+layout_mode = 2
+
+[node name="SnapLabel" type="Label" parent="UI_ROOT/VBoxContainer/StatusBar/HBoxContainer"]
+layout_mode = 2
+text = "Snap"
+
+[node name="SnapOption" type="OptionButton" parent="UI_ROOT/VBoxContainer/StatusBar/HBoxContainer"]
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
 
 [node name="WORLD_ROOT" type="Node3D" parent="." unique_id=1918487018]
