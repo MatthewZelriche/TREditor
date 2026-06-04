@@ -22,7 +22,6 @@ public sealed class PrimitiveCreationTool : IEditorTool
     private float _baseY;
     private float _heightReferenceScreenY;
     private float _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
-    private PrimitiveCreationPreview _preview;
 
     public PrimitiveCreationTool(PrimitiveCreationSettings settings, EditorToolContext context)
     {
@@ -34,24 +33,13 @@ public sealed class PrimitiveCreationTool : IEditorTool
 
     public void Enter()
     {
-        ClearPreview();
-
         _state = CreationState.WaitingForFootprint;
         _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
     }
 
-    public void Exit()
-    {
-        ClearPreview();
-        _preview?.QueueFree();
-        _preview = null;
-    }
+    public void Exit() { }
 
-    public EditorToolResult Cancel()
-    {
-        ClearPreview();
-        return EditorToolResult.Cancelled();
-    }
+    public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
     {
@@ -62,11 +50,14 @@ public sealed class PrimitiveCreationTool : IEditorTool
 
         if (_state == CreationState.WaitingForFootprint)
         {
-            StartDrawing(input);
+            return TryStartDrawing(input)
+                ? ContinueWithCurrentPreview()
+                : EditorToolResult.Continue;
         }
         else if (_state == CreationState.DrawingFootprint)
         {
             StartRaisingHeight(input);
+            return ContinueWithCurrentPreview();
         }
         else if (_state == CreationState.RaisingHeight)
         {
@@ -80,39 +71,42 @@ public sealed class PrimitiveCreationTool : IEditorTool
     {
         if (_state == CreationState.DrawingFootprint)
         {
-            UpdateFootprint(input);
+            return TryUpdateFootprint(input)
+                ? ContinueWithCurrentPreview()
+                : EditorToolResult.Continue;
         }
         else if (_state == CreationState.RaisingHeight)
         {
             UpdateHeight(input.ViewportPosition.Y);
+            return ContinueWithCurrentPreview();
         }
 
         return EditorToolResult.Continue;
     }
 
-    private void StartDrawing(ViewportMouseButtonEvent input)
+    private bool TryStartDrawing(ViewportMouseButtonEvent input)
     {
         if (!TryPickCreationPoint(input.RayOrigin, input.RayDirection, out Vector3 point))
         {
-            return;
+            return false;
         }
 
         _firstFootprintPoint = point;
         _secondFootprintPoint = point;
         _baseY = point.Y;
         _state = CreationState.DrawingFootprint;
-        UpdatePreview(GetCurrentBounds());
+        return true;
     }
 
-    private void UpdateFootprint(ViewportMouseMotionEvent input)
+    private bool TryUpdateFootprint(ViewportMouseMotionEvent input)
     {
         if (!TryPickCreationPoint(input.RayOrigin, input.RayDirection, out Vector3 point))
         {
-            return;
+            return false;
         }
 
         _secondFootprintPoint = point;
-        UpdatePreview(GetCurrentBounds());
+        return true;
     }
 
     private void StartRaisingHeight(ViewportMouseButtonEvent input)
@@ -120,7 +114,6 @@ public sealed class PrimitiveCreationTool : IEditorTool
         _heightReferenceScreenY = input.ViewportPosition.Y;
         _currentHeight = SnapHeight(PrimitiveBounds.DefaultMinimumExtent);
         _state = CreationState.RaisingHeight;
-        UpdatePreview(GetCurrentBounds());
     }
 
     private void UpdateHeight(float currentScreenY)
@@ -131,7 +124,6 @@ public sealed class PrimitiveCreationTool : IEditorTool
             upwardPixels * HeightPerScreenPixel
         );
         _currentHeight = SnapHeight(height);
-        UpdatePreview(GetCurrentBounds());
     }
 
     private EditorCommand CreatePrimitiveCommand()
@@ -183,27 +175,10 @@ public sealed class PrimitiveCreationTool : IEditorTool
         return false;
     }
 
-    private void UpdatePreview(PrimitiveBounds bounds)
-    {
-        EnsurePreview();
-        _preview.UpdatePreview(_settings, bounds);
-    }
-
-    private void ClearPreview()
-    {
-        _preview?.Clear();
-    }
-
-    private void EnsurePreview()
-    {
-        if (_preview != null)
-        {
-            return;
-        }
-
-        _preview = new PrimitiveCreationPreview { Name = "PrimitiveCreationPreview" };
-        _context.WorldRoot.AddChild(_preview);
-    }
+    private EditorToolResult ContinueWithCurrentPreview() =>
+        EditorToolResult.ContinueWithPreview(
+            new EditorPreviewRequest.Primitive(_settings, GetCurrentBounds())
+        );
 
     private static string GetPrimitiveDisplayName(PrimitiveKind kind)
     {

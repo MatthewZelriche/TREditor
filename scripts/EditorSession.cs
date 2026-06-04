@@ -15,6 +15,7 @@ public partial class EditorSession : Node3D
     private float _gridSnapSize = GridSnap.Off;
     private EditorToolContext _toolContext;
     private EditorToolManager _toolManager;
+    private EditorPreviewService _previewService;
 
     public override void _EnterTree()
     {
@@ -55,10 +56,13 @@ public partial class EditorSession : Node3D
         if (_toolManager != null)
         {
             _toolManager.CommandSubmitted -= Commands.Execute;
+            _toolManager.PreviewSubmitted -= _previewService.Apply;
         }
 
         _toolManager?.Dispose();
         _toolManager = null;
+        _previewService?.Dispose();
+        _previewService = null;
         Commands.Dispose();
     }
 
@@ -70,7 +74,9 @@ public partial class EditorSession : Node3D
         }
 
         _toolContext = new EditorToolContext(RayPicking, this, () => GridSnapSize);
+        _previewService = new EditorPreviewService(this);
         _toolManager = new EditorToolManager(_toolContext);
         _toolManager.CommandSubmitted += Commands.Execute;
+        _toolManager.PreviewSubmitted += _previewService.Apply;
     }
 }

@@ -24,6 +24,7 @@ public sealed class EditorToolManager : IDisposable
     public bool HasTemporaryTool => _temporaryTool != null;
 
     public event Action<EditorCommand> CommandSubmitted;
+    public event Action<EditorPreviewRequest> PreviewSubmitted;
 
     public void ActivatePersistentTool(EditorToolId toolId)
     {
@@ -53,6 +54,7 @@ public sealed class EditorToolManager : IDisposable
 
         CancelTemporaryTool(restorePersistentTool: false);
         ExitPersistentTool();
+        ClearPreview();
 
         _temporaryTool = tool;
         _temporaryTool.Enter();
@@ -90,6 +92,7 @@ public sealed class EditorToolManager : IDisposable
     private void ProcessToolResult(IEditorTool tool, EditorToolResult result)
     {
         SubmitCommand(result.Command);
+        SubmitPreview(result.Preview);
 
         if (result.Status == EditorToolStatus.Continue || tool != _temporaryTool)
         {
@@ -98,6 +101,7 @@ public sealed class EditorToolManager : IDisposable
 
         _temporaryTool = null;
         tool.Exit();
+        ClearPreview();
         EnterPersistentTool();
     }
 
@@ -115,8 +119,10 @@ public sealed class EditorToolManager : IDisposable
 
         IEditorTool tool = _temporaryTool;
         _temporaryTool = null;
-        SubmitCommand(tool.Cancel().Command);
+        EditorToolResult result = tool.Cancel();
+        SubmitCommand(result.Command);
         tool.Exit();
+        ClearPreview();
 
         if (restorePersistentTool)
         {
@@ -134,6 +140,21 @@ public sealed class EditorToolManager : IDisposable
         }
 
         CommandSubmitted?.Invoke(command);
+    }
+
+    private void SubmitPreview(EditorPreviewRequest request)
+    {
+        if (request == null)
+        {
+            return;
+        }
+
+        PreviewSubmitted?.Invoke(request);
+    }
+
+    private void ClearPreview()
+    {
+        PreviewSubmitted?.Invoke(new EditorPreviewRequest.Clear());
     }
 
     private void EnterPersistentTool()

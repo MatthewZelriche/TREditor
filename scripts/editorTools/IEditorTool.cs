@@ -1,3 +1,5 @@
+// Tools should interpret input, compute intent, and return descriptions of what should happen.
+// Scene mutation, command execution, and preview ownership stay outside the tools themselves.
 public interface IEditorTool
 {
     void Enter();
