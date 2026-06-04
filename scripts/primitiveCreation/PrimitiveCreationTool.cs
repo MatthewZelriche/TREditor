@@ -2,109 +2,82 @@ using System;
 using Godot;
 using TREditorSharp;
 
-public sealed class PrimitiveCreationTool : IDisposable
+public sealed class PrimitiveCreationTool : IEditorTool
 {
     private const float HeightPerScreenPixel = 0.02f;
 
     private enum CreationState
     {
-        // "Inactive" in the sense that the tool is selected in the background but not
-        // currently participating in the creation process. Eg After the user commits a
-        // primitive, but before they select another tool.
-        // We can probably refactorm this once we have a better tool selection architecture.
-        Inactive,
         WaitingForFootprint,
         DrawingFootprint,
         RaisingHeight,
     }
 
-    private readonly EditorSession _session;
+    private readonly EditorToolContext _context;
+    private readonly PrimitiveCreationSettings _settings;
 
-    private PrimitiveCreationSettings _settings;
-    private CreationState _state = CreationState.Inactive;
+    private CreationState _state = CreationState.WaitingForFootprint;
     private Vector3 _firstFootprintPoint;
     private Vector3 _secondFootprintPoint;
     private float _baseY;
     private float _heightReferenceScreenY;
     private float _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
     private PrimitiveCreationPreview _preview;
-    private bool _disposed;
 
-    // TODO: Not sure how I feel about passing the entire session object in here.
-    // Perhaps something like passing only the picking service and then returning a command object
-    // that the session can then execute?
-    public PrimitiveCreationTool(EditorSession session)
+    public PrimitiveCreationTool(PrimitiveCreationSettings settings, EditorToolContext context)
     {
-        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(context);
 
-        _session = session;
-
-        if (ViewportInputEvents.Instance == null)
-        {
-            GD.PushWarning("PrimitiveCreationTool could not find ViewportInputEvents.");
-            return;
-        }
-
-        ViewportInputEvents.Instance.ViewportMouseButton += OnViewportMouseButton;
-        ViewportInputEvents.Instance.ViewportMouseMotion += OnViewportMouseMotion;
+        _settings = settings;
+        _context = context;
     }
 
-    public void Begin(PrimitiveCreationSettings settings)
+    public void Enter()
     {
         ClearPreview();
 
-        _settings = settings;
         _state = CreationState.WaitingForFootprint;
         _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
     }
 
-    public void Dispose()
+    public void Exit()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
         ClearPreview();
         _preview?.QueueFree();
         _preview = null;
-
-        if (ViewportInputEvents.Instance != null)
-        {
-            ViewportInputEvents.Instance.ViewportMouseButton -= OnViewportMouseButton;
-            ViewportInputEvents.Instance.ViewportMouseMotion -= OnViewportMouseMotion;
-        }
     }
 
-    private void OnViewportMouseButton(ViewportMouseButtonEvent input)
+    public EditorToolResult Cancel()
     {
-        if (_state == CreationState.Inactive || input.Button != MouseButton.Left)
+        ClearPreview();
+        return EditorToolResult.Cancelled();
+    }
+
+    public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
+    {
+        if (input.Button != MouseButton.Left || !input.Pressed)
         {
-            return;
+            return EditorToolResult.Continue;
         }
 
-        if (_state == CreationState.WaitingForFootprint && input.Pressed)
+        if (_state == CreationState.WaitingForFootprint)
         {
             StartDrawing(input);
         }
-        else if (_state == CreationState.DrawingFootprint && input.Pressed)
+        else if (_state == CreationState.DrawingFootprint)
         {
             StartRaisingHeight(input);
         }
-        else if (_state == CreationState.RaisingHeight && input.Pressed)
+        else if (_state == CreationState.RaisingHeight)
         {
-            CommitPrimitive();
+            return EditorToolResult.Complete(CreatePrimitiveCommand());
         }
+
+        return EditorToolResult.Continue;
     }
 
-    private void OnViewportMouseMotion(ViewportMouseMotionEvent input)
+    public EditorToolResult HandleMouseMotion(ViewportMouseMotionEvent input)
     {
-        if (_state == CreationState.Inactive)
-        {
-            return;
-        }
-
         if (_state == CreationState.DrawingFootprint)
         {
             UpdateFootprint(input);
@@ -113,6 +86,8 @@ public sealed class PrimitiveCreationTool : IDisposable
         {
             UpdateHeight(input.ViewportPosition.Y);
         }
+
+        return EditorToolResult.Continue;
     }
 
     private void StartDrawing(ViewportMouseButtonEvent input)
@@ -159,15 +134,14 @@ public sealed class PrimitiveCreationTool : IDisposable
         UpdatePreview(GetCurrentBounds());
     }
 
-    private void CommitPrimitive()
+    private EditorCommand CreatePrimitiveCommand()
     {
         SpatialMesh mesh = PrimitiveMeshFactory.Build(_settings, GetCurrentBounds());
-        _session.Commands.Execute(
-            new CreateMeshCommand(_session, mesh, GetPrimitiveDisplayName(_settings.Kind))
+        return new CreateMeshCommand(
+            _context.WorldRoot,
+            mesh,
+            GetPrimitiveDisplayName(_settings.Kind)
         );
-
-        _state = CreationState.Inactive;
-        ClearPreview();
     }
 
     private PrimitiveBounds GetCurrentBounds()
@@ -182,7 +156,7 @@ public sealed class PrimitiveCreationTool : IDisposable
 
     private float SnapHeight(float height)
     {
-        float snapSize = _session.GridSnapSize;
+        float snapSize = _context.GetGridSnapSize();
         if (snapSize <= 0.0f)
         {
             return height;
@@ -194,15 +168,15 @@ public sealed class PrimitiveCreationTool : IDisposable
 
     private bool TryPickCreationPoint(Vector3 rayOrigin, Vector3 rayDirection, out Vector3 point)
     {
-        if (_session.RayPicking.TryPick(rayOrigin, rayDirection, out RayPickHit hit))
+        if (_context.RayPicking.TryPick(rayOrigin, rayDirection, out RayPickHit hit))
         {
-            point = GridSnap.Snap(hit.Position, _session.GridSnapSize);
+            point = GridSnap.Snap(hit.Position, _context.GetGridSnapSize());
             return true;
         }
 
-        if (_session.RayPicking.TryPickGrid(rayOrigin, rayDirection, out point))
+        if (_context.RayPicking.TryPickGrid(rayOrigin, rayDirection, out point))
         {
-            point = GridSnap.Snap(point, _session.GridSnapSize);
+            point = GridSnap.Snap(point, _context.GetGridSnapSize());
             return true;
         }
 
@@ -228,7 +202,7 @@ public sealed class PrimitiveCreationTool : IDisposable
         }
 
         _preview = new PrimitiveCreationPreview { Name = "PrimitiveCreationPreview" };
-        _session.AddChild(_preview);
+        _context.WorldRoot.AddChild(_preview);
     }
 
     private static string GetPrimitiveDisplayName(PrimitiveKind kind)

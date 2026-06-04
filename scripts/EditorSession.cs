@@ -13,29 +13,64 @@ public partial class EditorSession : Node3D
     }
 
     private float _gridSnapSize = GridSnap.Off;
-    private PrimitiveCreationTool _primitiveCreationTool;
+    private EditorToolContext _toolContext;
+    private EditorToolManager _toolManager;
 
     public override void _EnterTree()
     {
         RayPicking = new RayPickingService(GetWorld3D());
     }
 
-    // TODO: At some point we may want a more robust way to create and wire up tools.
     public override void _Ready()
     {
-        _primitiveCreationTool = new PrimitiveCreationTool(this);
+        EnsureToolManager();
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (
+            @event is InputEventKey { Pressed: true, Echo: false } key
+            && key.Keycode == Key.Escape
+            && _toolManager?.CancelTemporaryTool() == true
+        )
+        {
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
+    public void ActivatePersistentTool(EditorToolId toolId)
+    {
+        EnsureToolManager();
+        _toolManager.ActivatePersistentTool(toolId);
     }
 
     public void BeginPrimitiveCreation(PrimitiveCreationSettings settings)
     {
-        _primitiveCreationTool ??= new PrimitiveCreationTool(this);
-        _primitiveCreationTool.Begin(settings);
+        EnsureToolManager();
+        _toolManager.StartTemporaryTool(new PrimitiveCreationTool(settings, _toolContext));
     }
 
     public override void _ExitTree()
     {
-        _primitiveCreationTool?.Dispose();
-        _primitiveCreationTool = null;
+        if (_toolManager != null)
+        {
+            _toolManager.CommandSubmitted -= Commands.Execute;
+        }
+
+        _toolManager?.Dispose();
+        _toolManager = null;
         Commands.Dispose();
+    }
+
+    private void EnsureToolManager()
+    {
+        if (_toolManager != null)
+        {
+            return;
+        }
+
+        _toolContext = new EditorToolContext(RayPicking, this, () => GridSnapSize);
+        _toolManager = new EditorToolManager(_toolContext);
+        _toolManager.CommandSubmitted += Commands.Execute;
     }
 }
