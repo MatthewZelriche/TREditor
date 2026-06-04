@@ -160,13 +160,13 @@ public sealed class PrimitiveCreationTool : IEditorTool
 
     private bool TryPickCreationPoint(Vector3 rayOrigin, Vector3 rayDirection, out Vector3 point)
     {
-        if (_context.RayPicking.TryPick(rayOrigin, rayDirection, out RayPickHit hit))
+        if (_context.ScenePicking.TryPick(rayOrigin, rayDirection, out RayPickHit hit))
         {
             point = GridSnap.Snap(hit.Position, _context.GetGridSnapSize());
             return true;
         }
 
-        if (_context.RayPicking.TryPickGrid(rayOrigin, rayDirection, out point))
+        if (_context.ScenePicking.TryPickGrid(rayOrigin, rayDirection, out point))
         {
             point = GridSnap.Snap(point, _context.GetGridSnapSize());
             return true;

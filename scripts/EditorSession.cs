@@ -4,7 +4,7 @@ public partial class EditorSession : Node3D
 {
     public CommandService Commands { get; private set; }
 
-    public RayPickingService RayPicking { get; private set; }
+    public ScenePickingService ScenePicking { get; private set; }
 
     public float GridSnapSize
     {
@@ -20,7 +20,7 @@ public partial class EditorSession : Node3D
 
     public override void _EnterTree()
     {
-        RayPicking = new RayPickingService(GetWorld3D());
+        ScenePicking = new ScenePickingService(GetWorld3D());
         _sceneService = new EditorSceneService(this);
         Commands = new CommandService(new EditorCommandContext(_sceneService));
     }
@@ -78,7 +78,7 @@ public partial class EditorSession : Node3D
             return;
         }
 
-        _toolContext = new EditorToolContext(RayPicking, () => GridSnapSize);
+        _toolContext = new EditorToolContext(ScenePicking, () => GridSnapSize);
         _previewService = new EditorPreviewService(this);
         _toolManager = new EditorToolManager(_toolContext);
         _toolManager.CommandSubmitted += Commands.Execute;

@@ -3,15 +3,15 @@ using Godot;
 
 public sealed class EditorToolContext
 {
-    public EditorToolContext(RayPickingService rayPicking, Func<float> getGridSnapSize)
+    public EditorToolContext(ScenePickingService scenePicking, Func<float> getGridSnapSize)
     {
-        ArgumentNullException.ThrowIfNull(rayPicking);
+        ArgumentNullException.ThrowIfNull(scenePicking);
         ArgumentNullException.ThrowIfNull(getGridSnapSize);
 
-        RayPicking = rayPicking;
+        ScenePicking = scenePicking;
         GetGridSnapSize = getGridSnapSize;
     }
 
-    public RayPickingService RayPicking { get; }
+    public ScenePickingService ScenePicking { get; }
     public Func<float> GetGridSnapSize { get; }
 }
