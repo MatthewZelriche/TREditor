@@ -2,7 +2,7 @@ using Godot;
 
 public partial class EditorSession : Node3D
 {
-    public CommandService Commands { get; } = new();
+    public CommandService Commands { get; private set; }
 
     public RayPickingService RayPicking { get; private set; }
 
@@ -16,10 +16,13 @@ public partial class EditorSession : Node3D
     private EditorToolContext _toolContext;
     private EditorToolManager _toolManager;
     private EditorPreviewService _previewService;
+    private EditorSceneService _sceneService;
 
     public override void _EnterTree()
     {
         RayPicking = new RayPickingService(GetWorld3D());
+        _sceneService = new EditorSceneService(this);
+        Commands = new CommandService(new EditorCommandContext(_sceneService));
     }
 
     public override void _Ready()
@@ -63,6 +66,8 @@ public partial class EditorSession : Node3D
         _toolManager = null;
         _previewService?.Dispose();
         _previewService = null;
+        _sceneService?.Dispose();
+        _sceneService = null;
         Commands.Dispose();
     }
 
@@ -73,7 +78,7 @@ public partial class EditorSession : Node3D
             return;
         }
 
-        _toolContext = new EditorToolContext(RayPicking, this, () => GridSnapSize);
+        _toolContext = new EditorToolContext(RayPicking, () => GridSnapSize);
         _previewService = new EditorPreviewService(this);
         _toolManager = new EditorToolManager(_toolContext);
         _toolManager.CommandSubmitted += Commands.Execute;

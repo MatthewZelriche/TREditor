@@ -1,36 +1,31 @@
 using System;
-using Godot;
 using TREditorSharp;
 
 public sealed partial class CreateMeshCommand : EditorCommand
 {
-    private readonly Node3D _parent;
-    private readonly TRMeshGD _meshNode;
+    private readonly EditorObjectId _objectId;
+    private readonly SpatialMesh _mesh;
+    private readonly string _displayName;
 
     public override string Name { get; }
 
-    public CreateMeshCommand(Node3D parent, SpatialMesh mesh, string primitiveName)
+    public CreateMeshCommand(EditorObjectId objectId, SpatialMesh mesh, string displayName)
     {
-        ArgumentNullException.ThrowIfNull(parent);
         ArgumentNullException.ThrowIfNull(mesh);
 
-        _parent = parent;
-        _meshNode = new TRMeshGD { Name = primitiveName };
-        _meshNode.TakeMesh(mesh);
-        Name = $"Create {primitiveName}";
+        _objectId = objectId;
+        _mesh = mesh;
+        _displayName = displayName;
+        Name = $"Create {displayName}";
     }
 
-    public override void Do()
+    public override void Do(EditorCommandContext context)
     {
-        if (_meshNode.GetParent() == null)
-        {
-            _parent.AddChild(_meshNode);
-        }
+        context.Scene.CreateMeshObject(_objectId, _mesh, _displayName);
     }
 
-    public override void Undo()
+    public override void Undo(EditorCommandContext context)
     {
-        Node parent = _meshNode.GetParent();
-        parent?.RemoveChild(_meshNode);
+        context.Scene.RemoveMeshObject(_objectId);
     }
 }

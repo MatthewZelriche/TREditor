@@ -9,6 +9,14 @@ public sealed partial class CommandService : GodotObject
 
     private readonly UndoRedo _undoRedo = new();
     private readonly List<EditorCommand> _commands = [];
+    private readonly EditorCommandContext _context;
+
+    public CommandService(EditorCommandContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        _context = context;
+    }
 
     public bool CanUndo => _undoRedo.HasUndo();
     public bool CanRedo => _undoRedo.HasRedo();
@@ -18,10 +26,11 @@ public sealed partial class CommandService : GodotObject
         ArgumentNullException.ThrowIfNull(command);
 
         _commands.Add(command);
+        command.SetContext(_context);
 
         _undoRedo.CreateAction(command.Name);
-        _undoRedo.AddDoMethod(new Callable(command, nameof(EditorCommand.Do)));
-        _undoRedo.AddUndoMethod(new Callable(command, nameof(EditorCommand.Undo)));
+        _undoRedo.AddDoMethod(new Callable(command, nameof(EditorCommand.ExecuteDo)));
+        _undoRedo.AddUndoMethod(new Callable(command, nameof(EditorCommand.ExecuteUndo)));
         _undoRedo.CommitAction();
         EmitCommandHistoryChanged();
     }

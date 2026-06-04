@@ -48,15 +48,11 @@ text = "Primitive Type"
 layout_mode = 2
 size_flags_horizontal = 3
 selected = 0
-item_count = 4
+item_count = 2
 popup/item_0/text = "Box"
 popup/item_0/id = 0
 popup/item_1/text = "Cylinder"
 popup/item_1/id = 1
-popup/item_2/text = "Sphere"
-popup/item_2/id = 2
-popup/item_3/text = "Plane"
-popup/item_3/id = 3
 
 [node name="Settings" type="Control" parent="Margin/Column" unique_id=13701201]
 custom_minimum_size = Vector2(0, 80)
@@ -92,95 +88,6 @@ size_flags_horizontal = 3
 min_value = 3.0
 max_value = 256.0
 value = 16.0
-
-[node name="SphereSettings" type="GridContainer" parent="Margin/Column/Settings" unique_id=1047234161]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-columns = 2
-
-[node name="RadiusLabel" type="Label" parent="Margin/Column/Settings/SphereSettings" unique_id=859573875]
-layout_mode = 2
-text = "Radius"
-
-[node name="Radius" type="SpinBox" parent="Margin/Column/Settings/SphereSettings" unique_id=458359668]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 0.51
-
-[node name="SegmentsLabel" type="Label" parent="Margin/Column/Settings/SphereSettings" unique_id=1494278489]
-layout_mode = 2
-text = "Segments"
-
-[node name="Segments" type="SpinBox" parent="Margin/Column/Settings/SphereSettings" unique_id=1564529009]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 3.0
-max_value = 256.0
-value = 32.0
-
-[node name="RingsLabel" type="Label" parent="Margin/Column/Settings/SphereSettings" unique_id=1140025751]
-layout_mode = 2
-text = "Rings"
-
-[node name="Rings" type="SpinBox" parent="Margin/Column/Settings/SphereSettings" unique_id=1382784182]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 2.0
-max_value = 128.0
-value = 16.0
-
-[node name="PlaneSettings" type="GridContainer" parent="Margin/Column/Settings" unique_id=1067625201]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-columns = 2
-
-[node name="WidthLabel" type="Label" parent="Margin/Column/Settings/PlaneSettings" unique_id=150522632]
-layout_mode = 2
-text = "Width"
-
-[node name="Width" type="SpinBox" parent="Margin/Column/Settings/PlaneSettings" unique_id=496499007]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 1.01
-
-[node name="DepthLabel" type="Label" parent="Margin/Column/Settings/PlaneSettings" unique_id=49943327]
-layout_mode = 2
-text = "Depth"
-
-[node name="Depth" type="SpinBox" parent="Margin/Column/Settings/PlaneSettings" unique_id=1053604482]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 0.01
-max_value = 1000.0
-step = 0.1
-value = 1.01
-
-[node name="SubdivisionsLabel" type="Label" parent="Margin/Column/Settings/PlaneSettings" unique_id=1382097395]
-layout_mode = 2
-text = "Subdivisions"
-
-[node name="Subdivisions" type="SpinBox" parent="Margin/Column/Settings/PlaneSettings" unique_id=722035113]
-layout_mode = 2
-size_flags_horizontal = 3
-min_value = 1.0
-max_value = 256.0
-value = 1.0
 
 [node name="Actions" type="HBoxContainer" parent="Margin/Column" unique_id=687726756]
 layout_mode = 2

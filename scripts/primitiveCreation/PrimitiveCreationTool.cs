@@ -130,7 +130,7 @@ public sealed class PrimitiveCreationTool : IEditorTool
     {
         SpatialMesh mesh = PrimitiveMeshFactory.Build(_settings, GetCurrentBounds());
         return new CreateMeshCommand(
-            _context.WorldRoot,
+            EditorObjectId.New(),
             mesh,
             GetPrimitiveDisplayName(_settings.Kind)
         );
