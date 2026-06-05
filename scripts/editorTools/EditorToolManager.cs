@@ -3,6 +3,7 @@ using Godot;
 
 public sealed class EditorToolManager : IDisposable
 {
+    private readonly EditorToolContext _context;
     private IEditorTool _persistentTool;
     private IEditorTool _temporaryTool;
     private EditorToolId _persistentToolId;
@@ -15,6 +16,7 @@ public sealed class EditorToolManager : IDisposable
         ArgumentNullException.ThrowIfNull(context);
 
         _persistentToolId = EditorToolId.Select;
+        _context = context;
         _persistentTool = CreatePersistentTool(_persistentToolId);
 
         SubscribeToViewportInput();
@@ -183,8 +185,8 @@ public sealed class EditorToolManager : IDisposable
     {
         return toolId switch
         {
-            EditorToolId.Select => new SelectTool(),
-            EditorToolId.Edit => new EditTool(),
+            EditorToolId.Select => new SelectTool(_context),
+            EditorToolId.Edit => new EditTool(_context),
             _ => throw new ArgumentOutOfRangeException(nameof(toolId), toolId, null),
         };
     }

@@ -5,6 +5,8 @@ using TREditorSharp;
 
 public partial class TRMeshGD : Node3D
 {
+    public EditorObjectId ObjectId { get; internal set; }
+
     public SpatialMesh SourceMesh { get; private set; } = new();
 
     public MeshRenderable Renderable { get; private set; }

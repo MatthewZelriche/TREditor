@@ -26,6 +26,7 @@ public sealed class EditorSceneService : IDisposable
 
         if (_meshNodes.TryGetValue(objectId, out TRMeshGD existingNode))
         {
+            existingNode.ObjectId = objectId;
             if (existingNode.GetParent() == null)
             {
                 _worldRoot.AddChild(existingNode);
@@ -34,7 +35,7 @@ public sealed class EditorSceneService : IDisposable
             return;
         }
 
-        TRMeshGD meshNode = new() { Name = displayName };
+        TRMeshGD meshNode = new() { Name = displayName, ObjectId = objectId };
         meshNode.TakeMesh(mesh);
         _meshNodes.Add(objectId, meshNode);
         _worldRoot.AddChild(meshNode);
