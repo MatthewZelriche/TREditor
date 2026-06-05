@@ -108,6 +108,11 @@ public partial class MeshRenderable : MeshInstance3D
             return;
         }
 
+        if (HasCustomMaterialOverride())
+        {
+            return;
+        }
+
         _defaultMaterial ??= ResourceLoader.Load<Material>(DefaultMaterialPath);
         if (_defaultMaterial == null)
         {
@@ -119,4 +124,9 @@ public partial class MeshRenderable : MeshInstance3D
 
         MaterialOverride = _defaultMaterial;
     }
+
+    private bool HasCustomMaterialOverride() =>
+        MaterialOverride != null
+        && !ReferenceEquals(MaterialOverride, _defaultMaterial)
+        && !ReferenceEquals(MaterialOverride, _selectionMaterial);
 }
