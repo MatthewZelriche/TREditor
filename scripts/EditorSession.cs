@@ -18,6 +18,10 @@ public partial class EditorSession : Node3D
     private EditorToolContext _toolContext;
     private EditorToolManager _toolManager;
     private EditorPreviewService _previewService;
+
+    // Refactor opportunity: this Edit-mode view controller may eventually move closer to EditTool
+    // once tool ownership/lifetime settles.
+    private ComponentSelectionHighlightController _componentSelectionHighlightController;
     private EditorSceneService _sceneService;
 
     public override void _EnterTree()
@@ -25,6 +29,10 @@ public partial class EditorSession : Node3D
         ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
         _sceneService = new EditorSceneService(this);
+        _componentSelectionHighlightController = new ComponentSelectionHighlightController(
+            _sceneService,
+            Selection
+        );
         Commands = new CommandService(new EditorCommandContext(_sceneService, Selection));
     }
 
@@ -69,6 +77,8 @@ public partial class EditorSession : Node3D
         _toolManager = null;
         _previewService?.Dispose();
         _previewService = null;
+        _componentSelectionHighlightController?.Dispose();
+        _componentSelectionHighlightController = null;
         _sceneService?.Dispose();
         _sceneService = null;
         Selection?.Dispose();
@@ -83,7 +93,12 @@ public partial class EditorSession : Node3D
             return;
         }
 
-        _toolContext = new EditorToolContext(ScenePicking, Selection, () => GridSnapSize);
+        _toolContext = new EditorToolContext(
+            ScenePicking,
+            Selection,
+            _componentSelectionHighlightController,
+            () => GridSnapSize
+        );
         _previewService = new EditorPreviewService(this);
         _toolManager = new EditorToolManager(_toolContext);
         _toolManager.CommandSubmitted += Commands.Execute;

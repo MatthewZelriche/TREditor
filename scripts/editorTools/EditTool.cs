@@ -1,4 +1,5 @@
-// Placeholder for editing components of an individual mesh.
+using Godot;
+
 public sealed class EditTool : IEditorTool
 {
     private readonly EditorToolContext _context;
@@ -8,15 +9,49 @@ public sealed class EditTool : IEditorTool
         _context = context;
     }
 
-    public void Enter() { }
+    public void Enter()
+    {
+        _context.ComponentSelectionHighlight.SetActive(true);
+    }
 
-    public void Exit() { }
+    public void Exit()
+    {
+        _context.ComponentSelectionHighlight.SetActive(false);
+    }
 
-    public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input) =>
-        SelectionToolInput.HandleMouseButton(_context, input, ScenePickElementFilter.AnyComponent);
+    public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
+    {
+        UpdateHover(input.RayOrigin, input.RayDirection);
+        return SelectionToolInput.HandleMouseButton(
+            _context,
+            input,
+            ScenePickElementFilter.AnyComponent
+        );
+    }
 
-    public EditorToolResult HandleMouseMotion(ViewportMouseMotionEvent input) =>
-        EditorToolResult.Continue;
+    public EditorToolResult HandleMouseMotion(ViewportMouseMotionEvent input)
+    {
+        UpdateHover(input.RayOrigin, input.RayDirection);
+        return EditorToolResult.Continue;
+    }
 
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
+
+    private void UpdateHover(Vector3 rayOrigin, Vector3 rayDirection)
+    {
+        SelectionTarget? hover = null;
+        if (
+            _context.ScenePicking.TryPickScene(
+                rayOrigin,
+                rayDirection,
+                out ScenePickHit hit,
+                ScenePickElementFilter.AnyComponent
+            ) && SelectionTarget.TryFromHit(hit, out SelectionTarget target)
+        )
+        {
+            hover = target;
+        }
+
+        _context.ComponentSelectionHighlight.SetPointerState(rayOrigin, hover);
+    }
 }

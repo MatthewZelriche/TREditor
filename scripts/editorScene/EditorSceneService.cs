@@ -52,6 +52,8 @@ public sealed class EditorSceneService : IDisposable
         parent?.RemoveChild(meshNode);
     }
 
+    public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> EnumerateMeshObjects() => _meshNodes;
+
     public void Dispose()
     {
         if (_disposed)
