@@ -7,7 +7,7 @@
 [ext_resource type="Script" uid="uid://cmjc2wcihswc5" path="res://scripts/ui/EditorToolBar.cs" id="5_tool_bar"]
 [ext_resource type="PackedScene" uid="uid://cejinipmyk6rw" path="res://scripts/ui/PrimitiveCreatePopup.tscn" id="6_create_popup"]
 [ext_resource type="Script" uid="uid://c07mdoaqm7i8j" path="res://scripts/ui/StatusBar.cs" id="7_status_bar"]
-[ext_resource type="Script" path="res://shaders/Outline/outlineCompositorEffect.gd" id="8_outline"]
+[ext_resource type="Script" path="res://vendor/shaders/Outline/outlineCompositorEffect.gd" id="8_outline"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
