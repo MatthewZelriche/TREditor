@@ -1,3 +1,6 @@
 [submodule "submodules/TRMesh"]
 	path = submodules/TRMesh
 	url = https://github.com/MatthewZelriche/TRMesh.git
+[submodule "submodules/Gizmo3D"]
+	path = submodules/Gizmo3D
+	url = https://github.com/chrisizeful/Gizmo3D.git
