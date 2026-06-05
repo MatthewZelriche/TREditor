@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bsa0w1fy48wf6"
+path="res://.godot/imported/draw_outline.glsl-1b7b812744ca3b66617cca067508722f.res"
+
+[deps]
+
+source_file="res://shaders/Outline/draw_outline.glsl"
+dest_files=["res://.godot/imported/draw_outline.glsl-1b7b812744ca3b66617cca067508722f.res"]
+
+[params]
+

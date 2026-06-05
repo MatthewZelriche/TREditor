@@ -1,4 +1,3 @@
-// Placeholder for selecting entire meshes in the scene for all-at-once editing.
 public sealed class SelectTool : IEditorTool
 {
     private readonly EditorToolContext _context;
@@ -8,9 +7,15 @@ public sealed class SelectTool : IEditorTool
         _context = context;
     }
 
-    public void Enter() { }
+    public void Enter()
+    {
+        _context.ObjectSelectionHighlight.SetActive(true);
+    }
 
-    public void Exit() { }
+    public void Exit()
+    {
+        _context.ObjectSelectionHighlight.SetActive(false);
+    }
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input) =>
         SelectionToolInput.HandleMouseButton(_context, input, ScenePickElementFilter.Object);

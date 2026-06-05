@@ -8,7 +8,12 @@ using NumericsVector3 = System.Numerics.Vector3;
 public partial class MeshRenderable : MeshInstance3D
 {
     private const string DefaultMaterialPath = "res://resource/matcap_material.tres";
+    private const string SelectionMaterialPath =
+        "res://resource/matcap_stencil_write_material.tres";
     private static Material _defaultMaterial;
+    private static Material _selectionMaterial;
+
+    private bool _isSelected;
 
     /// <summary>
     /// Appends one render triangle into caller-owned rebuild scratch lists
@@ -63,7 +68,18 @@ public partial class MeshRenderable : MeshInstance3D
         var renderMesh = new ArrayMesh();
         renderMesh.AddSurfaceFromArrays(Godot.Mesh.PrimitiveType.Triangles, meshArrays);
         Mesh = renderMesh;
-        ApplyDefaultMaterialIfNeeded();
+        ApplyMaterial();
+    }
+
+    public void SetSelected(bool selected)
+    {
+        if (_isSelected == selected)
+        {
+            return;
+        }
+
+        _isSelected = selected;
+        ApplyMaterial();
     }
 
     private static Vector3 ToGodotVector3(NumericsVector3 vector) =>
@@ -75,10 +91,20 @@ public partial class MeshRenderable : MeshInstance3D
         return normal.LengthSquared() > 0.0f ? normal.Normalized() : Vector3.Up;
     }
 
-    private void ApplyDefaultMaterialIfNeeded()
+    private void ApplyMaterial()
     {
-        if (MaterialOverride != null)
+        if (_isSelected)
         {
+            _selectionMaterial ??= ResourceLoader.Load<Material>(SelectionMaterialPath);
+            if (_selectionMaterial == null)
+            {
+                GD.PushWarning(
+                    $"MeshRenderable could not load selection material: {SelectionMaterialPath}"
+                );
+                return;
+            }
+
+            MaterialOverride = _selectionMaterial;
             return;
         }
 

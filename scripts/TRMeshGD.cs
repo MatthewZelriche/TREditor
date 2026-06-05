@@ -39,6 +39,12 @@ public partial class TRMeshGD : Node3D
         Rebuild();
     }
 
+    public void SetObjectSelected(bool selected)
+    {
+        EnsureChildren();
+        Renderable.SetSelected(selected);
+    }
+
     // Constructs both render and collider data from half edge mesh data.
     public void Rebuild()
     {

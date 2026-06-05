@@ -18,6 +18,7 @@ public partial class EditorSession : Node3D
     private EditorToolContext _toolContext;
     private EditorToolManager _toolManager;
     private EditorPreviewService _previewService;
+    private ObjectSelectionHighlightController _objectSelectionHighlightController;
 
     // Refactor opportunity: this Edit-mode view controller may eventually move closer to EditTool
     // once tool ownership/lifetime settles.
@@ -29,6 +30,10 @@ public partial class EditorSession : Node3D
         ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
         _sceneService = new EditorSceneService(this);
+        _objectSelectionHighlightController = new ObjectSelectionHighlightController(
+            _sceneService,
+            Selection
+        );
         _componentSelectionHighlightController = new ComponentSelectionHighlightController(
             _sceneService,
             Selection
@@ -77,6 +82,8 @@ public partial class EditorSession : Node3D
         _toolManager = null;
         _previewService?.Dispose();
         _previewService = null;
+        _objectSelectionHighlightController?.Dispose();
+        _objectSelectionHighlightController = null;
         _componentSelectionHighlightController?.Dispose();
         _componentSelectionHighlightController = null;
         _sceneService?.Dispose();
@@ -96,6 +103,7 @@ public partial class EditorSession : Node3D
         _toolContext = new EditorToolContext(
             ScenePicking,
             Selection,
+            _objectSelectionHighlightController,
             _componentSelectionHighlightController,
             () => GridSnapSize
         );

@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://shaders/matcap_stencil_write.gdshader" id="1_stencil_shader"]
+[ext_resource type="Texture2D" path="res://resource/matcap.png" id="2_matcap_texture"]
+
+[resource]
+shader = ExtResource("1_stencil_shader")
+shader_parameter/matcap_texture = ExtResource("2_matcap_texture")
+shader_parameter/tint = Color(1, 1, 1, 1)
+shader_parameter/intensity = 1.0
+shader_parameter/flip_y = true

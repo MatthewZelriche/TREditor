@@ -7,9 +7,24 @@
 [ext_resource type="Script" uid="uid://cmjc2wcihswc5" path="res://scripts/ui/EditorToolBar.cs" id="5_tool_bar"]
 [ext_resource type="PackedScene" uid="uid://cejinipmyk6rw" path="res://scripts/ui/PrimitiveCreatePopup.tscn" id="6_create_popup"]
 [ext_resource type="Script" uid="uid://c07mdoaqm7i8j" path="res://scripts/ui/StatusBar.cs" id="7_status_bar"]
+[ext_resource type="Script" path="res://shaders/Outline/outlineCompositorEffect.gd" id="8_outline"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
+
+[sub_resource type="CompositorEffect" id="CompositorEffect_outline"]
+resource_local_to_scene = false
+enabled = true
+effect_callback_type = 1
+access_resolved_color = false
+access_resolved_depth = false
+needs_motion_vectors = false
+needs_normal_roughness = false
+script = ExtResource("8_outline")
+outline_color = Color(1, 0.843137, 0, 1)
+
+[sub_resource type="Compositor" id="Compositor_outline"]
+compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_outline")])
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_grid"]
 size = Vector2(10000, 10000)
@@ -141,6 +156,7 @@ script = ExtResource("3_session")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="WORLD_ROOT" unique_id=885986579]
 environment = SubResource("Environment_j6ixq")
+compositor = SubResource("Compositor_outline")
 
 [node name="Grid" type="MeshInstance3D" parent="WORLD_ROOT" unique_id=1237723809]
 mesh = SubResource("PlaneMesh_grid")
