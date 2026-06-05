@@ -169,6 +169,11 @@ public partial class ViewportPane : Control
             return;
         }
 
+        if (_camera.IsControllingInput)
+        {
+            return;
+        }
+
         if (@event is InputEventMouseButton mouseButton)
         {
             Vector3 rayOrigin = _camera.ProjectRayOrigin(mouseButton.Position);

@@ -33,6 +33,8 @@ public partial class ViewCamera : Camera3D
         set => moveSpeed = value;
     }
 
+    public bool IsControllingInput => isGrabbed;
+
     public override void _Ready()
     {
         var euler = Rotation;
