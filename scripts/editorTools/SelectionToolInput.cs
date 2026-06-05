@@ -6,7 +6,8 @@ public static class SelectionToolInput
     public static EditorToolResult HandleMouseButton(
         EditorToolContext context,
         ViewportMouseButtonEvent input,
-        ScenePickElementFilter filter
+        ScenePickElementFilter filter,
+        bool xRayMode = false
     )
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -24,7 +25,8 @@ public static class SelectionToolInput
                 input.RayOrigin,
                 input.RayDirection,
                 out ScenePickHit hit,
-                filter
+                filter,
+                xRayMode
             ) || !SelectionTarget.TryFromHit(hit, out SelectionTarget target)
         )
         {

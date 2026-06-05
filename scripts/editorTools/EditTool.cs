@@ -2,6 +2,9 @@ using Godot;
 
 public sealed class EditTool : IEditorTool
 {
+    // First-pass default; later this should be driven by an Edit-mode UI toggle.
+    private const bool XRayModeEnabled = true;
+
     private readonly EditorToolContext _context;
 
     public EditTool(EditorToolContext context)
@@ -25,7 +28,8 @@ public sealed class EditTool : IEditorTool
         return SelectionToolInput.HandleMouseButton(
             _context,
             input,
-            ScenePickElementFilter.AnyComponent
+            ScenePickElementFilter.AnyComponent,
+            XRayModeEnabled
         );
     }
 
@@ -45,7 +49,8 @@ public sealed class EditTool : IEditorTool
                 rayOrigin,
                 rayDirection,
                 out ScenePickHit hit,
-                ScenePickElementFilter.AnyComponent
+                ScenePickElementFilter.AnyComponent,
+                XRayModeEnabled
             ) && SelectionTarget.TryFromHit(hit, out SelectionTarget target)
         )
         {

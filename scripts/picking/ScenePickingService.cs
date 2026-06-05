@@ -38,10 +38,10 @@ public sealed class ScenePickingService
     public float BroadphaseCapsuleRadius { get; set; } = 0.1f;
 
     /// <summary>Local-space sphere radius used when picking mesh vertices.</summary>
-    public float VertexPickRadius { get; set; } = 0.08f;
+    public float VertexPickRadius { get; set; } = 0.11f;
 
     /// <summary>Local-space capsule radius used when picking mesh edges.</summary>
-    public float EdgePickRadius { get; set; } = 0.06f;
+    public float EdgePickRadius { get; set; } = 0.09f;
 
     /// <summary>Performs an exact physics ray pick and returns raw Godot hit data.</summary>
     public bool TryPick(

@@ -387,6 +387,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         {
             AlbedoColor = new Color(0.55f, 0.62f, 0.65f, 0.55f),
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            NoDepthTest = true,
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
             Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
         };
@@ -399,6 +400,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         {
             AlbedoColor = new Color(1.0f, 0.82f, 0.18f, 1.0f),
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            NoDepthTest = true,
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
         };
         return _activeEdgeMaterial;
@@ -410,6 +412,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         {
             AlbedoColor = new Color(0.65f, 0.72f, 0.75f, 0.6f),
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            NoDepthTest = true,
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
             Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
         };
@@ -422,6 +425,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         {
             AlbedoColor = new Color(1.0f, 0.95f, 0.25f, 1.0f),
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            NoDepthTest = true,
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
         };
         return _activeVertexMaterial;
