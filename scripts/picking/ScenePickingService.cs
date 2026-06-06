@@ -160,16 +160,6 @@ public sealed class ScenePickingService
 
         foreach (TRMeshGD candidate in _candidateScratch)
         {
-            UpdateBestHit(
-                BuildFuzzyObjectHit(candidate, rayOrigin, rayDirectionUnit, maxDistance),
-                ref objectHit
-            );
-
-            if (filter == ScenePickElementFilter.Object)
-            {
-                continue;
-            }
-
             TryPickCandidateComponents(
                 candidate,
                 rayOrigin,
@@ -179,6 +169,16 @@ public sealed class ScenePickingService
                 out ScenePickHit edge,
                 out ScenePickHit face
             );
+
+            if (filter == ScenePickElementFilter.Object)
+            {
+                UpdateBestHit(
+                    ObjectPickResolver.ResolveCandidate(candidate, vertex, edge, face),
+                    ref objectHit
+                );
+                continue;
+            }
+
             UpdateBestHit(vertex, ref vertexHit);
             UpdateBestHit(edge, ref edgeHit);
             UpdateBestHit(face, ref faceHit);
@@ -315,18 +315,6 @@ public sealed class ScenePickingService
             maxDistance
         );
         return hasHit;
-    }
-
-    private static ScenePickHit BuildFuzzyObjectHit(
-        TRMeshGD candidate,
-        Vector3 rayOrigin,
-        Vector3 rayDirectionUnit,
-        float maxDistance
-    )
-    {
-        Vector3 toObject = candidate.GlobalPosition - rayOrigin;
-        float distance = Mathf.Clamp(toObject.Dot(rayDirectionUnit), 0.0f, maxDistance);
-        return ScenePickHit.ObjectHit(candidate, rayOrigin + rayDirectionUnit * distance, distance);
     }
 
     private static ScenePickHit ToWorldHit(
