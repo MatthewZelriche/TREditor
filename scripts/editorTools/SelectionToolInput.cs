@@ -18,34 +18,55 @@ public static class SelectionToolInput
         }
 
         SelectionSnapshot before = context.Selection.Current;
-        SelectionSnapshot after;
-
-        if (
-            !context.ScenePicking.TryPickScene(
+        SelectionTarget target = default;
+        bool pickSucceeded =
+            context.ScenePicking.TryPickScene(
                 input.RayOrigin,
                 input.RayDirection,
                 out ScenePickHit hit,
                 filter,
                 xRayMode
-            ) || !SelectionTarget.TryFromHit(hit, out SelectionTarget target)
-        )
-        {
-            if (input.Modifiers.ShiftPressed || input.Modifiers.CtrlPressed)
-            {
-                return EditorToolResult.Continue;
-            }
+            ) && SelectionTarget.TryFromHit(hit, out target);
 
-            after = SelectionSnapshot.Empty;
-        }
-        else
+        SelectionSnapshot? after = ResolveSelectionAfterPick(
+            before,
+            pickSucceeded,
+            target,
+            input.Modifiers
+        );
+        if (after == null)
         {
-            after = before.Apply(GetChangeMode(input.Modifiers), target);
+            return EditorToolResult.Continue;
         }
 
-        EditorCommand command = SetSelectionCommand.CreateIfChanged(before, after);
+        EditorCommand command = SetSelectionCommand.CreateIfChanged(before, after.Value);
         return command == null
             ? EditorToolResult.Continue
             : EditorToolResult.ContinueWithCommand(command);
+    }
+
+    /// <summary>
+    /// Computes the post-click selection state. Returns <see langword="null"/> when a miss with
+    /// shift or ctrl held should leave the current selection unchanged.
+    /// </summary>
+    public static SelectionSnapshot? ResolveSelectionAfterPick(
+        SelectionSnapshot before,
+        bool pickSucceeded,
+        SelectionTarget target,
+        ViewportInputModifiers modifiers
+    )
+    {
+        if (!pickSucceeded)
+        {
+            if (modifiers.ShiftPressed || modifiers.CtrlPressed)
+            {
+                return null;
+            }
+
+            return SelectionSnapshot.Empty;
+        }
+
+        return before.Apply(GetChangeMode(modifiers), target);
     }
 
     private static SelectionChangeMode GetChangeMode(ViewportInputModifiers modifiers)
