@@ -1,15 +1,29 @@
 using System;
+using Gizmo3DPlugin;
 using Godot;
 
 public partial class ViewportPane : Control
 {
     private const string ScenePath = "res://scripts/ui/viewportWorkspace/ViewportPane.tscn";
+    // Gizmo3D renders into the shared world scenario, so panes isolate their gizmos by
+    // camera layer to avoid duplicate gizmos in split viewports.
+    private const int FirstGizmoLayerBit = 10;
+    private const int GizmoLayerCount = 10;
+    private const uint ReservedGizmoLayersMask = 0xFFC00u;
+
+    private static int _nextGizmoLayerOffset;
 
     private ViewportWorkspace _workspace;
     private PaneDropOverlay _dropOverlay;
     private ViewportPaneDragHandle _dragHandle;
     private SubViewportContainer _viewportContainer;
+    private SubViewport _viewport;
     private ViewCamera _camera;
+    private Gizmo3D _translationGizmo;
+    private Node3D _translationGizmoTarget;
+    private EditorSession _session;
+    private int _gizmoLayerOffset = -1;
+    private bool _translationGizmoRetryQueued;
     private Label _titleLabel;
     private Button _cameraSettingsButton;
     private ViewportCameraSettingsPopup _cameraSettingsPopup;
@@ -30,6 +44,23 @@ public partial class ViewportPane : Control
         }
 
         return scene.Instantiate<ViewportPane>();
+    }
+
+    public override void _Ready()
+    {
+        EnsureTranslationGizmo();
+    }
+
+    public override void _ExitTree()
+    {
+        if (_translationGizmoRetryQueued)
+        {
+            GetTree().ProcessFrame -= OnTranslationGizmoRetryProcessFrame;
+            _translationGizmoRetryQueued = false;
+        }
+
+        _session?.UnregisterSelectionTranslationGizmo(_translationGizmo);
+        _session = null;
     }
 
     public void Initialize(ViewportWorkspace workspace, string paneId, string title, Color color)
@@ -123,6 +154,7 @@ public partial class ViewportPane : Control
         _dropOverlay = GetNode<PaneDropOverlay>("DropOverlay");
         _dragHandle = GetNode<ViewportPaneDragHandle>("Frame/Column/Header/Row/DragHandle");
         _viewportContainer = GetNode<SubViewportContainer>("Frame/Column/ViewportContainer");
+        _viewport = GetNode<SubViewport>("Frame/Column/ViewportContainer/Viewport");
         _camera = GetNode<ViewCamera>("Frame/Column/ViewportContainer/Viewport/Camera3D");
         _titleLabel = GetNode<Label>("Frame/Column/Header/Row/TitleLabel");
         _cameraSettingsButton = GetNode<Button>("Frame/Column/Header/Row/CameraSettingsButton");
@@ -165,6 +197,11 @@ public partial class ViewportPane : Control
     private void OnViewportContainerGuiInput(InputEvent @event)
     {
         if (ViewportInputEvents.Instance == null || _camera == null)
+        {
+            return;
+        }
+
+        if (ShouldSuppressToolInput(@event))
         {
             return;
         }
@@ -267,5 +304,79 @@ public partial class ViewportPane : Control
         }
 
         return nearest == top ? ViewportDropZone.Top : ViewportDropZone.Bottom;
+    }
+
+    private void EnsureTranslationGizmo()
+    {
+        if (_translationGizmo != null)
+        {
+            return;
+        }
+
+        CacheSceneNodes();
+        _session = FindEditorSession();
+        if (_session == null)
+        {
+            if (!_translationGizmoRetryQueued)
+            {
+                _translationGizmoRetryQueued = true;
+                GetTree().ProcessFrame += OnTranslationGizmoRetryProcessFrame;
+                return;
+            }
+
+            GD.PushWarning("ViewportPane could not find EditorSession for translation gizmo.");
+            return;
+        }
+
+        _translationGizmoRetryQueued = false;
+        _translationGizmoTarget = new Node3D { Name = "SelectionTranslationGizmoTarget" };
+        _translationGizmo = new Gizmo3D { Name = "SelectionTranslationGizmo" };
+        _translationGizmo.Layers = GetGizmoLayerMask();
+        _camera.CullMask = (_camera.CullMask & ~ReservedGizmoLayersMask) | _translationGizmo.Layers;
+        _viewport.AddChild(_translationGizmoTarget);
+        _viewport.AddChild(_translationGizmo);
+        _session.RegisterSelectionTranslationGizmo(_translationGizmo, _translationGizmoTarget);
+    }
+
+    private uint GetGizmoLayerMask()
+    {
+        if (_gizmoLayerOffset < 0)
+        {
+            _gizmoLayerOffset = _nextGizmoLayerOffset++ % GizmoLayerCount;
+        }
+
+        return 1u << (FirstGizmoLayerBit + _gizmoLayerOffset);
+    }
+
+    private EditorSession FindEditorSession()
+    {
+        Node root = GetTree()?.Root;
+        if (root == null)
+        {
+            return null;
+        }
+
+        return root.FindChild("WORLD_ROOT", recursive: true, owned: false) as EditorSession;
+    }
+
+    private void OnTranslationGizmoRetryProcessFrame()
+    {
+        GetTree().ProcessFrame -= OnTranslationGizmoRetryProcessFrame;
+        EnsureTranslationGizmo();
+    }
+
+    private bool ShouldSuppressToolInput(InputEvent @event)
+    {
+        if (
+            _translationGizmo == null
+            || !_translationGizmo.Visible
+            || !(_translationGizmo.Editing || _translationGizmo.Hovering)
+        )
+        {
+            return false;
+        }
+
+        return @event is InputEventMouseMotion
+            || @event is InputEventMouseButton { ButtonIndex: MouseButton.Left };
     }
 }

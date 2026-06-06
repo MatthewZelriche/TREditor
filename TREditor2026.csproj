@@ -6,9 +6,12 @@
   <!-- TRMesh is a separate assembly; exclude its sources so Godot does not compile tests/src into TREditor. -->
   <ItemGroup>
     <Compile Remove="submodules/TRMesh/**/*.cs" />
+    <Compile Remove="submodules/Gizmo3D/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
     <!-- Pull in Handle Aliases (global usings are per-assembly). -->
     <Compile Include="submodules/TRMesh/src/HandleAliases.cs" Link="HandleAliases.cs" />
+    <Compile Include="submodules/Gizmo3D/addons/Gizmo3DSharp/Gizmo3D.cs" Link="vendor/Gizmo3D/Gizmo3D.cs" />
+    <Compile Include="submodules/Gizmo3D/addons/Gizmo3DSharp/GizmoHelper.cs" Link="vendor/Gizmo3D/GizmoHelper.cs" />
     <ProjectReference Include="submodules/TRMesh/TREditorSharp.csproj" />
   </ItemGroup>
 </Project>

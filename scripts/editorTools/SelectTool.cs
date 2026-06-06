@@ -10,11 +10,13 @@ public sealed class SelectTool : IEditorTool
     public void Enter()
     {
         _context.ObjectSelectionHighlight.SetActive(true);
+        _context.SelectionTranslationGizmo.SetActive(true);
     }
 
     public void Exit()
     {
         _context.ObjectSelectionHighlight.SetActive(false);
+        _context.SelectionTranslationGizmo.SetActive(false);
     }
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input) =>

@@ -55,6 +55,11 @@ public sealed class ComponentSelectionHighlightController : IDisposable
         Sync();
     }
 
+    public void Refresh()
+    {
+        Sync();
+    }
+
     public void Dispose()
     {
         if (_disposed)

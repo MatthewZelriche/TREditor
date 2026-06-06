@@ -8,6 +8,7 @@ public sealed class EditorToolContext
         SelectionService selection,
         ObjectSelectionHighlightController objectSelectionHighlight,
         ComponentSelectionHighlightController componentSelectionHighlight,
+        SelectionTranslationGizmoController selectionTranslationGizmo,
         Func<float> getGridSnapSize
     )
     {
@@ -15,12 +16,14 @@ public sealed class EditorToolContext
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(objectSelectionHighlight);
         ArgumentNullException.ThrowIfNull(componentSelectionHighlight);
+        ArgumentNullException.ThrowIfNull(selectionTranslationGizmo);
         ArgumentNullException.ThrowIfNull(getGridSnapSize);
 
         ScenePicking = scenePicking;
         Selection = selection;
         ObjectSelectionHighlight = objectSelectionHighlight;
         ComponentSelectionHighlight = componentSelectionHighlight;
+        SelectionTranslationGizmo = selectionTranslationGizmo;
         GetGridSnapSize = getGridSnapSize;
     }
 
@@ -28,5 +31,6 @@ public sealed class EditorToolContext
     public SelectionService Selection { get; }
     public ObjectSelectionHighlightController ObjectSelectionHighlight { get; }
     public ComponentSelectionHighlightController ComponentSelectionHighlight { get; }
+    public SelectionTranslationGizmoController SelectionTranslationGizmo { get; }
     public Func<float> GetGridSnapSize { get; }
 }

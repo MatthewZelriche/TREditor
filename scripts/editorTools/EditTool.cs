@@ -15,11 +15,13 @@ public sealed class EditTool : IEditorTool
     public void Enter()
     {
         _context.ComponentSelectionHighlight.SetActive(true);
+        _context.SelectionTranslationGizmo.SetActive(true);
     }
 
     public void Exit()
     {
         _context.ComponentSelectionHighlight.SetActive(false);
+        _context.SelectionTranslationGizmo.SetActive(false);
     }
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)

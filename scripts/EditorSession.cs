@@ -1,3 +1,4 @@
+using Gizmo3DPlugin;
 using Godot;
 
 public partial class EditorSession : Node3D
@@ -18,12 +19,13 @@ public partial class EditorSession : Node3D
     private EditorToolContext _toolContext;
     private EditorToolManager _toolManager;
     private EditorPreviewService _previewService;
-    private ObjectSelectionHighlightController _objectSelectionHighlightController;
 
-    // Refactor opportunity: this Edit-mode view controller may eventually move closer to EditTool
-    // once tool ownership/lifetime settles.
+    // TODO: REALLY don't like how we're jamming so many controllers into this class.
+    private ObjectSelectionHighlightController _objectSelectionHighlightController;
+    private SelectionTranslationGizmoController _selectionTranslationGizmoController;
     private ComponentSelectionHighlightController _componentSelectionHighlightController;
     private EditorSceneService _sceneService;
+    private bool _translationGizmoEventsWired;
 
     public override void _EnterTree()
     {
@@ -38,7 +40,12 @@ public partial class EditorSession : Node3D
             _sceneService,
             Selection
         );
+        _selectionTranslationGizmoController = new SelectionTranslationGizmoController(
+            _sceneService,
+            Selection
+        );
         Commands = new CommandService(new EditorCommandContext(_sceneService, Selection));
+        Commands.CommandHistoryChanged += OnCommandHistoryChanged;
     }
 
     public override void _Ready()
@@ -70,6 +77,16 @@ public partial class EditorSession : Node3D
         _toolManager.StartTemporaryTool(new PrimitiveCreationTool(settings, _toolContext));
     }
 
+    public void RegisterSelectionTranslationGizmo(Gizmo3D gizmo, Node3D target)
+    {
+        _selectionTranslationGizmoController?.Register(gizmo, target);
+    }
+
+    public void UnregisterSelectionTranslationGizmo(Gizmo3D gizmo)
+    {
+        _selectionTranslationGizmoController?.Unregister(gizmo);
+    }
+
     public override void _ExitTree()
     {
         if (_toolManager != null)
@@ -78,10 +95,19 @@ public partial class EditorSession : Node3D
             _toolManager.PreviewSubmitted -= _previewService.Apply;
         }
 
+        if (_translationGizmoEventsWired)
+        {
+            _selectionTranslationGizmoController.CommandSubmitted -= Commands.Execute;
+            _selectionTranslationGizmoController.PreviewSubmitted -= _previewService.Apply;
+            _translationGizmoEventsWired = false;
+        }
+
         _toolManager?.Dispose();
         _toolManager = null;
         _previewService?.Dispose();
         _previewService = null;
+        _selectionTranslationGizmoController?.Dispose();
+        _selectionTranslationGizmoController = null;
         _objectSelectionHighlightController?.Dispose();
         _objectSelectionHighlightController = null;
         _componentSelectionHighlightController?.Dispose();
@@ -90,6 +116,7 @@ public partial class EditorSession : Node3D
         _sceneService = null;
         Selection?.Dispose();
         Selection = null;
+        Commands.CommandHistoryChanged -= OnCommandHistoryChanged;
         Commands.Dispose();
     }
 
@@ -105,11 +132,25 @@ public partial class EditorSession : Node3D
             Selection,
             _objectSelectionHighlightController,
             _componentSelectionHighlightController,
+            _selectionTranslationGizmoController,
             () => GridSnapSize
         );
-        _previewService = new EditorPreviewService(this);
+        _previewService = new EditorPreviewService(
+            this,
+            _sceneService,
+            _componentSelectionHighlightController.Refresh
+        );
         _toolManager = new EditorToolManager(_toolContext);
         _toolManager.CommandSubmitted += Commands.Execute;
         _toolManager.PreviewSubmitted += _previewService.Apply;
+        _selectionTranslationGizmoController.CommandSubmitted += Commands.Execute;
+        _selectionTranslationGizmoController.PreviewSubmitted += _previewService.Apply;
+        _translationGizmoEventsWired = true;
+    }
+
+    private void OnCommandHistoryChanged()
+    {
+        _componentSelectionHighlightController.Refresh();
+        _selectionTranslationGizmoController.Refresh();
     }
 }
