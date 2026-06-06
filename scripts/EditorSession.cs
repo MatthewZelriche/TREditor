@@ -9,6 +9,9 @@ public partial class EditorSession : Node3D
 
     public ScenePickingService ScenePicking { get; private set; }
 
+    public PrimitiveCreationSettings PrimitiveCreationSettings { get; set; } =
+        PrimitiveCreationSettings.Box();
+
     public float GridSnapSize
     {
         get => _gridSnapSize;
@@ -69,12 +72,6 @@ public partial class EditorSession : Node3D
     {
         EnsureToolManager();
         _toolManager.ActivatePersistentTool(toolId);
-    }
-
-    public void BeginPrimitiveCreation(PrimitiveCreationSettings settings)
-    {
-        EnsureToolManager();
-        _toolManager.StartTemporaryTool(new PrimitiveCreationTool(settings, _toolContext));
     }
 
     public void RegisterSelectionTranslationGizmo(Gizmo3D gizmo, Node3D target)
@@ -140,7 +137,7 @@ public partial class EditorSession : Node3D
             _sceneService,
             _componentSelectionHighlightController.Refresh
         );
-        _toolManager = new EditorToolManager(_toolContext);
+        _toolManager = new EditorToolManager(_toolContext, () => PrimitiveCreationSettings);
         _toolManager.CommandSubmitted += Commands.Execute;
         _toolManager.PreviewSubmitted += _previewService.Apply;
         _selectionTranslationGizmoController.CommandSubmitted += Commands.Execute;

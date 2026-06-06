@@ -14,32 +14,37 @@ public sealed class PrimitiveCreationTool : IEditorTool
     }
 
     private readonly EditorToolContext _context;
-    private readonly PrimitiveCreationSettings _settings;
+    private readonly Func<PrimitiveCreationSettings> _getSettings;
 
     private CreationState _state = CreationState.WaitingForFootprint;
+    private PrimitiveCreationSettings _settings;
     private Vector3 _firstFootprintPoint;
     private Vector3 _secondFootprintPoint;
     private float _baseY;
     private float _heightReferenceScreenY;
     private float _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
 
-    public PrimitiveCreationTool(PrimitiveCreationSettings settings, EditorToolContext context)
+    public PrimitiveCreationTool(
+        Func<PrimitiveCreationSettings> getSettings,
+        EditorToolContext context
+    )
     {
+        ArgumentNullException.ThrowIfNull(getSettings);
         ArgumentNullException.ThrowIfNull(context);
 
-        _settings = settings;
+        _getSettings = getSettings;
         _context = context;
     }
 
-    public void Enter()
+    public void Enter() => Reset();
+
+    public void Exit() => Reset();
+
+    public EditorToolResult Cancel()
     {
-        _state = CreationState.WaitingForFootprint;
-        _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
+        Reset();
+        return EditorToolResult.Cancelled();
     }
-
-    public void Exit() { }
-
-    public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
     {
@@ -61,7 +66,13 @@ public sealed class PrimitiveCreationTool : IEditorTool
         }
         else if (_state == CreationState.RaisingHeight)
         {
-            return EditorToolResult.Complete(CreatePrimitiveCommand());
+            EditorCommand command = CreatePrimitiveCommand();
+            Reset();
+            return new EditorToolResult(
+                EditorToolStatus.Continue,
+                command,
+                new EditorPreviewRequest.Clear()
+            );
         }
 
         return EditorToolResult.Continue;
@@ -94,6 +105,7 @@ public sealed class PrimitiveCreationTool : IEditorTool
         _firstFootprintPoint = point;
         _secondFootprintPoint = point;
         _baseY = point.Y;
+        _settings = _getSettings();
         _state = CreationState.DrawingFootprint;
         return true;
     }
@@ -179,6 +191,12 @@ public sealed class PrimitiveCreationTool : IEditorTool
         EditorToolResult.ContinueWithPreview(
             new EditorPreviewRequest.Primitive(_settings, GetCurrentBounds())
         );
+
+    private void Reset()
+    {
+        _state = CreationState.WaitingForFootprint;
+        _currentHeight = PrimitiveBounds.DefaultMinimumExtent;
+    }
 
     private static string GetPrimitiveDisplayName(PrimitiveKind kind)
     {

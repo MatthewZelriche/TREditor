@@ -5,9 +5,10 @@
 [ext_resource type="Script" uid="uid://dqu0ckkvataf1" path="res://scripts/EditorSession.cs" id="3_session"]
 [ext_resource type="Script" uid="uid://c82u5iq2ct5sh" path="res://scripts/ui/EditorMenuBar.cs" id="4_menu_bar"]
 [ext_resource type="Script" uid="uid://cmjc2wcihswc5" path="res://scripts/ui/EditorToolBar.cs" id="5_tool_bar"]
-[ext_resource type="PackedScene" uid="uid://cejinipmyk6rw" path="res://scripts/ui/PrimitiveCreatePopup.tscn" id="6_create_popup"]
+[ext_resource type="PackedScene" uid="uid://cejinipmyk6rw" path="res://scripts/ui/PrimitiveCreatePanel.tscn" id="6_create_panel"]
 [ext_resource type="Script" uid="uid://c07mdoaqm7i8j" path="res://scripts/ui/StatusBar.cs" id="7_status_bar"]
 [ext_resource type="Script" path="res://vendor/shaders/Outline/outlineCompositorEffect.gd" id="8_outline"]
+[ext_resource type="Script" path="res://scripts/ui/EditorSidePanel.cs" id="9_side_panel"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
@@ -118,21 +119,57 @@ layout_mode = 2
 
 [node name="Select" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1583802580]
 layout_mode = 2
+toggle_mode = true
 text = "SEL"
 
 [node name="Edit" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=172951472]
 layout_mode = 2
+toggle_mode = true
 text = "EDIT"
 
 [node name="Create" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer" unique_id=1914731574]
 layout_mode = 2
+toggle_mode = true
 text = "CREAT"
-
-[node name="PrimitiveCreatePopup" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar" unique_id=547702506 instance=ExtResource("6_create_popup")]
 
 [node name="ViewportWorkspace" type="Container" parent="UI_ROOT/VBoxContainer/HBoxContainer" unique_id=614406088]
 layout_mode = 2
+size_flags_horizontal = 3
 script = ExtResource("1_j6ixq")
+
+[node name="EditorSidePanel" type="PanelContainer" parent="UI_ROOT/VBoxContainer/HBoxContainer" unique_name_in_owner=true]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+script = ExtResource("9_side_panel")
+
+[node name="Column" type="VBoxContainer" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel"]
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column"]
+layout_mode = 2
+alignment = 2
+
+[node name="CollapseButton" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Header"]
+layout_mode = 2
+tooltip_text = "Collapse side panel"
+text = ">"
+
+[node name="CloseTabButton" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Header"]
+layout_mode = 2
+tooltip_text = "Close active tab"
+text = "X"
+
+[node name="Tabs" type="TabContainer" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Create" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Tabs" instance=ExtResource("6_create_panel")]
+
+[node name="SidePanelExpandButton" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+tooltip_text = "Expand side panel"
+text = "<"
 
 [node name="StatusBar" type="PanelContainer" parent="UI_ROOT/VBoxContainer" unique_id=313682688]
 custom_minimum_size = Vector2(0, 20)

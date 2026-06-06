@@ -4,6 +4,7 @@ using Godot;
 public sealed class EditorToolManager : IDisposable
 {
     private readonly EditorToolContext _context;
+    private readonly Func<PrimitiveCreationSettings> _getPrimitiveCreationSettings;
     private IEditorTool _persistentTool;
     private IEditorTool _temporaryTool;
     private EditorToolId _persistentToolId;
@@ -11,12 +12,17 @@ public sealed class EditorToolManager : IDisposable
     private bool _subscribedToViewportInput;
     private bool _disposed;
 
-    public EditorToolManager(EditorToolContext context)
+    public EditorToolManager(
+        EditorToolContext context,
+        Func<PrimitiveCreationSettings> getPrimitiveCreationSettings
+    )
     {
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(getPrimitiveCreationSettings);
 
         _persistentToolId = EditorToolId.Select;
         _context = context;
+        _getPrimitiveCreationSettings = getPrimitiveCreationSettings;
         _persistentTool = CreatePersistentTool(_persistentToolId);
 
         SubscribeToViewportInput();
@@ -42,6 +48,7 @@ public sealed class EditorToolManager : IDisposable
         if (_persistentToolId != toolId)
         {
             ExitPersistentTool();
+            ClearPreview();
             _persistentTool = CreatePersistentTool(toolId);
             _persistentToolId = toolId;
         }
@@ -187,6 +194,10 @@ public sealed class EditorToolManager : IDisposable
         {
             EditorToolId.Select => new SelectTool(_context),
             EditorToolId.Edit => new EditTool(_context),
+            EditorToolId.Create => new PrimitiveCreationTool(
+                _getPrimitiveCreationSettings,
+                _context
+            ),
             _ => throw new ArgumentOutOfRangeException(nameof(toolId), toolId, null),
         };
     }

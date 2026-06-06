@@ -1,36 +1,13 @@
 [gd_scene format=3 uid="uid://cejinipmyk6rw"]
 
-[ext_resource type="Script" uid="uid://b6diwpssqvgkm" path="res://scripts/ui/PrimitiveCreatePopup.cs" id="1_popup"]
+[ext_resource type="Script" uid="uid://b6diwpssqvgkm" path="res://scripts/ui/PrimitiveCreatePanel.cs" id="1_panel"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_create_popup"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.075, 0.085, 0.095, 0.98)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.22, 0.25, 0.28, 1)
-
-[node name="PrimitiveCreatePopup" type="PopupPanel" unique_id=1280054773]
-oversampling_override = 1.0
-size = Vector2i(300, 280)
-visible = true
-theme_override_styles/panel = SubResource("StyleBoxFlat_create_popup")
-script = ExtResource("1_popup")
+[node name="Create" type="PanelContainer" unique_id=1280054773]
+layout_mode = 2
+script = ExtResource("1_panel")
 
 [node name="Margin" type="MarginContainer" parent="." unique_id=1909676472]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 4.0
-offset_top = 4.0
-offset_right = -4.0
-offset_bottom = -4.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
@@ -88,12 +65,3 @@ size_flags_horizontal = 3
 min_value = 3.0
 max_value = 256.0
 value = 16.0
-
-[node name="Actions" type="HBoxContainer" parent="Margin/Column" unique_id=687726756]
-layout_mode = 2
-size_flags_horizontal = 3
-alignment = 2
-
-[node name="CreateButton" type="Button" parent="Margin/Column/Actions" unique_id=1985484942]
-layout_mode = 2
-text = "Create"
