@@ -1,5 +1,4 @@
 using System;
-using Gizmo3DPlugin;
 using Godot;
 
 public partial class ViewportPane : Control
@@ -19,7 +18,7 @@ public partial class ViewportPane : Control
     private SubViewportContainer _viewportContainer;
     private SubViewport _viewport;
     private ViewCamera _camera;
-    private Gizmo3D _translationGizmo;
+    private SelectionTranslationGizmo _translationGizmo;
     private Node3D _translationGizmoTarget;
     private EditorSession _session;
     private int _gizmoLayerOffset = -1;
@@ -330,7 +329,11 @@ public partial class ViewportPane : Control
 
         _translationGizmoRetryQueued = false;
         _translationGizmoTarget = new Node3D { Name = "SelectionTranslationGizmoTarget" };
-        _translationGizmo = new Gizmo3D { Name = "SelectionTranslationGizmo" };
+        _translationGizmo = new SelectionTranslationGizmo
+        {
+            Name = "SelectionTranslationGizmo",
+            GetGridSnapSize = () => _session?.GridSnapSize ?? GridSnap.Off,
+        };
         _translationGizmo.Layers = GetGizmoLayerMask();
         _camera.CullMask = (_camera.CullMask & ~ReservedGizmoLayersMask) | _translationGizmo.Layers;
         _viewport.AddChild(_translationGizmoTarget);
