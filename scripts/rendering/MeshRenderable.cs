@@ -24,16 +24,16 @@ public partial class MeshRenderable : MeshInstance3D
         List<Vector3> vertices,
         List<Vector3> normals,
         List<int> indices,
-        int aIndex,
-        int bIndex,
-        int cIndex
+        FaceCornerHandle aCorner,
+        FaceCornerHandle bCorner,
+        FaceCornerHandle cCorner
     )
     {
         ArgumentNullException.ThrowIfNull(sourceMesh);
 
-        Vector3 a = ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(aIndex));
-        Vector3 b = ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(bIndex));
-        Vector3 c = ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(cIndex));
+        Vector3 a = GetCornerPosition(sourceMesh, aCorner);
+        Vector3 b = GetCornerPosition(sourceMesh, bCorner);
+        Vector3 c = GetCornerPosition(sourceMesh, cCorner);
         Vector3 normal = CalculateTriangleNormal(a, b, c);
         int firstRenderIndex = vertices.Count;
 
@@ -84,6 +84,9 @@ public partial class MeshRenderable : MeshInstance3D
 
     private static Vector3 ToGodotVector3(NumericsVector3 vector) =>
         new(vector.X, vector.Y, vector.Z);
+
+    private static Vector3 GetCornerPosition(SpatialMesh mesh, FaceCornerHandle corner) =>
+        ToGodotVector3(mesh.GetVertexPosition(mesh.GetHalfEdge(corner).Origin));
 
     private static Vector3 CalculateTriangleNormal(Vector3 a, Vector3 b, Vector3 c)
     {

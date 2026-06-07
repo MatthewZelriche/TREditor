@@ -19,7 +19,7 @@ public partial class PrimitiveCreationPreview : Node3D
     private readonly List<Vector3> _faceVertices = [];
     private readonly List<Vector3> _faceNormals = [];
     private readonly List<int> _faceIndices = [];
-    private readonly List<int> _faceTriangulation = [];
+    private readonly List<FaceCornerHandle> _faceTriangulation = [];
     private readonly List<Vector3> _wireVertices = [];
     private readonly List<Vector3> _wireNormals = [];
     private readonly List<int> _wireIndices = [];
@@ -92,9 +92,9 @@ public partial class PrimitiveCreationPreview : Node3D
 
             for (int i = 0; i < _faceTriangulation.Count; i += 3)
             {
-                int a = _faceTriangulation[i];
-                int b = _faceTriangulation[i + 1];
-                int c = _faceTriangulation[i + 2];
+                FaceCornerHandle a = _faceTriangulation[i];
+                FaceCornerHandle b = _faceTriangulation[i + 1];
+                FaceCornerHandle c = _faceTriangulation[i + 2];
 
                 MeshRenderable.AppendRebuildTriangle(
                     mesh,

@@ -151,7 +151,7 @@ public static class MeshComponentPicker
     )
     {
         SpatialMesh mesh = meshNode.SourceMesh;
-        List<int> faceTriangulation = [];
+        List<FaceCornerHandle> faceTriangulation = [];
         float bestDistance = float.MaxValue;
         FaceHandle bestFace = default;
 
@@ -165,15 +165,9 @@ public static class MeshComponentPicker
 
             for (int i = 0; i < faceTriangulation.Count; i += 3)
             {
-                Vector3 a = ToGodotVector3(
-                    mesh.GetVertexPositionByDenseIndex(faceTriangulation[i])
-                );
-                Vector3 b = ToGodotVector3(
-                    mesh.GetVertexPositionByDenseIndex(faceTriangulation[i + 1])
-                );
-                Vector3 c = ToGodotVector3(
-                    mesh.GetVertexPositionByDenseIndex(faceTriangulation[i + 2])
-                );
+                Vector3 a = GetCornerPosition(mesh, faceTriangulation[i]);
+                Vector3 b = GetCornerPosition(mesh, faceTriangulation[i + 1]);
+                Vector3 c = GetCornerPosition(mesh, faceTriangulation[i + 2]);
 
                 if (
                     TryRayTriangle(rayOrigin, rayDirection, a, b, c, out float distance)
@@ -297,4 +291,7 @@ public static class MeshComponentPicker
 
     private static Vector3 ToGodotVector3(NumericsVector3 vector) =>
         new(vector.X, vector.Y, vector.Z);
+
+    private static Vector3 GetCornerPosition(SpatialMesh mesh, FaceCornerHandle corner) =>
+        ToGodotVector3(mesh.GetVertexPosition(mesh.GetHalfEdge(corner).Origin));
 }

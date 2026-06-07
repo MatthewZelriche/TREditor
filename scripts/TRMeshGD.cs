@@ -18,7 +18,7 @@ public partial class TRMeshGD : Node3D
     private readonly List<Vector3> _rebuildScratchRenderNormals = [];
     private readonly List<int> _rebuildScratchRenderIndices = [];
     private readonly List<Vector3> _rebuildScratchColliderFaces = [];
-    private readonly List<int> _rebuildScratchFaceIndices = [];
+    private readonly List<FaceCornerHandle> _rebuildScratchFaceCorners = [];
 
     public override void _Ready()
     {
@@ -53,19 +53,19 @@ public partial class TRMeshGD : Node3D
 
         foreach (var face in SourceMesh.EnumerateLiveFaces())
         {
-            _rebuildScratchFaceIndices.Clear();
+            _rebuildScratchFaceCorners.Clear();
 
-            if (!SourceMesh.TriangulateFace(face, _rebuildScratchFaceIndices))
+            if (!SourceMesh.TriangulateFace(face, _rebuildScratchFaceCorners))
             {
                 GD.PushWarning($"TRMeshGD skipped face {face}: triangulation failed.");
                 continue;
             }
 
-            for (int i = 0; i < _rebuildScratchFaceIndices.Count; i += 3)
+            for (int i = 0; i < _rebuildScratchFaceCorners.Count; i += 3)
             {
-                int a = _rebuildScratchFaceIndices[i];
-                int b = _rebuildScratchFaceIndices[i + 1];
-                int c = _rebuildScratchFaceIndices[i + 2];
+                FaceCornerHandle a = _rebuildScratchFaceCorners[i];
+                FaceCornerHandle b = _rebuildScratchFaceCorners[i + 1];
+                FaceCornerHandle c = _rebuildScratchFaceCorners[i + 2];
 
                 // TRMesh stores outward faces CCW; Godot expects the opposite winding for rendering.
                 MeshRenderable.AppendRebuildTriangle(
@@ -110,7 +110,7 @@ public partial class TRMeshGD : Node3D
         _rebuildScratchRenderNormals.Clear();
         _rebuildScratchRenderIndices.Clear();
         _rebuildScratchColliderFaces.Clear();
-        _rebuildScratchFaceIndices.Clear();
+        _rebuildScratchFaceCorners.Clear();
     }
 
     private void EnsureChildren()

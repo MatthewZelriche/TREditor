@@ -37,7 +37,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
     private readonly List<Vector3> _faceVertices = [];
     private readonly List<Vector3> _faceNormals = [];
     private readonly List<int> _faceIndices = [];
-    private readonly List<int> _faceTriangulation = [];
+    private readonly List<FaceCornerHandle> _faceTriangulation = [];
 
     private MeshInstance3D _defaultEdges;
     private MeshInstance3D _activeEdges;
@@ -228,9 +228,9 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         for (int i = 0; i < _faceTriangulation.Count; i += 3)
         {
             AddFaceTriangle(
-                ToGodotVector3(mesh.GetVertexPositionByDenseIndex(_faceTriangulation[i])),
-                ToGodotVector3(mesh.GetVertexPositionByDenseIndex(_faceTriangulation[i + 1])),
-                ToGodotVector3(mesh.GetVertexPositionByDenseIndex(_faceTriangulation[i + 2]))
+                GetCornerPosition(mesh, _faceTriangulation[i]),
+                GetCornerPosition(mesh, _faceTriangulation[i + 1]),
+                GetCornerPosition(mesh, _faceTriangulation[i + 2])
             );
         }
     }
@@ -464,6 +464,9 @@ public sealed partial class ComponentSelectionOverlay : Node3D
 
     private static Vector3 ToGodotVector3(NumericsVector3 vector) =>
         new(vector.X, vector.Y, vector.Z);
+
+    private static Vector3 GetCornerPosition(SpatialMesh mesh, FaceCornerHandle corner) =>
+        ToGodotVector3(mesh.GetVertexPosition(mesh.GetHalfEdge(corner).Origin));
 
     private static Vector3 CalculateTriangleNormal(Vector3 a, Vector3 b, Vector3 c)
     {

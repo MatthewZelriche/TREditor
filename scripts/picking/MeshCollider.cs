@@ -15,16 +15,16 @@ public partial class MeshCollider : StaticBody3D
     public static void AppendRebuildTriangle(
         SpatialMesh sourceMesh,
         List<Vector3> faces,
-        int aIndex,
-        int bIndex,
-        int cIndex
+        FaceCornerHandle aCorner,
+        FaceCornerHandle bCorner,
+        FaceCornerHandle cCorner
     )
     {
         ArgumentNullException.ThrowIfNull(sourceMesh);
 
-        faces.Add(ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(aIndex)));
-        faces.Add(ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(bIndex)));
-        faces.Add(ToGodotVector3(sourceMesh.GetVertexPositionByDenseIndex(cIndex)));
+        faces.Add(GetCornerPosition(sourceMesh, aCorner));
+        faces.Add(GetCornerPosition(sourceMesh, bCorner));
+        faces.Add(GetCornerPosition(sourceMesh, cCorner));
     }
 
     /// <summary>
@@ -53,6 +53,9 @@ public partial class MeshCollider : StaticBody3D
 
     private static Vector3 ToGodotVector3(NumericsVector3 vector) =>
         new(vector.X, vector.Y, vector.Z);
+
+    private static Vector3 GetCornerPosition(SpatialMesh mesh, FaceCornerHandle corner) =>
+        ToGodotVector3(mesh.GetVertexPosition(mesh.GetHalfEdge(corner).Origin));
 
     private void EnsureShapeNode()
     {
