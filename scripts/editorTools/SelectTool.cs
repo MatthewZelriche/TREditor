@@ -1,3 +1,5 @@
+using Godot;
+
 public sealed class SelectTool : IEditorTool
 {
     private readonly EditorToolContext _context;
@@ -24,6 +26,13 @@ public sealed class SelectTool : IEditorTool
 
     public EditorToolResult HandleMouseMotion(ViewportMouseMotionEvent input) =>
         EditorToolResult.Continue;
+
+    public EditorToolResult HandleKey(Key key) =>
+        key == Key.Delete
+            ? EditorToolResult.ContinueWithCommand(
+                DeleteMeshCommand.CreateIfAny(_context.Selection.Current)
+            )
+            : EditorToolResult.Continue;
 
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 }

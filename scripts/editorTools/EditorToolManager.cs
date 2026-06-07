@@ -71,6 +71,18 @@ public sealed class EditorToolManager : IDisposable
 
     public bool CancelTemporaryTool() => CancelTemporaryTool(restorePersistentTool: true);
 
+    public bool HandleKey(Key key)
+    {
+        ThrowIfDisposed();
+
+        IEditorTool tool = ActiveTool;
+        EditorToolResult result = tool.HandleKey(key);
+        ProcessToolResult(tool, result);
+        return result.Command != null
+            || result.Preview != null
+            || result.Status != EditorToolStatus.Continue;
+    }
+
     public void Dispose()
     {
         if (_disposed)

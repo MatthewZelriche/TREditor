@@ -53,6 +53,14 @@ public sealed class EditorSceneService : IDisposable
         parent?.RemoveChild(meshNode);
     }
 
+    public void RestoreMeshObject(EditorObjectId objectId)
+    {
+        if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode) && meshNode.GetParent() == null)
+        {
+            _worldRoot.AddChild(meshNode);
+        }
+    }
+
     public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> EnumerateMeshObjects() => _meshNodes;
 
     public bool TryGetSelectionCenter(SelectionSnapshot selection, out Vector3 center)

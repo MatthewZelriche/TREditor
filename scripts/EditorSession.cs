@@ -58,11 +58,17 @@ public partial class EditorSession : Node3D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (
-            @event is InputEventKey { Pressed: true, Echo: false } key
-            && key.Keycode == Key.Escape
-            && _toolManager?.CancelTemporaryTool() == true
-        )
+        if (@event is not InputEventKey { Pressed: true, Echo: false } key)
+        {
+            return;
+        }
+
+        bool handled =
+            key.Keycode == Key.Escape
+                ? _toolManager?.CancelTemporaryTool() == true
+                : _toolManager?.HandleKey(key.Keycode) == true;
+
+        if (handled)
         {
             GetViewport().SetInputAsHandled();
         }

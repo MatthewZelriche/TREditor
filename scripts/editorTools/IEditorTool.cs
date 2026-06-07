@@ -1,3 +1,5 @@
+using Godot;
+
 // Tools should interpret input, compute intent, and return descriptions of what should happen.
 // Scene mutation, command execution, and preview ownership stay outside the tools themselves.
 public interface IEditorTool
@@ -9,6 +11,8 @@ public interface IEditorTool
     EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input);
 
     EditorToolResult HandleMouseMotion(ViewportMouseMotionEvent input);
+
+    EditorToolResult HandleKey(Key key);
 
     EditorToolResult Cancel();
 }

@@ -41,6 +41,8 @@ public sealed class EditTool : IEditorTool
         return EditorToolResult.Continue;
     }
 
+    public EditorToolResult HandleKey(Key key) => EditorToolResult.Continue;
+
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 
     private void UpdateHover(Vector3 rayOrigin, Vector3 rayDirection)

@@ -95,6 +95,8 @@ public sealed class PrimitiveCreationTool : IEditorTool
         return EditorToolResult.Continue;
     }
 
+    public EditorToolResult HandleKey(Key key) => EditorToolResult.Continue;
+
     private bool TryStartDrawing(ViewportMouseButtonEvent input)
     {
         if (!TryPickCreationPoint(input.RayOrigin, input.RayDirection, out Vector3 point))
