@@ -95,7 +95,16 @@ public sealed class PrimitiveCreationTool : IEditorTool
         return EditorToolResult.Continue;
     }
 
-    public EditorToolResult HandleKey(Key key) => EditorToolResult.Continue;
+    public EditorToolResult HandleKey(Key key)
+    {
+        if (key != Key.Escape || _state == CreationState.WaitingForFootprint)
+        {
+            return EditorToolResult.Continue;
+        }
+
+        Reset();
+        return EditorToolResult.ContinueWithPreview(new EditorPreviewRequest.Clear());
+    }
 
     private bool TryStartDrawing(ViewportMouseButtonEvent input)
     {

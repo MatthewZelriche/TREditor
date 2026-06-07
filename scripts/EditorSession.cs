@@ -63,10 +63,10 @@ public partial class EditorSession : Node3D
             return;
         }
 
-        bool handled =
-            key.Keycode == Key.Escape
-                ? _toolManager?.CancelTemporaryTool() == true
-                : _toolManager?.HandleKey(key.Keycode) == true;
+        bool handled = key.Keycode == Key.Escape
+            ? _toolManager?.CancelTemporaryTool() == true
+                || _toolManager?.HandleKey(key.Keycode) == true
+            : _toolManager?.HandleKey(key.Keycode) == true;
 
         if (handled)
         {
