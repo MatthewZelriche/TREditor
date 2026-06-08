@@ -1,9 +1,6 @@
 using System;
-using System.Collections.Generic;
 using Godot;
-using TREditorSharp;
 using GodotArray = Godot.Collections.Array;
-using NumericsVector3 = System.Numerics.Vector3;
 
 public partial class MeshRenderable : MeshInstance3D
 {
@@ -16,44 +13,13 @@ public partial class MeshRenderable : MeshInstance3D
     private bool _isSelected;
 
     /// <summary>
-    /// Appends one render triangle into caller-owned rebuild scratch lists
-    /// (e.g. <see cref="TRMeshGD"/> scratch buffers). Does not update this node.
+    /// Commits filled render data to this node's <see cref="MeshInstance3D.Mesh"/>.
     /// </summary>
-    public static void AppendRebuildTriangle(
-        SpatialMesh sourceMesh,
-        List<Vector3> vertices,
-        List<Vector3> normals,
-        List<int> indices,
-        FaceCornerHandle aCorner,
-        FaceCornerHandle bCorner,
-        FaceCornerHandle cCorner
-    )
+    public void Rebuild(MeshRenderData data)
     {
-        ArgumentNullException.ThrowIfNull(sourceMesh);
+        ArgumentNullException.ThrowIfNull(data);
 
-        Vector3 a = GetCornerPosition(sourceMesh, aCorner);
-        Vector3 b = GetCornerPosition(sourceMesh, bCorner);
-        Vector3 c = GetCornerPosition(sourceMesh, cCorner);
-        Vector3 normal = CalculateTriangleNormal(a, b, c);
-        int firstRenderIndex = vertices.Count;
-
-        vertices.Add(a);
-        vertices.Add(b);
-        vertices.Add(c);
-        normals.Add(normal);
-        normals.Add(normal);
-        normals.Add(normal);
-        indices.Add(firstRenderIndex);
-        indices.Add(firstRenderIndex + 1);
-        indices.Add(firstRenderIndex + 2);
-    }
-
-    /// <summary>
-    /// Commits filled rebuild scratch lists to this node's <see cref="MeshInstance3D.Mesh"/>.
-    /// </summary>
-    public void Rebuild(List<Vector3> vertices, List<Vector3> normals, List<int> indices)
-    {
-        if (indices.Count == 0)
+        if (data.Indices.Count == 0)
         {
             Mesh = null;
             return;
@@ -61,9 +27,10 @@ public partial class MeshRenderable : MeshInstance3D
 
         var meshArrays = new GodotArray();
         meshArrays.Resize((int)Godot.Mesh.ArrayType.Max);
-        meshArrays[(int)Godot.Mesh.ArrayType.Vertex] = vertices.ToArray();
-        meshArrays[(int)Godot.Mesh.ArrayType.Normal] = normals.ToArray();
-        meshArrays[(int)Godot.Mesh.ArrayType.Index] = indices.ToArray();
+        meshArrays[(int)Godot.Mesh.ArrayType.Vertex] = data.Vertices.ToArray();
+        meshArrays[(int)Godot.Mesh.ArrayType.Normal] = data.Normals.ToArray();
+        meshArrays[(int)Godot.Mesh.ArrayType.TexUV] = data.Uvs.ToArray();
+        meshArrays[(int)Godot.Mesh.ArrayType.Index] = data.Indices.ToArray();
 
         var renderMesh = new ArrayMesh();
         renderMesh.AddSurfaceFromArrays(Godot.Mesh.PrimitiveType.Triangles, meshArrays);
@@ -80,18 +47,6 @@ public partial class MeshRenderable : MeshInstance3D
 
         _isSelected = selected;
         ApplyMaterial();
-    }
-
-    private static Vector3 ToGodotVector3(NumericsVector3 vector) =>
-        new(vector.X, vector.Y, vector.Z);
-
-    private static Vector3 GetCornerPosition(SpatialMesh mesh, FaceCornerHandle corner) =>
-        ToGodotVector3(mesh.GetVertexPosition(mesh.GetHalfEdge(corner).Origin));
-
-    private static Vector3 CalculateTriangleNormal(Vector3 a, Vector3 b, Vector3 c)
-    {
-        Vector3 normal = (b - a).Cross(c - a);
-        return normal.LengthSquared() > 0.0f ? normal.Normalized() : Vector3.Up;
     }
 
     private void ApplyMaterial()

@@ -23,9 +23,7 @@ public partial class TRMeshGD : Node3D
 
     // Scratch buffers are cleared only when rebuilding their corresponding output. They are never
     // authoritative mesh data.
-    private readonly List<Vector3> _rebuildScratchRenderVertices = [];
-    private readonly List<Vector3> _rebuildScratchRenderNormals = [];
-    private readonly List<int> _rebuildScratchRenderIndices = [];
+    private readonly MeshRenderData _rebuildScratchRenderData = new();
     private readonly List<Vector3> _rebuildScratchColliderFaces = [];
     private readonly List<FaceCornerHandle> _rebuildScratchFaceCorners = [];
 
@@ -98,11 +96,9 @@ public partial class TRMeshGD : Node3D
                 {
                     // TRMesh stores outward faces CCW; Godot expects the opposite winding for
                     // rendering.
-                    MeshRenderable.AppendRebuildTriangle(
+                    MeshRenderDataBuilder.AppendTriangle(
                         SourceMesh,
-                        _rebuildScratchRenderVertices,
-                        _rebuildScratchRenderNormals,
-                        _rebuildScratchRenderIndices,
+                        _rebuildScratchRenderData,
                         a,
                         c,
                         b
@@ -124,11 +120,7 @@ public partial class TRMeshGD : Node3D
 
         if (rebuildRender)
         {
-            Renderable.Rebuild(
-                _rebuildScratchRenderVertices,
-                _rebuildScratchRenderNormals,
-                _rebuildScratchRenderIndices
-            );
+            Renderable.Rebuild(_rebuildScratchRenderData);
         }
 
         if (rebuildCollision)
@@ -150,9 +142,7 @@ public partial class TRMeshGD : Node3D
     {
         if (clearRender)
         {
-            _rebuildScratchRenderVertices.Clear();
-            _rebuildScratchRenderNormals.Clear();
-            _rebuildScratchRenderIndices.Clear();
+            _rebuildScratchRenderData.Clear();
         }
 
         if (clearCollision)

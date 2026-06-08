@@ -16,9 +16,7 @@ public partial class PrimitiveCreationPreview : Node3D
     private static StandardMaterial3D _faceMaterial;
     private static StandardMaterial3D _wireMaterial;
 
-    private readonly List<Vector3> _faceVertices = [];
-    private readonly List<Vector3> _faceNormals = [];
-    private readonly List<int> _faceIndices = [];
+    private readonly MeshRenderData _faceRenderData = new();
     private readonly List<FaceCornerHandle> _faceTriangulation = [];
     private readonly List<Vector3> _wireVertices = [];
     private readonly List<Vector3> _wireNormals = [];
@@ -96,19 +94,11 @@ public partial class PrimitiveCreationPreview : Node3D
                 FaceCornerHandle b = _faceTriangulation[i + 1];
                 FaceCornerHandle c = _faceTriangulation[i + 2];
 
-                MeshRenderable.AppendRebuildTriangle(
-                    mesh,
-                    _faceVertices,
-                    _faceNormals,
-                    _faceIndices,
-                    a,
-                    c,
-                    b
-                );
+                MeshRenderDataBuilder.AppendTriangle(mesh, _faceRenderData, a, c, b);
             }
         }
 
-        _faces.Rebuild(_faceVertices, _faceNormals, _faceIndices);
+        _faces.Rebuild(_faceRenderData);
     }
 
     private void RebuildWire(PrimitiveCreationSettings settings, PrimitiveBounds bounds)
@@ -256,9 +246,7 @@ public partial class PrimitiveCreationPreview : Node3D
 
     private void ClearFaceScratch()
     {
-        _faceVertices.Clear();
-        _faceNormals.Clear();
-        _faceIndices.Clear();
+        _faceRenderData.Clear();
         _faceTriangulation.Clear();
     }
 
