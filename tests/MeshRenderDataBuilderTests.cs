@@ -83,6 +83,60 @@ public sealed class MeshRenderDataBuilderTests
         Assert.Equal(new GodotVector2(8f, 9f), data.Uvs[3]);
     }
 
+    [Fact]
+    public void GetFaceSurface_GroupsTrianglesByOriginatingFaceMaterialSlot()
+    {
+        using SpatialMesh mesh = BuildTwoTrianglesSharingVertex();
+        List<FaceHandle> faces = GetFaces(mesh);
+        mesh.SetFaceMaterialSlot(faces[0], 7);
+        mesh.SetFaceMaterialSlot(faces[1], 0);
+        MeshRenderSurfaceSet surfaces = new();
+
+        AppendFace(mesh, surfaces, faces[0]);
+        AppendFace(mesh, surfaces, faces[1]);
+
+        Assert.Equal(2, surfaces.ActiveSurfaces.Count);
+        MeshRenderSurfaceData textured = Assert.Single(
+            surfaces.ActiveSurfaces.Where(surface => surface.MaterialSlot == 7)
+        );
+        MeshRenderSurfaceData untextured = Assert.Single(
+            surfaces.ActiveSurfaces.Where(surface => surface.MaterialSlot == 0)
+        );
+        Assert.Equal(3, textured.Data.Indices.Count);
+        Assert.Equal(3, untextured.Data.Indices.Count);
+    }
+
+    [Fact]
+    public void MeshRenderSurfaceSet_ClearReusesMaterialSlotBucket()
+    {
+        MeshRenderSurfaceSet surfaces = new();
+        MeshRenderData first = surfaces.GetOrCreateSurface(4);
+        first.Indices.Add(0);
+
+        surfaces.Clear();
+        MeshRenderData second = surfaces.GetOrCreateSurface(4);
+
+        Assert.Same(first, second);
+        Assert.Empty(second.Indices);
+        Assert.Single(surfaces.ActiveSurfaces);
+    }
+
+    [Fact]
+    public void GetFaceSurface_QuadKeepsAllGeneratedTrianglesInOneSurface()
+    {
+        using SpatialMesh mesh = BuildQuad();
+        FaceHandle face = GetOnlyFace(mesh);
+        mesh.SetFaceMaterialSlot(face, 12);
+        MeshRenderSurfaceSet surfaces = new();
+
+        AppendFace(mesh, surfaces, face);
+
+        MeshRenderSurfaceData surface = Assert.Single(surfaces.ActiveSurfaces);
+        Assert.Equal(12, surface.MaterialSlot);
+        Assert.Equal(6, surface.Data.Indices.Count);
+        Assert.Equal(6, surface.Data.Vertices.Count);
+    }
+
     private static SpatialMesh BuildTriangle()
     {
         SpatialMesh mesh = new();
@@ -102,6 +156,17 @@ public sealed class MeshRenderDataBuilderTests
         VertexHandle c = mesh.AddVertex(new Vector3(-1f, 0f, 0f));
         mesh.AddFace([shared, b, a]);
         mesh.AddFace([shared, c, b]);
+        return mesh;
+    }
+
+    private static SpatialMesh BuildQuad()
+    {
+        SpatialMesh mesh = new();
+        VertexHandle a = mesh.AddVertex(new Vector3(0f, 0f, 0f));
+        VertexHandle b = mesh.AddVertex(new Vector3(1f, 0f, 0f));
+        VertexHandle c = mesh.AddVertex(new Vector3(1f, 0f, 1f));
+        VertexHandle d = mesh.AddVertex(new Vector3(0f, 0f, 1f));
+        mesh.AddFace([a, d, c, b]);
         return mesh;
     }
 
@@ -145,6 +210,27 @@ public sealed class MeshRenderDataBuilderTests
         }
 
         throw new InvalidOperationException($"Face {face} has no corner at the origin.");
+    }
+
+    private static void AppendFace(
+        SpatialMesh mesh,
+        MeshRenderSurfaceSet surfaces,
+        FaceHandle face
+    )
+    {
+        List<FaceCornerHandle> triangles = [];
+        Assert.True(mesh.TriangulateFace(face, triangles));
+        MeshRenderData surface = MeshRenderDataBuilder.GetFaceSurface(mesh, surfaces, face);
+        for (int i = 0; i < triangles.Count; i += 3)
+        {
+            MeshRenderDataBuilder.AppendTriangle(
+                mesh,
+                surface,
+                triangles[i],
+                triangles[i + 2],
+                triangles[i + 1]
+            );
+        }
     }
 
     private static GodotVector3 GetCornerPosition(SpatialMesh mesh, FaceCornerHandle corner)

@@ -37,7 +37,7 @@ public partial class EditorSession : Node3D
         ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
         TextureMaterials = new TextureMaterialLibrary();
-        _sceneService = new EditorSceneService(this);
+        _sceneService = new EditorSceneService(this, TextureMaterials);
         _objectSelectionHighlightController = new ObjectSelectionHighlightController(
             _sceneService,
             Selection
@@ -66,10 +66,11 @@ public partial class EditorSession : Node3D
             return;
         }
 
-        bool handled = key.Keycode == Key.Escape
-            ? _toolManager?.CancelTemporaryTool() == true
-                || _toolManager?.HandleKey(key.Keycode) == true
-            : _toolManager?.HandleKey(key.Keycode) == true;
+        bool handled =
+            key.Keycode == Key.Escape
+                ? _toolManager?.CancelTemporaryTool() == true
+                    || _toolManager?.HandleKey(key.Keycode) == true
+                : _toolManager?.HandleKey(key.Keycode) == true;
 
         if (handled)
         {

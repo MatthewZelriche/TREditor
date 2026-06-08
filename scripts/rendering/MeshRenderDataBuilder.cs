@@ -10,6 +10,22 @@ using NumericsVector3 = System.Numerics.Vector3;
 public static class MeshRenderDataBuilder
 {
     /// <summary>
+    /// Returns the render surface belonging to <paramref name="face"/>'s material slot. Call this
+    /// once per polygon face, then append every generated triangle into the returned surface.
+    /// </summary>
+    public static MeshRenderData GetFaceSurface(
+        SpatialMesh sourceMesh,
+        MeshRenderSurfaceSet output,
+        FaceHandle face
+    )
+    {
+        ArgumentNullException.ThrowIfNull(sourceMesh);
+        ArgumentNullException.ThrowIfNull(output);
+
+        return output.GetOrCreateSurface(sourceMesh.GetFaceMaterialSlot(face));
+    }
+
+    /// <summary>
     /// Appends one render triangle using each supplied face corner's geometric position and UV.
     /// The caller controls winding by choosing the corner order.
     /// </summary>

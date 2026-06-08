@@ -23,13 +23,20 @@ public partial class TRMeshGD : Node3D
 
     // Scratch buffers are cleared only when rebuilding their corresponding output. They are never
     // authoritative mesh data.
-    private readonly MeshRenderData _rebuildScratchRenderData = new();
+    private readonly MeshRenderSurfaceSet _rebuildScratchRenderSurfaces = new();
     private readonly List<Vector3> _rebuildScratchColliderFaces = [];
     private readonly List<FaceCornerHandle> _rebuildScratchFaceCorners = [];
+    private TextureMaterialLibrary _textureMaterials;
 
     public override void _Ready()
     {
         EnsureChildren();
+    }
+
+    public void SetTextureMaterialLibrary(TextureMaterialLibrary textureMaterials)
+    {
+        ArgumentNullException.ThrowIfNull(textureMaterials);
+        _textureMaterials = textureMaterials;
     }
 
     public void TakeMesh(SpatialMesh mesh)
@@ -74,6 +81,10 @@ public partial class TRMeshGD : Node3D
         EnsureChildren();
         bool rebuildRender = (targets & RebuildTarget.Render) != 0;
         bool rebuildCollision = (targets & RebuildTarget.Collision) != 0;
+        if (rebuildRender && _textureMaterials == null)
+            throw new InvalidOperationException(
+                "TRMeshGD requires a texture material library before rebuilding render data."
+            );
         ClearRebuildScratch(rebuildRender, rebuildCollision);
 
         foreach (var face in SourceMesh.EnumerateLiveFaces())
@@ -86,6 +97,16 @@ public partial class TRMeshGD : Node3D
                 continue;
             }
 
+            // Resolve the destination once per polygon face. Every generated triangle from this
+            // face appends directly to the same material surface without a later grouping pass.
+            MeshRenderData renderSurface = rebuildRender
+                ? MeshRenderDataBuilder.GetFaceSurface(
+                    SourceMesh,
+                    _rebuildScratchRenderSurfaces,
+                    face
+                )
+                : null;
+
             for (int i = 0; i < _rebuildScratchFaceCorners.Count; i += 3)
             {
                 FaceCornerHandle a = _rebuildScratchFaceCorners[i];
@@ -96,13 +117,7 @@ public partial class TRMeshGD : Node3D
                 {
                     // TRMesh stores outward faces CCW; Godot expects the opposite winding for
                     // rendering.
-                    MeshRenderDataBuilder.AppendTriangle(
-                        SourceMesh,
-                        _rebuildScratchRenderData,
-                        a,
-                        c,
-                        b
-                    );
+                    MeshRenderDataBuilder.AppendTriangle(SourceMesh, renderSurface, a, c, b);
                 }
 
                 if (rebuildCollision)
@@ -120,7 +135,7 @@ public partial class TRMeshGD : Node3D
 
         if (rebuildRender)
         {
-            Renderable.Rebuild(_rebuildScratchRenderData);
+            Renderable.Rebuild(_rebuildScratchRenderSurfaces, _textureMaterials);
         }
 
         if (rebuildCollision)
@@ -142,7 +157,7 @@ public partial class TRMeshGD : Node3D
     {
         if (clearRender)
         {
-            _rebuildScratchRenderData.Clear();
+            _rebuildScratchRenderSurfaces.Clear();
         }
 
         if (clearCollision)

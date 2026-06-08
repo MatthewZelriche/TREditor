@@ -10,15 +10,18 @@ using NumericVector3 = System.Numerics.Vector3;
 public sealed class EditorSceneService : IDisposable
 {
     private readonly Node3D _worldRoot;
+    private readonly TextureMaterialLibrary _textureMaterials;
     private readonly Dictionary<EditorObjectId, TRMeshGD> _meshNodes = [];
 
     private bool _disposed;
 
-    public EditorSceneService(Node3D worldRoot)
+    public EditorSceneService(Node3D worldRoot, TextureMaterialLibrary textureMaterials)
     {
         ArgumentNullException.ThrowIfNull(worldRoot);
+        ArgumentNullException.ThrowIfNull(textureMaterials);
 
         _worldRoot = worldRoot;
+        _textureMaterials = textureMaterials;
     }
 
     public void CreateMeshObject(EditorObjectId objectId, SpatialMesh mesh, string displayName)
@@ -37,6 +40,7 @@ public sealed class EditorSceneService : IDisposable
         }
 
         TRMeshGD meshNode = new() { Name = displayName, ObjectId = objectId };
+        meshNode.SetTextureMaterialLibrary(_textureMaterials);
         meshNode.TakeMesh(mesh);
         _meshNodes.Add(objectId, meshNode);
         _worldRoot.AddChild(meshNode);
