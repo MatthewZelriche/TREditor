@@ -5,6 +5,14 @@ using TREditorSharp;
 
 public partial class TRMeshGD : Node3D
 {
+    [Flags]
+    private enum RebuildTarget
+    {
+        Render = 1 << 0,
+        Collision = 1 << 1,
+        All = Render | Collision,
+    }
+
     public EditorObjectId ObjectId { get; internal set; }
 
     public SpatialMesh SourceMesh { get; private set; } = new();
@@ -13,7 +21,8 @@ public partial class TRMeshGD : Node3D
 
     public MeshCollider Collider { get; private set; }
 
-    // Rebuild scratch only — cleared at the start of each Rebuild(); not authoritative mesh data.
+    // Scratch buffers are cleared only when rebuilding their corresponding output. They are never
+    // authoritative mesh data.
     private readonly List<Vector3> _rebuildScratchRenderVertices = [];
     private readonly List<Vector3> _rebuildScratchRenderNormals = [];
     private readonly List<int> _rebuildScratchRenderIndices = [];
@@ -45,11 +54,29 @@ public partial class TRMeshGD : Node3D
         Renderable.SetSelected(selected);
     }
 
-    // Constructs both render and collider data from half edge mesh data.
-    public void Rebuild()
+    /// <summary>
+    /// Rebuilds both visible render geometry and collision geometry after a geometry or topology
+    /// change.
+    /// </summary>
+    public void Rebuild() => Rebuild(RebuildTarget.All);
+
+    /// <summary>
+    /// Rebuilds only visible render geometry. Use this for UV, material, and other visual-only
+    /// changes that cannot affect picking or collision.
+    /// </summary>
+    public void RebuildRender() => Rebuild(RebuildTarget.Render);
+
+    /// <summary>
+    /// Rebuilds only collision geometry.
+    /// </summary>
+    public void RebuildCollision() => Rebuild(RebuildTarget.Collision);
+
+    private void Rebuild(RebuildTarget targets)
     {
         EnsureChildren();
-        ClearRebuildScratch();
+        bool rebuildRender = (targets & RebuildTarget.Render) != 0;
+        bool rebuildCollision = (targets & RebuildTarget.Collision) != 0;
+        ClearRebuildScratch(rebuildRender, rebuildCollision);
 
         foreach (var face in SourceMesh.EnumerateLiveFaces())
         {
@@ -67,32 +94,47 @@ public partial class TRMeshGD : Node3D
                 FaceCornerHandle b = _rebuildScratchFaceCorners[i + 1];
                 FaceCornerHandle c = _rebuildScratchFaceCorners[i + 2];
 
-                // TRMesh stores outward faces CCW; Godot expects the opposite winding for rendering.
-                MeshRenderable.AppendRebuildTriangle(
-                    SourceMesh,
-                    _rebuildScratchRenderVertices,
-                    _rebuildScratchRenderNormals,
-                    _rebuildScratchRenderIndices,
-                    a,
-                    c,
-                    b
-                );
-                MeshCollider.AppendRebuildTriangle(
-                    SourceMesh,
-                    _rebuildScratchColliderFaces,
-                    a,
-                    b,
-                    c
-                );
+                if (rebuildRender)
+                {
+                    // TRMesh stores outward faces CCW; Godot expects the opposite winding for
+                    // rendering.
+                    MeshRenderable.AppendRebuildTriangle(
+                        SourceMesh,
+                        _rebuildScratchRenderVertices,
+                        _rebuildScratchRenderNormals,
+                        _rebuildScratchRenderIndices,
+                        a,
+                        c,
+                        b
+                    );
+                }
+
+                if (rebuildCollision)
+                {
+                    MeshCollider.AppendRebuildTriangle(
+                        SourceMesh,
+                        _rebuildScratchColliderFaces,
+                        a,
+                        b,
+                        c
+                    );
+                }
             }
         }
 
-        Renderable.Rebuild(
-            _rebuildScratchRenderVertices,
-            _rebuildScratchRenderNormals,
-            _rebuildScratchRenderIndices
-        );
-        Collider.Rebuild(_rebuildScratchColliderFaces);
+        if (rebuildRender)
+        {
+            Renderable.Rebuild(
+                _rebuildScratchRenderVertices,
+                _rebuildScratchRenderNormals,
+                _rebuildScratchRenderIndices
+            );
+        }
+
+        if (rebuildCollision)
+        {
+            Collider.Rebuild(_rebuildScratchColliderFaces);
+        }
     }
 
     // TODO: Investigate this a little further, there's probably a less goofy way to do this.
@@ -104,12 +146,20 @@ public partial class TRMeshGD : Node3D
         }
     }
 
-    private void ClearRebuildScratch()
+    private void ClearRebuildScratch(bool clearRender, bool clearCollision)
     {
-        _rebuildScratchRenderVertices.Clear();
-        _rebuildScratchRenderNormals.Clear();
-        _rebuildScratchRenderIndices.Clear();
-        _rebuildScratchColliderFaces.Clear();
+        if (clearRender)
+        {
+            _rebuildScratchRenderVertices.Clear();
+            _rebuildScratchRenderNormals.Clear();
+            _rebuildScratchRenderIndices.Clear();
+        }
+
+        if (clearCollision)
+        {
+            _rebuildScratchColliderFaces.Clear();
+        }
+
         _rebuildScratchFaceCorners.Clear();
     }
 
