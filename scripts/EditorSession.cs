@@ -9,6 +9,8 @@ public partial class EditorSession : Node3D
 
     public ScenePickingService ScenePicking { get; private set; }
 
+    public TextureMaterialLibrary TextureMaterials { get; private set; }
+
     public PrimitiveCreationSettings PrimitiveCreationSettings { get; set; } =
         PrimitiveCreationSettings.Box();
 
@@ -34,6 +36,7 @@ public partial class EditorSession : Node3D
     {
         ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
+        TextureMaterials = new TextureMaterialLibrary();
         _sceneService = new EditorSceneService(this);
         _objectSelectionHighlightController = new ObjectSelectionHighlightController(
             _sceneService,
