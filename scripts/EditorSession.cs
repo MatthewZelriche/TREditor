@@ -11,6 +11,8 @@ public partial class EditorSession : Node3D
 
     public TextureMaterialLibrary TextureMaterials { get; private set; }
 
+    public TextureRootSettingsService TextureRootSettings { get; private set; }
+
     public PrimitiveCreationSettings PrimitiveCreationSettings { get; set; } =
         PrimitiveCreationSettings.Box();
 
@@ -36,7 +38,10 @@ public partial class EditorSession : Node3D
     {
         ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
-        TextureMaterials = new TextureMaterialLibrary();
+        TextureRootSettings = new TextureRootSettingsService();
+        TextureMaterials = TextureRootSettings.RootPath is string textureRoot
+            ? new TextureMaterialLibrary(assetId => TextureFileLoader.Load(textureRoot, assetId))
+            : new TextureMaterialLibrary();
         _sceneService = new EditorSceneService(this, TextureMaterials);
         _objectSelectionHighlightController = new ObjectSelectionHighlightController(
             _sceneService,

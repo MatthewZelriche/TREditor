@@ -12,7 +12,6 @@ using Godot;
 public sealed class TextureMaterialLibrary
 {
     private const int CheckerSize = 2;
-    private const string DefaultTextureRoot = "res://textures";
 
     private readonly Dictionary<int, string> _assetIdsBySlot = [];
     private readonly Dictionary<string, int> _slotsByAssetId = new(StringComparer.Ordinal);
@@ -20,12 +19,12 @@ public sealed class TextureMaterialLibrary
     private int _nextSlot = 1;
 
     public TextureMaterialLibrary()
-        : this(assetId => ResourceLoader.Load<Texture2D>($"{DefaultTextureRoot}/{assetId}")) { }
+        : this(_ => null) { }
 
     /// <summary>
     /// Creates a library that resolves normalized asset IDs through <paramref name="loadTexture"/>.
-    /// A future project texture-root service can supply its own resolver without changing saved
-    /// slot mappings.
+    /// When no resolver is supplied through this overload, mapped slots use the fallback material
+    /// without attempting to load from an implicit texture root.
     /// </summary>
     public TextureMaterialLibrary(Func<string, Texture2D?> loadTexture)
     {
