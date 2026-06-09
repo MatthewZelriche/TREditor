@@ -14,6 +14,7 @@ public sealed class EditTool : IEditorTool
 
     public void Enter()
     {
+        _context.ComponentSelectionHighlight.SetMode(ComponentHighlightMode.Edit);
         _context.ComponentSelectionHighlight.SetActive(true);
         _context.SelectionTranslationGizmo.SetActive(true);
     }

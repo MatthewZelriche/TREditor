@@ -54,7 +54,8 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         TRMeshGD meshNode,
         IReadOnlyList<SelectionTarget> selected,
         SelectionTarget? hover,
-        Vector3 cameraOrigin
+        Vector3 cameraOrigin,
+        ComponentHighlightMode mode
     )
     {
         ArgumentNullException.ThrowIfNull(meshNode);
@@ -64,9 +65,13 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         SpatialMesh mesh = meshNode.SourceMesh;
         Vector3 localCameraOrigin = meshNode.GlobalTransform.AffineInverse() * cameraOrigin;
 
-        AddDefaultComponents(mesh, localCameraOrigin);
-        AddActiveComponents(mesh, selected, localCameraOrigin);
-        if (hover.HasValue && !ContainsTarget(selected, hover.Value))
+        AddDefaultComponents(mesh, localCameraOrigin, mode.PassiveKinds);
+        AddActiveComponents(mesh, selected, localCameraOrigin, mode.SelectedKinds);
+        if (
+            hover.HasValue
+            && mode.AllowsHover(hover.Value)
+            && !ContainsTarget(selected, hover.Value, mode.SelectedKinds)
+        )
         {
             AddActiveComponent(mesh, hover.Value, localCameraOrigin);
         }
@@ -109,33 +114,48 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         return instance;
     }
 
-    private void AddDefaultComponents(SpatialMesh mesh, Vector3 localCameraOrigin)
+    private void AddDefaultComponents(
+        SpatialMesh mesh,
+        Vector3 localCameraOrigin,
+        ComponentHighlightKinds kinds
+    )
     {
-        foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
+        if (kinds.Includes(ScenePickElementKind.Edge))
         {
-            HalfEdge halfEdge = mesh.GetHalfEdge(edge);
-            if (halfEdge.Twin.IsNull || edge.Index > halfEdge.Twin.Index)
+            foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
             {
-                continue;
-            }
+                HalfEdge halfEdge = mesh.GetHalfEdge(edge);
+                if (halfEdge.Twin.IsNull || edge.Index > halfEdge.Twin.Index)
+                {
+                    continue;
+                }
 
-            AddEdge(mesh, edge, localCameraOrigin, active: false);
+                AddEdge(mesh, edge, localCameraOrigin, active: false);
+            }
         }
 
-        foreach (VertexHandle vertex in mesh.EnumerateLiveVertices())
+        if (kinds.Includes(ScenePickElementKind.Vertex))
         {
-            AddVertex(mesh, vertex, localCameraOrigin, active: false);
+            foreach (VertexHandle vertex in mesh.EnumerateLiveVertices())
+            {
+                AddVertex(mesh, vertex, localCameraOrigin, active: false);
+            }
         }
     }
 
     private void AddActiveComponents(
         SpatialMesh mesh,
         IReadOnlyList<SelectionTarget> targets,
-        Vector3 localCameraOrigin
+        Vector3 localCameraOrigin,
+        ComponentHighlightKinds kinds
     )
     {
         foreach (SelectionTarget target in targets)
         {
+            if (!kinds.Includes(target.Kind))
+            {
+                continue;
+            }
             AddActiveComponent(mesh, target, localCameraOrigin);
         }
     }
@@ -448,12 +468,13 @@ public sealed partial class ComponentSelectionOverlay : Node3D
 
     private static bool ContainsTarget(
         IReadOnlyList<SelectionTarget> targets,
-        SelectionTarget target
+        SelectionTarget target,
+        ComponentHighlightKinds kinds
     )
     {
         foreach (SelectionTarget existing in targets)
         {
-            if (existing == target)
+            if (kinds.Includes(existing.Kind) && existing == target)
             {
                 return true;
             }

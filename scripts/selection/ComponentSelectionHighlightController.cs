@@ -10,6 +10,7 @@ public sealed class ComponentSelectionHighlightController : IDisposable
 
     private SelectionTarget? _hover;
     private Vector3 _cameraOrigin;
+    private ComponentHighlightMode _mode = ComponentHighlightMode.Edit;
     private bool _active;
     private bool _disposed;
 
@@ -42,9 +43,28 @@ public sealed class ComponentSelectionHighlightController : IDisposable
         Sync();
     }
 
+    public void SetMode(ComponentHighlightMode mode)
+    {
+        if (_mode == mode)
+        {
+            return;
+        }
+
+        _mode = mode;
+        if (_hover.HasValue && !_mode.AllowsHover(_hover.Value))
+        {
+            _hover = null;
+        }
+        Sync();
+    }
+
     public void SetPointerState(Vector3 cameraOrigin, SelectionTarget? hover)
     {
         _cameraOrigin = cameraOrigin;
+        if (hover.HasValue && !_mode.AllowsHover(hover.Value))
+        {
+            hover = null;
+        }
         if (_hover == hover)
         {
             Sync();
@@ -95,7 +115,13 @@ public sealed class ComponentSelectionHighlightController : IDisposable
             selectedByObject.TryGetValue(objectId, out List<SelectionTarget> selected);
 
             ComponentSelectionOverlay overlay = GetOrCreateOverlay(objectId, meshNode);
-            overlay.Rebuild(meshNode, selected ?? [], GetHoverForObject(objectId), _cameraOrigin);
+            overlay.Rebuild(
+                meshNode,
+                selected ?? [],
+                GetHoverForObject(objectId),
+                _cameraOrigin,
+                _mode
+            );
         }
 
         RemoveUnusedOverlays(liveObjectIds);
@@ -106,7 +132,7 @@ public sealed class ComponentSelectionHighlightController : IDisposable
         Dictionary<EditorObjectId, List<SelectionTarget>> selectedByObject = [];
         foreach (SelectionTarget target in _selection.Current.Targets)
         {
-            if (!IsComponent(target))
+            if (!_mode.AllowsSelected(target))
             {
                 continue;
             }
@@ -130,7 +156,7 @@ public sealed class ComponentSelectionHighlightController : IDisposable
             return null;
         }
 
-        return _hover.Value;
+        return _mode.AllowsHover(_hover.Value) ? _hover.Value : null;
     }
 
     private ComponentSelectionOverlay GetOrCreateOverlay(EditorObjectId objectId, TRMeshGD meshNode)
@@ -183,9 +209,4 @@ public sealed class ComponentSelectionHighlightController : IDisposable
         overlay.QueueFree();
     }
 
-    private static bool IsComponent(SelectionTarget target) =>
-        target.Kind
-            is ScenePickElementKind.Vertex
-                or ScenePickElementKind.Edge
-                or ScenePickElementKind.Face;
 }
