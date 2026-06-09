@@ -113,6 +113,11 @@ public sealed class TextureMaterialLibrary
         return _materials.Resolve(assetId);
     }
 
+    public void ClearResolvedMaterials()
+    {
+        _materials.Clear();
+    }
+
     public static string NormalizeAssetId(string assetId)
     {
         if (string.IsNullOrWhiteSpace(assetId))

@@ -34,6 +34,12 @@ public sealed class LazyResourceCache<TKey, TResource>
         return resource;
     }
 
+    public void Clear()
+    {
+        _resources.Clear();
+        _fallback = null;
+    }
+
     private TResource GetFallback()
     {
         return _fallback ??=

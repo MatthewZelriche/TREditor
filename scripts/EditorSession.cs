@@ -43,9 +43,11 @@ public partial class EditorSession : Node3D
         TextureRootSettings = new TextureRootSettingsService();
         TextureCatalog = new TextureAssetCatalog();
         TextureCatalog.Rescan(TextureRootSettings.RootPath);
-        TextureMaterials = TextureRootSettings.RootPath is string textureRoot
-            ? new TextureMaterialLibrary(assetId => TextureFileLoader.Load(textureRoot, assetId))
-            : new TextureMaterialLibrary();
+        TextureMaterials = new TextureMaterialLibrary(assetId =>
+            TextureRootSettings.RootPath is string textureRoot
+                ? TextureFileLoader.Load(textureRoot, assetId)
+                : null
+        );
         _sceneService = new EditorSceneService(this, TextureMaterials);
         _objectSelectionHighlightController = new ObjectSelectionHighlightController(
             _sceneService,
@@ -96,6 +98,27 @@ public partial class EditorSession : Node3D
     {
         EnsureToolManager();
         _toolManager.ActivatePersistentTool(toolId);
+    }
+
+    public bool TrySetTextureRoot(string rootPath)
+    {
+        if (!TextureRootSettings.TrySetRootPath(rootPath))
+            return false;
+
+        RefreshTextureCatalog();
+        return true;
+    }
+
+    public void ClearTextureRoot()
+    {
+        TextureRootSettings.ClearRootPath();
+        RefreshTextureCatalog();
+    }
+
+    public void RefreshTextureCatalog()
+    {
+        TextureCatalog.Rescan(TextureRootSettings.RootPath);
+        TextureMaterials.ClearResolvedMaterials();
     }
 
     public void RegisterSelectionTranslationGizmo(Gizmo3D gizmo, Node3D target)

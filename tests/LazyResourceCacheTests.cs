@@ -43,4 +43,30 @@ public sealed class LazyResourceCacheTests
         Assert.Same(first, second);
         Assert.Equal(1, fallbackCreations);
     }
+
+    [Fact]
+    public void Clear_ForgetsResolvedResourcesAndFallback()
+    {
+        int loads = 0;
+        int fallbackCreations = 0;
+        var cache = new LazyResourceCache<string, object>(
+            _ =>
+            {
+                loads++;
+                return null;
+            },
+            () =>
+            {
+                fallbackCreations++;
+                return new object();
+            }
+        );
+        cache.Resolve("missing");
+
+        cache.Clear();
+        cache.Resolve("missing");
+
+        Assert.Equal(2, loads);
+        Assert.Equal(2, fallbackCreations);
+    }
 }
