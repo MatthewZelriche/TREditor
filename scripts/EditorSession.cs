@@ -11,6 +11,8 @@ public partial class EditorSession : Node3D
 
     public TextureMaterialLibrary TextureMaterials { get; private set; }
 
+    public TextureAssetCatalog TextureCatalog { get; private set; }
+
     public TextureRootSettingsService TextureRootSettings { get; private set; }
 
     public PrimitiveCreationSettings PrimitiveCreationSettings { get; set; } =
@@ -39,6 +41,8 @@ public partial class EditorSession : Node3D
         ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
         TextureRootSettings = new TextureRootSettingsService();
+        TextureCatalog = new TextureAssetCatalog();
+        TextureCatalog.Rescan(TextureRootSettings.RootPath);
         TextureMaterials = TextureRootSettings.RootPath is string textureRoot
             ? new TextureMaterialLibrary(assetId => TextureFileLoader.Load(textureRoot, assetId))
             : new TextureMaterialLibrary();
