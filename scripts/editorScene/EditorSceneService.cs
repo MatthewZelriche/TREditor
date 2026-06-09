@@ -164,6 +164,20 @@ public sealed class EditorSceneService : IDisposable
         }
     }
 
+    public bool ApplyFaceTexture(EditorObjectId objectId, FaceTextureChange change, bool revert)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
+            return false;
+
+        if (revert)
+            change.Revert(meshNode.SourceMesh);
+        else
+            change.Apply(meshNode.SourceMesh);
+        meshNode.RebuildRender();
+        return true;
+    }
+
     public void Dispose()
     {
         if (_disposed)
