@@ -9,6 +9,9 @@ public sealed class EditorToolContext
         ObjectSelectionHighlightController objectSelectionHighlight,
         ComponentSelectionHighlightController componentSelectionHighlight,
         SelectionTranslationGizmoController selectionTranslationGizmo,
+        TextureAssetCatalog textureCatalog,
+        TextureMaterialLibrary textureMaterials,
+        Action<string> reportStatus,
         Func<float> getGridSnapSize
     )
     {
@@ -17,6 +20,9 @@ public sealed class EditorToolContext
         ArgumentNullException.ThrowIfNull(objectSelectionHighlight);
         ArgumentNullException.ThrowIfNull(componentSelectionHighlight);
         ArgumentNullException.ThrowIfNull(selectionTranslationGizmo);
+        ArgumentNullException.ThrowIfNull(textureCatalog);
+        ArgumentNullException.ThrowIfNull(textureMaterials);
+        ArgumentNullException.ThrowIfNull(reportStatus);
         ArgumentNullException.ThrowIfNull(getGridSnapSize);
 
         ScenePicking = scenePicking;
@@ -24,6 +30,9 @@ public sealed class EditorToolContext
         ObjectSelectionHighlight = objectSelectionHighlight;
         ComponentSelectionHighlight = componentSelectionHighlight;
         SelectionTranslationGizmo = selectionTranslationGizmo;
+        TextureCatalog = textureCatalog;
+        TextureMaterials = textureMaterials;
+        ReportStatus = reportStatus;
         GetGridSnapSize = getGridSnapSize;
     }
 
@@ -32,5 +41,8 @@ public sealed class EditorToolContext
     public ObjectSelectionHighlightController ObjectSelectionHighlight { get; }
     public ComponentSelectionHighlightController ComponentSelectionHighlight { get; }
     public SelectionTranslationGizmoController SelectionTranslationGizmo { get; }
+    public TextureAssetCatalog TextureCatalog { get; }
+    public TextureMaterialLibrary TextureMaterials { get; }
+    public Action<string> ReportStatus { get; }
     public Func<float> GetGridSnapSize { get; }
 }

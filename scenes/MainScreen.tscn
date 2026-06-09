@@ -133,6 +133,11 @@ layout_mode = 2
 toggle_mode = true
 text = "CREAT"
 
+[node name="Texture" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/ToolBar/VBoxContainer"]
+layout_mode = 2
+toggle_mode = true
+text = "TEX"
+
 [node name="ViewportWorkspace" type="Container" parent="UI_ROOT/VBoxContainer/HBoxContainer" unique_id=614406088]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -194,6 +199,10 @@ text = "Snap"
 [node name="SnapOption" type="OptionButton" parent="UI_ROOT/VBoxContainer/StatusBar/HBoxContainer"]
 custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
+
+[node name="Message" type="Label" parent="UI_ROOT/VBoxContainer/StatusBar/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="WORLD_ROOT" type="Node3D" parent="." unique_id=1918487018]
 unique_name_in_owner = true

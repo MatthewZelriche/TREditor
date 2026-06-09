@@ -30,9 +30,11 @@ public sealed class EditorToolManager : IDisposable
     }
 
     public bool HasTemporaryTool => _temporaryTool != null;
+    public EditorToolId PersistentToolId => _persistentToolId;
 
     public event Action<EditorCommand> CommandSubmitted;
     public event Action<EditorPreviewRequest> PreviewSubmitted;
+    public event Action<EditorToolId> PersistentToolChanged;
 
     public void ActivatePersistentTool(EditorToolId toolId)
     {
@@ -51,6 +53,7 @@ public sealed class EditorToolManager : IDisposable
             ClearPreview();
             _persistentTool = CreatePersistentTool(toolId);
             _persistentToolId = toolId;
+            PersistentToolChanged?.Invoke(toolId);
         }
 
         EnterPersistentTool();
@@ -210,6 +213,7 @@ public sealed class EditorToolManager : IDisposable
                 _getPrimitiveCreationSettings,
                 _context
             ),
+            EditorToolId.Texture => new TextureTool(_context),
             _ => throw new ArgumentOutOfRangeException(nameof(toolId), toolId, null),
         };
     }

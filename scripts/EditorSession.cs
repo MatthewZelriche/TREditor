@@ -1,3 +1,4 @@
+using System;
 using Gizmo3DPlugin;
 using Godot;
 
@@ -23,6 +24,14 @@ public partial class EditorSession : Node3D
         get => _gridSnapSize;
         set => _gridSnapSize = Mathf.Max(GridSnap.Off, value);
     }
+
+    public EditorToolId ActivePersistentTool =>
+        _toolManager?.PersistentToolId ?? EditorToolId.Select;
+
+    public string StatusMessage { get; private set; } = "";
+
+    public event Action<EditorToolId> PersistentToolChanged;
+    public event Action<string> StatusMessageChanged;
 
     private float _gridSnapSize = GridSnap.Off;
     private EditorToolContext _toolContext;
@@ -100,6 +109,16 @@ public partial class EditorSession : Node3D
         _toolManager.ActivatePersistentTool(toolId);
     }
 
+    public void ReportStatus(string message)
+    {
+        message ??= "";
+        if (StatusMessage == message)
+            return;
+
+        StatusMessage = message;
+        StatusMessageChanged?.Invoke(message);
+    }
+
     public bool TrySetTextureRoot(string rootPath)
     {
         if (!TextureRootSettings.TrySetRootPath(rootPath))
@@ -137,6 +156,7 @@ public partial class EditorSession : Node3D
         {
             _toolManager.CommandSubmitted -= Commands.Execute;
             _toolManager.PreviewSubmitted -= _previewService.Apply;
+            _toolManager.PersistentToolChanged -= OnPersistentToolChanged;
         }
 
         if (_translationGizmoEventsWired)
@@ -177,6 +197,9 @@ public partial class EditorSession : Node3D
             _objectSelectionHighlightController,
             _componentSelectionHighlightController,
             _selectionTranslationGizmoController,
+            TextureCatalog,
+            TextureMaterials,
+            ReportStatus,
             () => GridSnapSize
         );
         _previewService = new EditorPreviewService(
@@ -187,9 +210,16 @@ public partial class EditorSession : Node3D
         _toolManager = new EditorToolManager(_toolContext, () => PrimitiveCreationSettings);
         _toolManager.CommandSubmitted += Commands.Execute;
         _toolManager.PreviewSubmitted += _previewService.Apply;
+        _toolManager.PersistentToolChanged += OnPersistentToolChanged;
         _selectionTranslationGizmoController.CommandSubmitted += Commands.Execute;
         _selectionTranslationGizmoController.PreviewSubmitted += _previewService.Apply;
         _translationGizmoEventsWired = true;
+    }
+
+    private void OnPersistentToolChanged(EditorToolId toolId)
+    {
+        ReportStatus("");
+        PersistentToolChanged?.Invoke(toolId);
     }
 
     private void OnCommandHistoryChanged()

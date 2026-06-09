@@ -12,6 +12,8 @@ using Godot;
 public sealed class TextureMaterialLibrary
 {
     private const int CheckerSize = 2;
+    internal const BaseMaterial3D.ShadingModeEnum SurfaceShadingMode =
+        BaseMaterial3D.ShadingModeEnum.Unshaded;
 
     private readonly Dictionary<int, string> _assetIdsBySlot = [];
     private readonly Dictionary<string, int> _slotsByAssetId = new(StringComparer.Ordinal);
@@ -160,6 +162,7 @@ public sealed class TextureMaterialLibrary
         return new StandardMaterial3D
         {
             AlbedoTexture = texture,
+            ShadingMode = SurfaceShadingMode,
             TextureFilter = BaseMaterial3D.TextureFilterEnum.NearestWithMipmaps,
             TextureRepeat = true,
         };
@@ -192,6 +195,7 @@ public sealed class TextureMaterialLibrary
         return new StandardMaterial3D
         {
             AlbedoTexture = ImageTexture.CreateFromImage(image),
+            ShadingMode = SurfaceShadingMode,
             TextureFilter = BaseMaterial3D.TextureFilterEnum.Nearest,
             TextureRepeat = true,
         };

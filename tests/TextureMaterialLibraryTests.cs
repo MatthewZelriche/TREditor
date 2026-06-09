@@ -1,3 +1,5 @@
+using Godot;
+
 namespace TREditor2026.Tests;
 
 public sealed class TextureMaterialLibraryTests
@@ -65,6 +67,15 @@ public sealed class TextureMaterialLibraryTests
         TextureMaterialLibrary library = CreateLibrary();
 
         Assert.Throws<KeyNotFoundException>(() => library.ResolveMaterial(42));
+    }
+
+    [Fact]
+    public void SurfaceShadingMode_IsUnshaded()
+    {
+        Assert.Equal(
+            BaseMaterial3D.ShadingModeEnum.Unshaded,
+            TextureMaterialLibrary.SurfaceShadingMode
+        );
     }
 
     [Theory]

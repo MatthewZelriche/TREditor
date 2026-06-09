@@ -16,11 +16,13 @@ public partial class StatusBar : PanelContainer
 
     private EditorSession _session;
     private OptionButton _snapOption;
+    private Label _message;
 
     public override void _Ready()
     {
         _session = GetNodeOrNull<EditorSession>("%WORLD_ROOT");
         _snapOption = GetNode<OptionButton>("HBoxContainer/SnapOption");
+        _message = GetNode<Label>("HBoxContainer/Message");
 
         PopulateSnapOptions();
 
@@ -31,7 +33,9 @@ public partial class StatusBar : PanelContainer
         }
 
         _snapOption.ItemSelected += OnSnapOptionSelected;
+        _session.StatusMessageChanged += OnStatusMessageChanged;
         OnSnapOptionSelected(_snapOption.Selected);
+        OnStatusMessageChanged(_session.StatusMessage);
     }
 
     private void PopulateSnapOptions()
@@ -54,6 +58,17 @@ public partial class StatusBar : PanelContainer
         }
 
         _session.GridSnapSize = _snapOptions[index].CellSize;
+    }
+
+    private void OnStatusMessageChanged(string message)
+    {
+        _message.Text = message;
+    }
+
+    public override void _ExitTree()
+    {
+        if (_session != null)
+            _session.StatusMessageChanged -= OnStatusMessageChanged;
     }
 
     private readonly struct SnapOption
