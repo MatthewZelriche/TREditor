@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security;
+using Godot;
 
 public readonly record struct TextureAsset(string AssetId, string FilePath);
 
@@ -16,17 +17,21 @@ public readonly record struct TextureAssetDiscoveryResult(
 );
 
 /// <summary>
-/// Discovers texture assets beneath one root and owns the active texture identity.
-/// Image decoding and preview loading are intentionally deferred to later catalog stages.
+/// Discovers texture assets beneath one root, owns the active texture identity, and incrementally
+/// loads cached browser previews.
 /// </summary>
 public sealed class TextureAssetCatalog
 {
+    public const int DefaultPreviewsPerFrame = 2;
+
     private static readonly HashSet<string> SupportedExtensions = new(
         [".png", ".jpg", ".jpeg", ".webp"],
         StringComparer.OrdinalIgnoreCase
     );
 
     private readonly Func<string, TextureAssetDiscoveryResult> _discover;
+    private readonly QueuedResourceCache<string, Texture2D> _previews;
+    private readonly Dictionary<string, string> _filePathsByAssetId = new(StringComparer.Ordinal);
 
     public IReadOnlyList<TextureAsset> Assets { get; private set; } = [];
 
@@ -35,12 +40,20 @@ public sealed class TextureAssetCatalog
     public string? ActiveAssetId { get; private set; }
 
     public TextureAssetCatalog()
-        : this(Discover) { }
+        : this(Discover, TexturePreviewLoader.Load, TexturePreviewLoader.CreateFallback) { }
 
-    public TextureAssetCatalog(Func<string, TextureAssetDiscoveryResult> discover)
+    public TextureAssetCatalog(
+        Func<string, TextureAssetDiscoveryResult> discover,
+        Func<string, Texture2D?>? loadPreview = null,
+        Func<Texture2D>? createFallbackPreview = null
+    )
     {
         ArgumentNullException.ThrowIfNull(discover);
         _discover = discover;
+        _previews = new QueuedResourceCache<string, Texture2D>(
+            loadPreview ?? TexturePreviewLoader.Load,
+            createFallbackPreview ?? TexturePreviewLoader.CreateFallback
+        );
     }
 
     /// <summary>
@@ -54,12 +67,18 @@ public sealed class TextureAssetCatalog
             Assets = [];
             Errors = [];
             ActiveAssetId = null;
+            _filePathsByAssetId.Clear();
+            _previews.Synchronize([]);
             return;
         }
 
         TextureAssetDiscoveryResult result = _discover(rootPath);
         Assets = result.Assets.OrderBy(asset => asset.AssetId, StringComparer.Ordinal).ToArray();
         Errors = result.Errors.ToArray();
+        _filePathsByAssetId.Clear();
+        foreach (TextureAsset asset in Assets)
+            _filePathsByAssetId[asset.AssetId] = asset.FilePath;
+        _previews.Synchronize(Assets.Select(asset => asset.FilePath));
 
         // A partial scan cannot prove that the active texture disappeared. Preserve its identity
         // until a complete scan succeeds, so a temporary unreadable folder does not change the
@@ -67,7 +86,7 @@ public sealed class TextureAssetCatalog
         if (
             Errors.Count == 0
             && ActiveAssetId != null
-            && !Assets.Any(asset => asset.AssetId == ActiveAssetId)
+            && !_filePathsByAssetId.ContainsKey(ActiveAssetId)
         )
         {
             ActiveAssetId = null;
@@ -77,7 +96,7 @@ public sealed class TextureAssetCatalog
     public bool TrySetActiveAsset(string assetId)
     {
         string normalized = TextureMaterialLibrary.NormalizeAssetId(assetId);
-        if (!Assets.Any(asset => asset.AssetId == normalized))
+        if (!_filePathsByAssetId.ContainsKey(normalized))
             return false;
 
         ActiveAssetId = normalized;
@@ -87,6 +106,19 @@ public sealed class TextureAssetCatalog
     public void ClearActiveAsset()
     {
         ActiveAssetId = null;
+    }
+
+    public int ProcessPreviewQueue(int maximumCount = DefaultPreviewsPerFrame) =>
+        _previews.Process(maximumCount);
+
+    public bool TryGetPreview(string assetId, out QueuedResource<Texture2D> preview)
+    {
+        string normalized = TextureMaterialLibrary.NormalizeAssetId(assetId);
+        if (_filePathsByAssetId.TryGetValue(normalized, out string? filePath))
+            return _previews.TryGet(filePath, out preview);
+
+        preview = default;
+        return false;
     }
 
     private static TextureAssetDiscoveryResult Discover(string rootPath)

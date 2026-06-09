@@ -68,6 +68,11 @@ public partial class EditorSession : Node3D
         EnsureToolManager();
     }
 
+    public override void _Process(double delta)
+    {
+        TextureCatalog?.ProcessPreviewQueue();
+    }
+
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is not InputEventKey { Pressed: true, Echo: false } key)

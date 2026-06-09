@@ -120,6 +120,20 @@ public sealed class TextureAssetCatalogTests
         Assert.Equal(asset.AssetId, catalog.ActiveAssetId);
     }
 
+    [Fact]
+    public void Rescan_QueuesDiscoveredAssetPreviewsAsPending()
+    {
+        var asset = new TextureAsset("walls/brick.png", @"C:\textures\walls\brick.png");
+        var catalog = new TextureAssetCatalog(_ => new TextureAssetDiscoveryResult([asset], []));
+
+        catalog.Rescan(@"C:\textures");
+
+        Assert.True(catalog.TryGetPreview(asset.AssetId, out var preview));
+        Assert.Equal(QueuedResourceState.Pending, preview.State);
+        Assert.Null(preview.Resource);
+        Assert.False(catalog.TryGetPreview("walls/missing.png", out _));
+    }
+
     private sealed class TemporaryDirectory : IDisposable
     {
         public string Path { get; } =
