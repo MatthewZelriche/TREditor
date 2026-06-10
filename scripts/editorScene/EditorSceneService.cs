@@ -160,6 +160,7 @@ public sealed class EditorSceneService : IDisposable
                 mesh.SetVertexPosition(vertex, mesh.GetVertexPosition(vertex) + numericDelta);
             }
 
+            FaceUvProjector.ReprojectInitializedFacesAroundVertices(mesh, vertices);
             meshNode.Rebuild();
         }
     }
