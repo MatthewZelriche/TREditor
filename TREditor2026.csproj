@@ -14,4 +14,7 @@
     <Compile Include="submodules/Gizmo3D/addons/Gizmo3DSharp/GizmoHelper.cs" Link="vendor/Gizmo3D/GizmoHelper.cs" />
     <ProjectReference Include="submodules/TRMesh/TREditorSharp.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="TREditor2026.Tests" />
+  </ItemGroup>
 </Project>

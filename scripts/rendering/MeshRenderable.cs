@@ -11,6 +11,8 @@ public partial class MeshRenderable : MeshInstance3D
     private static Material _defaultMaterial;
     private static Material _selectionMaterial;
 
+    private readonly List<Material> _surfaceMaterials = [];
+    private readonly Dictionary<Material, Material> _selectedSurfaceMaterials = [];
     private bool _isSelected;
     private bool _usesSurfaceMaterials;
 
@@ -21,6 +23,7 @@ public partial class MeshRenderable : MeshInstance3D
     {
         ArgumentNullException.ThrowIfNull(data);
         _usesSurfaceMaterials = false;
+        _surfaceMaterials.Clear();
 
         if (data.Indices.Count == 0)
         {
@@ -42,6 +45,7 @@ public partial class MeshRenderable : MeshInstance3D
         ArgumentNullException.ThrowIfNull(surfaces);
         ArgumentNullException.ThrowIfNull(textureMaterials);
         _usesSurfaceMaterials = true;
+        _surfaceMaterials.Clear();
 
         if (surfaces.ActiveSurfaces.Count == 0)
         {
@@ -58,10 +62,9 @@ public partial class MeshRenderable : MeshInstance3D
                 Godot.Mesh.PrimitiveType.Triangles,
                 BuildMeshArrays(surface.Data)
             );
-            renderMesh.SurfaceSetMaterial(
-                surfaceIndex,
-                ResolveSurfaceMaterial(surface.MaterialSlot, textureMaterials)
-            );
+            Material material = ResolveSurfaceMaterial(surface.MaterialSlot, textureMaterials);
+            _surfaceMaterials.Add(material);
+            renderMesh.SurfaceSetMaterial(surfaceIndex, material);
             surfaceIndex++;
         }
 
@@ -82,24 +85,18 @@ public partial class MeshRenderable : MeshInstance3D
 
     private void ApplyMaterial()
     {
-        if (_isSelected)
+        if (_usesSurfaceMaterials)
         {
-            _selectionMaterial ??= ResourceLoader.Load<Material>(SelectionMaterialPath);
-            if (_selectionMaterial == null)
-            {
-                GD.PushWarning(
-                    $"MeshRenderable could not load selection material: {SelectionMaterialPath}"
-                );
-                return;
-            }
-
-            MaterialOverride = _selectionMaterial;
+            // A MaterialOverride would replace every face material and hide textures. Swap each
+            // surface to a stencil-writing visual equivalent instead, preserving its appearance.
+            MaterialOverride = null;
+            ApplySurfaceSelectionMaterials();
             return;
         }
 
-        if (_usesSurfaceMaterials)
+        if (_isSelected)
         {
-            MaterialOverride = null;
+            MaterialOverride = GetSelectionMaterial();
             return;
         }
 
@@ -109,6 +106,45 @@ public partial class MeshRenderable : MeshInstance3D
         }
 
         MaterialOverride = GetDefaultMaterial();
+    }
+
+    private void ApplySurfaceSelectionMaterials()
+    {
+        if (Mesh is not ArrayMesh renderMesh)
+            return;
+
+        for (int surfaceIndex = 0; surfaceIndex < _surfaceMaterials.Count; surfaceIndex++)
+        {
+            Material material = _surfaceMaterials[surfaceIndex];
+            renderMesh.SurfaceSetMaterial(
+                surfaceIndex,
+                _isSelected ? GetSelectedSurfaceMaterial(material) : material
+            );
+        }
+    }
+
+    private Material GetSelectedSurfaceMaterial(Material material)
+    {
+        if (_selectedSurfaceMaterials.TryGetValue(material, out Material selected))
+            return selected;
+
+        if (material is BaseMaterial3D baseMaterial)
+        {
+            var selectedBaseMaterial = (BaseMaterial3D)baseMaterial.Duplicate();
+            selectedBaseMaterial.StencilMode = BaseMaterial3D.StencilModeEnum.Custom;
+            selectedBaseMaterial.StencilFlags = (int)BaseMaterial3D.StencilFlagsEnum.Write;
+            selectedBaseMaterial.StencilCompare = BaseMaterial3D.StencilCompareEnum.Always;
+            selectedBaseMaterial.StencilReference = 1;
+            selected = selectedBaseMaterial;
+        }
+        else
+        {
+            // The current non-BaseMaterial3D surface is the default matcap ShaderMaterial.
+            selected = GetSelectionMaterial();
+        }
+
+        _selectedSurfaceMaterials.Add(material, selected);
+        return selected;
     }
 
     private static GodotArray BuildMeshArrays(MeshRenderData data)
@@ -149,6 +185,16 @@ public partial class MeshRenderable : MeshInstance3D
                 $"MeshRenderable could not load default material: {DefaultMaterialPath}"
             );
         return _defaultMaterial;
+    }
+
+    private static Material GetSelectionMaterial()
+    {
+        _selectionMaterial ??= ResourceLoader.Load<Material>(SelectionMaterialPath);
+        if (_selectionMaterial == null)
+            GD.PushWarning(
+                $"MeshRenderable could not load selection material: {SelectionMaterialPath}"
+            );
+        return _selectionMaterial;
     }
 
     private bool HasCustomMaterialOverride() =>
