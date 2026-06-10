@@ -42,7 +42,12 @@ public sealed class EditTool : IEditorTool
         return EditorToolResult.Continue;
     }
 
-    public EditorToolResult HandleKey(Key key) => EditorToolResult.Continue;
+    public EditorToolResult HandleKey(Key key) =>
+        key == Key.Delete
+            ? EditorToolResult.ContinueWithCommand(
+                DeleteFaceCommand.CreateIfAny(_context.Selection.Current)
+            )
+            : EditorToolResult.Continue;
 
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 

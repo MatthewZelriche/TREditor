@@ -179,6 +179,58 @@ public sealed class EditorSceneService : IDisposable
         return true;
     }
 
+    public FaceDeletionChange[] CaptureFaceDeletions(IReadOnlyList<SelectionTarget> targets)
+    {
+        List<FaceDeletionChange> changes = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind == ScenePickElementKind.Face
+                && _meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+                && FaceDeletionChange.Capture(target.ObjectId, meshNode.SourceMesh, target.Face)
+                    is FaceDeletionChange change
+            )
+            {
+                changes.Add(change);
+            }
+        }
+
+        return changes.ToArray();
+    }
+
+    public void DeleteFaces(IReadOnlyList<FaceDeletionChange> changes)
+    {
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach (FaceDeletionChange change in changes)
+        {
+            if (
+                _meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode)
+                && change.Delete(meshNode.SourceMesh)
+            )
+            {
+                changedObjects.Add(change.ObjectId);
+            }
+        }
+
+        RebuildObjects(changedObjects);
+    }
+
+    public void RestoreFaces(IReadOnlyList<FaceDeletionChange> changes)
+    {
+        HashSet<EditorObjectId> changedObjects = [];
+        for (int i = changes.Count - 1; i >= 0; i--)
+        {
+            FaceDeletionChange change = changes[i];
+            if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+                continue;
+
+            change.Restore(meshNode.SourceMesh);
+            changedObjects.Add(change.ObjectId);
+        }
+
+        RebuildObjects(changedObjects);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -378,4 +430,13 @@ public sealed class EditorSceneService : IDisposable
     private static Vector3 ToGodotVector3(NumericVector3 value) => new(value.X, value.Y, value.Z);
 
     private static NumericVector3 ToNumericVector3(Vector3 value) => new(value.X, value.Y, value.Z);
+
+    private void RebuildObjects(IEnumerable<EditorObjectId> objectIds)
+    {
+        foreach (EditorObjectId objectId in objectIds)
+        {
+            if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
+                meshNode.Rebuild();
+        }
+    }
 }
