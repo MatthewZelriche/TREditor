@@ -18,6 +18,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
 
     private static StandardMaterial3D _defaultEdgeMaterial;
     private static StandardMaterial3D _activeEdgeMaterial;
+    private static StandardMaterial3D _invalidEdgeMaterial;
     private static StandardMaterial3D _defaultVertexMaterial;
     private static StandardMaterial3D _activeVertexMaterial;
     private static StandardMaterial3D _faceMaterial;
@@ -28,6 +29,11 @@ public sealed partial class ComponentSelectionOverlay : Node3D
     private readonly List<Vector3> _activeEdgeVertices = [];
     private readonly List<Vector3> _activeEdgeNormals = [];
     private readonly List<int> _activeEdgeIndices = [];
+    private readonly List<Vector3> _invalidEdgeVertices = [];
+    private readonly List<Vector3> _invalidEdgeNormals = [];
+    private readonly List<int> _invalidEdgeIndices = [];
+    private readonly List<HalfEdgeHandle> _invalidEdges = [];
+    private readonly HashSet<int> _invalidEdgeIndicesByCanonicalHandle = [];
     private readonly List<Vector3> _defaultVertexVertices = [];
     private readonly List<Vector3> _defaultVertexNormals = [];
     private readonly List<int> _defaultVertexIndices = [];
@@ -41,6 +47,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
 
     private MeshInstance3D _defaultEdges;
     private MeshInstance3D _activeEdges;
+    private MeshInstance3D _invalidEdgesMesh;
     private MeshInstance3D _defaultVertices;
     private MeshInstance3D _activeVertices;
     private MeshInstance3D _faces;
@@ -65,6 +72,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         SpatialMesh mesh = meshNode.SourceMesh;
         Vector3 localCameraOrigin = meshNode.GlobalTransform.AffineInverse() * cameraOrigin;
 
+        CollectInvalidFaceEdges(mesh);
         AddDefaultComponents(mesh, localCameraOrigin, mode.PassiveKinds);
         AddActiveComponents(mesh, selected, localCameraOrigin, mode.SelectedKinds);
         if (
@@ -75,9 +83,16 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         {
             AddActiveComponent(mesh, hover.Value, localCameraOrigin);
         }
+        AddInvalidFaceEdges(mesh, localCameraOrigin);
 
         RebuildMesh(_defaultEdges, _defaultEdgeVertices, _defaultEdgeNormals, _defaultEdgeIndices);
         RebuildMesh(_activeEdges, _activeEdgeVertices, _activeEdgeNormals, _activeEdgeIndices);
+        RebuildMesh(
+            _invalidEdgesMesh,
+            _invalidEdgeVertices,
+            _invalidEdgeNormals,
+            _invalidEdgeIndices
+        );
         RebuildMesh(
             _defaultVertices,
             _defaultVertexVertices,
@@ -97,6 +112,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
     {
         _defaultEdges ??= AddMeshInstance("DefaultEdges", GetDefaultEdgeMaterial());
         _activeEdges ??= AddMeshInstance("ActiveEdges", GetActiveEdgeMaterial());
+        _invalidEdgesMesh ??= AddMeshInstance("InvalidEdges", GetInvalidEdgeMaterial());
         _defaultVertices ??= AddMeshInstance("DefaultVertices", GetDefaultVertexMaterial());
         _activeVertices ??= AddMeshInstance("ActiveVertices", GetActiveVertexMaterial());
         _faces ??= AddMeshInstance("SelectedFaces", GetFaceMaterial());
@@ -220,6 +236,12 @@ public sealed partial class ComponentSelectionOverlay : Node3D
             return;
         }
 
+        HalfEdgeHandle canonical = edge.Index <= halfEdge.Twin.Index ? edge : halfEdge.Twin;
+        if (_invalidEdgeIndicesByCanonicalHandle.Contains(canonical.Index))
+        {
+            return;
+        }
+
         HalfEdge twin = mesh.GetHalfEdge(halfEdge.Twin);
         Vector3 start = ToGodotVector3(mesh.GetVertexPosition(halfEdge.Origin));
         Vector3 end = ToGodotVector3(mesh.GetVertexPosition(twin.Origin));
@@ -230,6 +252,37 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         );
         radius = Mathf.Max(radius, MinEdgeRadius);
         AddTube(start, end, radius, active);
+    }
+
+    private void CollectInvalidFaceEdges(SpatialMesh mesh)
+    {
+        InvalidFaceEdgeCollector.Collect(mesh, _invalidEdges, _faceTriangulation);
+        foreach (HalfEdgeHandle edge in _invalidEdges)
+            _invalidEdgeIndicesByCanonicalHandle.Add(edge.Index);
+    }
+
+    private void AddInvalidFaceEdges(SpatialMesh mesh, Vector3 localCameraOrigin)
+    {
+        foreach (HalfEdgeHandle edge in _invalidEdges)
+        {
+            HalfEdge halfEdge = mesh.GetHalfEdge(edge);
+            HalfEdge twin = mesh.GetHalfEdge(halfEdge.Twin);
+            Vector3 start = ToGodotVector3(mesh.GetVertexPosition(halfEdge.Origin));
+            Vector3 end = ToGodotVector3(mesh.GetVertexPosition(twin.Origin));
+            float radius = GetRadius(
+                (start + end) * 0.5f,
+                localCameraOrigin,
+                ActiveEdgeScale * 1.25f
+            );
+            AddTube(
+                start,
+                end,
+                Mathf.Max(radius, MinEdgeRadius),
+                _invalidEdgeVertices,
+                _invalidEdgeNormals,
+                _invalidEdgeIndices
+            );
+        }
     }
 
     private void AddFace(SpatialMesh mesh, FaceHandle face)
@@ -284,6 +337,23 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         List<Vector3> vertices = active ? _activeEdgeVertices : _defaultEdgeVertices;
         List<Vector3> normals = active ? _activeEdgeNormals : _defaultEdgeNormals;
         List<int> indices = active ? _activeEdgeIndices : _defaultEdgeIndices;
+        AddTube(start, end, radius, vertices, normals, indices);
+    }
+
+    private static void AddTube(
+        Vector3 start,
+        Vector3 end,
+        float radius,
+        List<Vector3> vertices,
+        List<Vector3> normals,
+        List<int> indices
+    )
+    {
+        Vector3 axis = end - start;
+        if (axis.IsZeroApprox())
+        {
+            return;
+        }
 
         axis = axis.Normalized();
         Vector3 reference = Mathf.Abs(axis.Dot(Vector3.Up)) > 0.95f ? Vector3.Right : Vector3.Up;
@@ -365,6 +435,11 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         _activeEdgeVertices.Clear();
         _activeEdgeNormals.Clear();
         _activeEdgeIndices.Clear();
+        _invalidEdgeVertices.Clear();
+        _invalidEdgeNormals.Clear();
+        _invalidEdgeIndices.Clear();
+        _invalidEdges.Clear();
+        _invalidEdgeIndicesByCanonicalHandle.Clear();
         _defaultVertexVertices.Clear();
         _defaultVertexNormals.Clear();
         _defaultVertexIndices.Clear();
@@ -424,6 +499,18 @@ public sealed partial class ComponentSelectionOverlay : Node3D
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
         };
         return _activeEdgeMaterial;
+    }
+
+    private static StandardMaterial3D GetInvalidEdgeMaterial()
+    {
+        _invalidEdgeMaterial ??= new StandardMaterial3D
+        {
+            AlbedoColor = new Color(1.0f, 0.08f, 0.08f, 1.0f),
+            CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+            NoDepthTest = true,
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+        };
+        return _invalidEdgeMaterial;
     }
 
     private static StandardMaterial3D GetDefaultVertexMaterial()
