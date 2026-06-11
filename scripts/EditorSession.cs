@@ -176,12 +176,14 @@ public partial class EditorSession : Node3D
         _objectSelectionHighlightController = null;
         _componentSelectionHighlightController?.Dispose();
         _componentSelectionHighlightController = null;
+        // Commands may own topology patches that must release reserved handles before the
+        // scene service disposes their meshes.
+        Commands.CommandHistoryChanged -= OnCommandHistoryChanged;
+        Commands.Dispose();
         _sceneService?.Dispose();
         _sceneService = null;
         Selection?.Dispose();
         Selection = null;
-        Commands.CommandHistoryChanged -= OnCommandHistoryChanged;
-        Commands.Dispose();
     }
 
     private void EnsureToolManager()

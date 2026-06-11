@@ -3,6 +3,7 @@ using Godot;
 public abstract partial class EditorCommand : GodotObject
 {
     private EditorCommandContext _context;
+    private bool _resourcesReleased;
 
     public abstract string Name { get; }
 
@@ -24,6 +25,21 @@ public abstract partial class EditorCommand : GodotObject
     public abstract void Do(EditorCommandContext context);
 
     public abstract void Undo(EditorCommandContext context);
+
+    /// <summary>
+    /// Permanently release resources retained solely for future undo/redo. This method is
+    /// idempotent because history shutdown and future history eviction may overlap.
+    /// </summary>
+    public void ReleaseResources()
+    {
+        if (_resourcesReleased)
+            return;
+
+        _resourcesReleased = true;
+        OnReleaseResources();
+    }
+
+    protected virtual void OnReleaseResources() { }
 
     private EditorCommandContext GetContext()
     {
