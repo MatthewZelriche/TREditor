@@ -44,12 +44,18 @@ public sealed class EditTool : IEditorTool
 
     public EditorToolResult HandleKey(Key key) =>
         key == Key.Delete
-            ? EditorToolResult.ContinueWithCommand(
-                DeleteFaceCommand.CreateIfAny(_context.Selection.Current)
-            )
+            ? EditorToolResult.ContinueWithCommand(CreateDeleteCommand())
             : EditorToolResult.Continue;
 
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
+
+    // Prefer edge deletion whenever an edge is selected; otherwise fall back to face deletion.
+    private EditorCommand CreateDeleteCommand()
+    {
+        SelectionSnapshot selection = _context.Selection.Current;
+        EditorCommand edgeDeletion = DeleteEdgeCommand.CreateIfAny(selection);
+        return edgeDeletion ?? DeleteFaceCommand.CreateIfAny(selection);
+    }
 
     private void UpdateHover(Vector3 rayOrigin, Vector3 rayDirection)
     {

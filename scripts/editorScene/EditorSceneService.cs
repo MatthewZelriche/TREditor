@@ -231,6 +231,77 @@ public sealed class EditorSceneService : IDisposable
         RebuildObjects(changedObjects);
     }
 
+    /// <summary>
+    /// Delete the selected edges, grouped per mesh, through reversible topology patches. Each
+    /// affected mesh is rebuilt once.
+    /// </summary>
+    public EdgeDeletionBatch[] DeleteEdges(IReadOnlyList<SelectionTarget> targets)
+    {
+        Dictionary<EditorObjectId, List<HalfEdgeHandle>> edgesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind != ScenePickElementKind.Edge
+                || !_meshNodes.ContainsKey(target.ObjectId)
+            )
+            {
+                continue;
+            }
+
+            if (!edgesByObject.TryGetValue(target.ObjectId, out List<HalfEdgeHandle> edges))
+            {
+                edges = [];
+                edgesByObject[target.ObjectId] = edges;
+            }
+
+            edges.Add(target.Edge);
+        }
+
+        List<EdgeDeletionBatch> batches = [];
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach ((EditorObjectId objectId, List<HalfEdgeHandle> edges) in edgesByObject)
+        {
+            TRMeshGD meshNode = _meshNodes[objectId];
+            if (
+                EdgeDeletionBatch.Delete(objectId, meshNode.SourceMesh, edges)
+                is EdgeDeletionBatch batch
+            )
+            {
+                batches.Add(batch);
+                changedObjects.Add(objectId);
+            }
+        }
+
+        RebuildObjects(changedObjects);
+        return batches.ToArray();
+    }
+
+    /// <summary>Apply the before-state of every edge-deletion patch (undo) and rebuild once.</summary>
+    public void ApplyEdgeDeletionBefore(IReadOnlyList<EdgeDeletionBatch> batches) =>
+        ApplyEdgeDeletion(batches, before: true);
+
+    /// <summary>Apply the after-state of every edge-deletion patch (redo) and rebuild once.</summary>
+    public void ApplyEdgeDeletionAfter(IReadOnlyList<EdgeDeletionBatch> batches) =>
+        ApplyEdgeDeletion(batches, before: false);
+
+    private void ApplyEdgeDeletion(IReadOnlyList<EdgeDeletionBatch> batches, bool before)
+    {
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach (EdgeDeletionBatch batch in batches)
+        {
+            if (!_meshNodes.ContainsKey(batch.ObjectId))
+                continue;
+
+            if (before)
+                batch.ApplyBefore();
+            else
+                batch.ApplyAfter();
+            changedObjects.Add(batch.ObjectId);
+        }
+
+        RebuildObjects(changedObjects);
+    }
+
     public void Dispose()
     {
         if (_disposed)
