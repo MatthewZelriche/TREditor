@@ -302,6 +302,75 @@ public sealed class EditorSceneService : IDisposable
         RebuildObjects(changedObjects);
     }
 
+    /// <summary>
+    /// Delete selected vertices, grouped per mesh, together with all incident edges and faces.
+    /// Each affected mesh is rebuilt once.
+    /// </summary>
+    public VertexDeletionBatch[] DeleteVertices(IReadOnlyList<SelectionTarget> targets)
+    {
+        Dictionary<EditorObjectId, List<VertexHandle>> verticesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind != ScenePickElementKind.Vertex
+                || !_meshNodes.ContainsKey(target.ObjectId)
+            )
+            {
+                continue;
+            }
+
+            if (!verticesByObject.TryGetValue(target.ObjectId, out List<VertexHandle> vertices))
+            {
+                vertices = [];
+                verticesByObject[target.ObjectId] = vertices;
+            }
+
+            vertices.Add(target.Vertex);
+        }
+
+        List<VertexDeletionBatch> batches = [];
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach ((EditorObjectId objectId, List<VertexHandle> vertices) in verticesByObject)
+        {
+            TRMeshGD meshNode = _meshNodes[objectId];
+            if (
+                VertexDeletionBatch.Delete(objectId, meshNode.SourceMesh, vertices)
+                is VertexDeletionBatch batch
+            )
+            {
+                batches.Add(batch);
+                changedObjects.Add(objectId);
+            }
+        }
+
+        RebuildObjects(changedObjects);
+        return batches.ToArray();
+    }
+
+    public void ApplyVertexDeletionBefore(IReadOnlyList<VertexDeletionBatch> batches) =>
+        ApplyVertexDeletion(batches, before: true);
+
+    public void ApplyVertexDeletionAfter(IReadOnlyList<VertexDeletionBatch> batches) =>
+        ApplyVertexDeletion(batches, before: false);
+
+    private void ApplyVertexDeletion(IReadOnlyList<VertexDeletionBatch> batches, bool before)
+    {
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach (VertexDeletionBatch batch in batches)
+        {
+            if (!_meshNodes.ContainsKey(batch.ObjectId))
+                continue;
+
+            if (before)
+                batch.ApplyBefore();
+            else
+                batch.ApplyAfter();
+            changedObjects.Add(batch.ObjectId);
+        }
+
+        RebuildObjects(changedObjects);
+    }
+
     public void Dispose()
     {
         if (_disposed)

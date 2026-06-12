@@ -49,12 +49,13 @@ public sealed class EditTool : IEditorTool
 
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 
-    // Prefer edge deletion whenever an edge is selected; otherwise fall back to face deletion.
+    // Prefer the lowest-dimensional selected component because its deletion cascades upward.
     private EditorCommand CreateDeleteCommand()
     {
         SelectionSnapshot selection = _context.Selection.Current;
+        EditorCommand vertexDeletion = DeleteVertexCommand.CreateIfAny(selection);
         EditorCommand edgeDeletion = DeleteEdgeCommand.CreateIfAny(selection);
-        return edgeDeletion ?? DeleteFaceCommand.CreateIfAny(selection);
+        return vertexDeletion ?? edgeDeletion ?? DeleteFaceCommand.CreateIfAny(selection);
     }
 
     private void UpdateHover(Vector3 rayOrigin, Vector3 rayDirection)
