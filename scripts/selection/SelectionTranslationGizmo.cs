@@ -16,8 +16,36 @@ public partial class SelectionTranslationGizmo : Gizmo3D
         base._UnhandledInput(@event);
     }
 
+    public bool ShouldCapturePointerInput(InputEvent @event)
+    {
+        if (!Visible)
+        {
+            return false;
+        }
+
+        if (Editing)
+        {
+            return IsGizmoPointerEvent(@event);
+        }
+
+        // GUI input is published to editor tools before Gizmo3D receives its unhandled-input
+        // callback. Refresh hover on every left press so clicks use the current handle position,
+        // even when the gizmo or cursor moved without a preceding motion event.
+        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } press)
+        {
+            base._UnhandledInput(new InputEventMouseMotion { Position = press.Position });
+            return Hovering;
+        }
+
+        return Hovering && IsGizmoPointerEvent(@event);
+    }
+
     protected override Vector3 EditTranslate(Vector3 translation)
     {
         return GridSnap.Snap(translation, GetGridSnapSize());
     }
+
+    private static bool IsGizmoPointerEvent(InputEvent @event) =>
+        @event is InputEventMouseMotion
+        || @event is InputEventMouseButton { ButtonIndex: MouseButton.Left };
 }

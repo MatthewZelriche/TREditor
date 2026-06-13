@@ -368,18 +368,6 @@ public partial class ViewportPane : Control
         EnsureTranslationGizmo();
     }
 
-    private bool ShouldSuppressToolInput(InputEvent @event)
-    {
-        if (
-            _translationGizmo == null
-            || !_translationGizmo.Visible
-            || !(_translationGizmo.Editing || _translationGizmo.Hovering)
-        )
-        {
-            return false;
-        }
-
-        return @event is InputEventMouseMotion
-            || @event is InputEventMouseButton { ButtonIndex: MouseButton.Left };
-    }
+    private bool ShouldSuppressToolInput(InputEvent @event) =>
+        _translationGizmo?.ShouldCapturePointerInput(@event) == true;
 }
