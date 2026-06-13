@@ -165,6 +165,48 @@ public sealed class EditorSceneService : IDisposable
         }
     }
 
+    public FaceExtrusionChange ExtrudeFace(SelectionTarget target, Vector3 worldDelta)
+    {
+        if (
+            target.Kind != ScenePickElementKind.Face
+            || worldDelta.IsZeroApprox()
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        Vector3 localDelta = meshNode.GlobalTransform.Basis.Inverse() * worldDelta;
+        FaceExtrusionChange change = FaceExtrusionChange.Extrude(
+            target.ObjectId,
+            meshNode.SourceMesh,
+            target.Face,
+            ToNumericVector3(localDelta)
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
+    public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
+        ApplyFaceExtrusion(change, before: true);
+
+    public void ApplyFaceExtrusionAfter(FaceExtrusionChange change) =>
+        ApplyFaceExtrusion(change, before: false);
+
+    private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
+    }
+
     public bool ApplyFaceTexture(EditorObjectId objectId, FaceTextureChange change, bool revert)
     {
         ArgumentNullException.ThrowIfNull(change);

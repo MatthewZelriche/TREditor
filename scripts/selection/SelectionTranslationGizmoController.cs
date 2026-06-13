@@ -7,23 +7,32 @@ public sealed class SelectionTranslationGizmoController : IDisposable
 {
     private readonly EditorSceneService _scene;
     private readonly SelectionService _selection;
+    private readonly Func<bool> _isFaceExtrusionModifierPressed;
     private readonly List<GizmoRegistration> _registrations = [];
 
     private bool _active;
     private bool _disposed;
     private bool _dragging;
+    private bool _extrudeFaceDrag;
+    private bool _faceExtrusionEnabled;
     private GizmoRegistration _dragRegistration;
     private SelectionSnapshot _dragSelection = SelectionSnapshot.Empty;
     private Vector3 _dragCenter;
     private Vector3 _dragDelta;
 
-    public SelectionTranslationGizmoController(EditorSceneService scene, SelectionService selection)
+    public SelectionTranslationGizmoController(
+        EditorSceneService scene,
+        SelectionService selection,
+        Func<bool> isFaceExtrusionModifierPressed = null
+    )
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(selection);
 
         _scene = scene;
         _selection = selection;
+        _isFaceExtrusionModifierPressed =
+            isFaceExtrusionModifierPressed ?? (() => Input.IsKeyPressed(Key.Shift));
         _selection.SelectionChanged += OnSelectionChanged;
     }
 
@@ -44,6 +53,11 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         }
 
         UpdateGizmos();
+    }
+
+    public void SetFaceExtrusionEnabled(bool enabled)
+    {
+        _faceExtrusionEnabled = enabled;
     }
 
     public void Refresh()
@@ -138,6 +152,11 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         _dragRegistration = registration;
         _dragSelection = _selection.Current;
         _dragDelta = Vector3.Zero;
+        _extrudeFaceDrag = ShouldExtrudeFace(
+            _dragSelection,
+            _faceExtrusionEnabled,
+            _isFaceExtrusionModifierPressed()
+        );
     }
 
     private void OnTransformChanged(GizmoRegistration registration, int mode, Vector3 value)
@@ -152,9 +171,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         }
 
         _dragDelta = registration.Target.GlobalPosition - _dragCenter;
-        PreviewSubmitted?.Invoke(
-            new EditorPreviewRequest.TranslateSelection(_dragSelection, _dragDelta)
-        );
+        PreviewSubmitted?.Invoke(CreateDragPreview(_dragSelection, _dragDelta, _extrudeFaceDrag));
         UpdateGizmoTargets(_dragCenter + _dragDelta, registration);
     }
 
@@ -167,14 +184,14 @@ public sealed class SelectionTranslationGizmoController : IDisposable
 
         Vector3 finalDelta = _dragDelta;
         SelectionSnapshot finalSelection = _dragSelection;
+        bool extrudeFace = _extrudeFaceDrag;
 
         ClearDragState();
         PreviewSubmitted?.Invoke(new EditorPreviewRequest.Clear());
 
-        TranslateSelectionCommand command = TranslateSelectionCommand.CreateIfChanged(
-            finalSelection,
-            finalDelta
-        );
+        EditorCommand command = extrudeFace
+            ? ExtrudeFaceCommand.CreateIfChanged(finalSelection, finalDelta)
+            : TranslateSelectionCommand.CreateIfChanged(finalSelection, finalDelta);
         if (command != null)
         {
             CommandSubmitted?.Invoke(command);
@@ -201,6 +218,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         _dragSelection = SelectionSnapshot.Empty;
         _dragCenter = Vector3.Zero;
         _dragDelta = Vector3.Zero;
+        _extrudeFaceDrag = false;
     }
 
     private void UpdateGizmos()
@@ -266,6 +284,21 @@ public sealed class SelectionTranslationGizmoController : IDisposable
 
     private static bool IsValid(GodotObject instance) =>
         instance != null && GodotObject.IsInstanceValid(instance);
+
+    internal static bool ShouldExtrudeFace(
+        SelectionSnapshot selection,
+        bool faceExtrusionEnabled,
+        bool modifierPressed
+    ) => faceExtrusionEnabled && modifierPressed && ExtrudeFaceCommand.CanCreate(selection);
+
+    internal static EditorPreviewRequest CreateDragPreview(
+        SelectionSnapshot selection,
+        Vector3 delta,
+        bool extrudeFace
+    ) =>
+        extrudeFace
+            ? new EditorPreviewRequest.ExtrudeFace(selection.Targets[0], delta)
+            : new EditorPreviewRequest.TranslateSelection(selection, delta);
 
     private void ThrowIfDisposed()
     {

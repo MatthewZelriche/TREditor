@@ -16,6 +16,7 @@ public sealed class EditTool : IEditorTool
     {
         _context.ComponentSelectionHighlight.SetMode(ComponentHighlightMode.Edit);
         _context.ComponentSelectionHighlight.SetActive(true);
+        _context.SelectionTranslationGizmo.SetFaceExtrusionEnabled(true);
         _context.SelectionTranslationGizmo.SetActive(true);
     }
 
@@ -23,6 +24,7 @@ public sealed class EditTool : IEditorTool
     {
         _context.ComponentSelectionHighlight.SetActive(false);
         _context.SelectionTranslationGizmo.SetActive(false);
+        _context.SelectionTranslationGizmo.SetFaceExtrusionEnabled(false);
     }
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
