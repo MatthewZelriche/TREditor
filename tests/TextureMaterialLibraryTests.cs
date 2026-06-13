@@ -62,6 +62,20 @@ public sealed class TextureMaterialLibraryTests
     }
 
     [Fact]
+    public void Clear_ResetsMappingsAndSlotAllocation()
+    {
+        TextureMaterialLibrary library = CreateLibrary();
+        library.GetOrCreateSlot("walls/brick.png");
+        library.GetOrCreateSlot("floors/metal.png");
+
+        library.Clear();
+
+        Assert.Empty(library.GetMappings());
+        Assert.False(library.TryGetSlot("walls/brick.png", out _));
+        Assert.Equal(1, library.GetOrCreateSlot("ceilings/panel.png"));
+    }
+
+    [Fact]
     public void ResolveMaterial_RejectsUnknownSlotBeforeLoading()
     {
         TextureMaterialLibrary library = CreateLibrary();

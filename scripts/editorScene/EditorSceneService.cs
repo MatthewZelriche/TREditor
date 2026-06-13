@@ -46,6 +46,40 @@ public sealed class EditorSceneService : IDisposable
         _worldRoot.AddChild(meshNode);
     }
 
+    /// <summary>
+    /// Creates a mesh object and restores its local transform. Used when rebuilding a loaded
+    /// document, where each object's placement is persisted alongside its geometry.
+    /// </summary>
+    public void CreateMeshObject(
+        EditorObjectId objectId,
+        SpatialMesh mesh,
+        string displayName,
+        Transform3D transform
+    )
+    {
+        CreateMeshObject(objectId, mesh, displayName);
+        if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
+        {
+            meshNode.Transform = transform;
+        }
+    }
+
+    /// <summary>
+    /// Removes and frees every mesh object, leaving an empty scene. Unlike <see cref="Dispose"/>,
+    /// the service stays usable, so this is the reset step for loading or starting a new document.
+    /// </summary>
+    public void ClearAll()
+    {
+        foreach (TRMeshGD meshNode in _meshNodes.Values)
+        {
+            Node parent = meshNode.GetParent();
+            parent?.RemoveChild(meshNode);
+            meshNode.QueueFree();
+        }
+
+        _meshNodes.Clear();
+    }
+
     public void RemoveMeshObject(EditorObjectId objectId)
     {
         if (!_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))

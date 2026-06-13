@@ -203,7 +203,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         bool active
     )
     {
-        if (vertex.IsNull)
+        if (vertex.IsNull || !mesh.IsVertexAlive(vertex))
         {
             return;
         }
@@ -225,7 +225,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
         bool active
     )
     {
-        if (edge.IsNull)
+        if (edge.IsNull || !mesh.IsHalfEdgeAlive(edge))
         {
             return;
         }
@@ -287,7 +287,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
 
     private void AddFace(SpatialMesh mesh, FaceHandle face)
     {
-        if (face.IsNull)
+        if (face.IsNull || !mesh.IsFaceAlive(face))
         {
             return;
         }

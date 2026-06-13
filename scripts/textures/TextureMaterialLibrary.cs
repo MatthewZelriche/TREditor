@@ -120,6 +120,18 @@ public sealed class TextureMaterialLibrary
         _materials.Clear();
     }
 
+    /// <summary>
+    /// Resets the library to an empty slot table and drops cached materials. Used when loading or
+    /// starting a new document, before the loaded mappings are restored via <see cref="RegisterSlot"/>.
+    /// </summary>
+    public void Clear()
+    {
+        _assetIdsBySlot.Clear();
+        _slotsByAssetId.Clear();
+        _nextSlot = 1;
+        ClearResolvedMaterials();
+    }
+
     public static string NormalizeAssetId(string assetId)
     {
         if (string.IsNullOrWhiteSpace(assetId))

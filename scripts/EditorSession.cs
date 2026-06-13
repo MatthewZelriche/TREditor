@@ -16,6 +16,8 @@ public partial class EditorSession : Node3D
 
     public TextureRootSettingsService TextureRootSettings { get; private set; }
 
+    public DocumentService Document { get; private set; }
+
     public PrimitiveCreationSettings PrimitiveCreationSettings { get; set; } =
         PrimitiveCreationSettings.Box();
 
@@ -72,6 +74,7 @@ public partial class EditorSession : Node3D
         );
         Commands = new CommandService(new EditorCommandContext(_sceneService, Selection));
         Commands.CommandHistoryChanged += OnCommandHistoryChanged;
+        Document = new DocumentService(_sceneService, TextureMaterials, Selection, Commands);
     }
 
     public override void _Ready()
