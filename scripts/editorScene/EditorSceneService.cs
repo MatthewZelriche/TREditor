@@ -137,6 +137,7 @@ public sealed class EditorSceneService : IDisposable
         if (
             target.Kind != ScenePickElementKind.Face
             || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !meshNode.SourceMesh.IsFaceAlive(target.Face)
         )
         {
             return false;
@@ -238,13 +239,70 @@ public sealed class EditorSceneService : IDisposable
         return change;
     }
 
+    public FaceInsetChange InsetFace(SelectionTarget target, float depth)
+    {
+        if (
+            target.Kind != ScenePickElementKind.Face
+            || !(depth > 0f)
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        FaceInsetChange change = FaceInsetChange.Inset(
+            target.ObjectId,
+            meshNode.SourceMesh,
+            target.Face,
+            depth
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
+    public bool TryGetMaximumFaceInsetDepth(SelectionTarget target, out float maximumDepth)
+    {
+        maximumDepth = 0f;
+        if (
+            target.Kind != ScenePickElementKind.Face
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !meshNode.SourceMesh.IsFaceAlive(target.Face)
+        )
+        {
+            return false;
+        }
+
+        maximumDepth = meshNode.SourceMesh.ComputeMaximumInsetDepth(target.Face);
+        return maximumDepth > 0f;
+    }
+
     public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: true);
 
     public void ApplyFaceExtrusionAfter(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: false);
 
+    public void ApplyFaceInsetBefore(FaceInsetChange change) =>
+        ApplyFaceInset(change, before: true);
+
+    public void ApplyFaceInsetAfter(FaceInsetChange change) =>
+        ApplyFaceInset(change, before: false);
+
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
+    }
+
+    private void ApplyFaceInset(FaceInsetChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
         if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))

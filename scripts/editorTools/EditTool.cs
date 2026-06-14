@@ -29,6 +29,9 @@ public sealed class EditTool : IEditorTool
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
     {
+        if (_context.EditOperationSettings.IsSelected("InsetFace"))
+            return EditorToolResult.Continue;
+
         UpdateHover(input.RayOrigin, input.RayDirection);
         return SelectionToolInput.HandleMouseButton(
             _context,

@@ -7,7 +7,7 @@
 - [ ] **Remove Bad Faces**?
 - [ ] **Continue Core Suite of Mesh Ops**
   - [ ] **Collapse Face**
-  - [ ] **Inset Face**
+  - [x] **Inset Face**
   - [ ] **Bevel Vertex**
   - [ ] **Bevel Edge**
   - [ ] **Fill Hole**

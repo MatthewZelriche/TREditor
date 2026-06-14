@@ -33,4 +33,20 @@ public class GridSnapTests
 
         Assert.Equal(new Vector3(1.0f, 0, 2.25f), snapped);
     }
+
+    [Theory]
+    [InlineData(0.62f, 0.25f, 2f, 0.5f)]
+    [InlineData(0.1f, 0.25f, 2f, 0.25f)]
+    [InlineData(1.7f, 0.5f, 1.8f, 1.8f)]
+    [InlineData(0.25f, 1f, 0.4f, 0.4f)]
+    [InlineData(0.62f, 0f, 2f, 0.62f)]
+    public void SnapDistance_SnapsToGridAndAllowsSafeMaximum(
+        float distance,
+        float cellSize,
+        float maximum,
+        float expected
+    )
+    {
+        Assert.Equal(expected, GridSnap.SnapDistance(distance, cellSize, maximum));
+    }
 }

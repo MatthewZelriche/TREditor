@@ -6,14 +6,15 @@ public sealed class EditOperationCatalogTests
     public void Catalog_ContainsAvailableEditorOperations()
     {
         EditOperationDefinition extrude = EditOperationCatalog.Get("ExtrudeFace");
+        EditOperationDefinition inset = EditOperationCatalog.Get("InsetFace");
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
+        Assert.Equal(EditOperationAvailability.Available, inset.Availability);
         Assert.Equal(EditOperationAvailability.Available, delete.Availability);
     }
 
     [Theory]
-    [InlineData("InsetFace")]
     [InlineData("BevelVertex")]
     [InlineData("BevelEdge")]
     [InlineData("FillHole")]
@@ -29,7 +30,10 @@ public sealed class EditOperationCatalogTests
     [InlineData("Merge")]
     public void Catalog_IdentifiesOperationsWithExistingCoreSupport(string id)
     {
-        Assert.Equal(EditOperationAvailability.CoreReady, EditOperationCatalog.Get(id).Availability);
+        Assert.Equal(
+            EditOperationAvailability.CoreReady,
+            EditOperationCatalog.Get(id).Availability
+        );
     }
 
     [Fact]
@@ -75,5 +79,25 @@ public sealed class EditOperationCatalogTests
         settings.SetExtrudeAlongFaceNormal(false);
 
         Assert.False(settings.ExtrudeAlongFaceNormal);
+    }
+
+    [Fact]
+    public void EditOperationSettings_InsetDepthDefaultsAndCanBeChanged()
+    {
+        EditOperationSettings settings = new();
+
+        Assert.Equal(0.25f, settings.InsetDepth);
+
+        settings.SetInsetDepth(0.75f);
+
+        Assert.Equal(0.75f, settings.InsetDepth);
+    }
+
+    [Theory]
+    [InlineData(0.25f, "0.25")]
+    [InlineData(0.005f, "0.0050")]
+    public void FormatInsetDepth_PreservesUsefulPrecision(float depth, string expected)
+    {
+        Assert.Equal(expected, EditPanel.FormatInsetDepth(depth));
     }
 }

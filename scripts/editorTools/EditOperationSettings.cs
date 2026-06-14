@@ -6,6 +6,8 @@ public sealed class EditOperationSettings
 
     public bool ExtrudeAlongFaceNormal { get; private set; } = true;
 
+    public float InsetDepth { get; private set; } = 0.25f;
+
     public event Action Changed;
 
     public bool IsSelected(string operationId) => SelectedOperationId == operationId;
@@ -34,6 +36,15 @@ public sealed class EditOperationSettings
             return;
 
         ExtrudeAlongFaceNormal = enabled;
+        Changed?.Invoke();
+    }
+
+    public void SetInsetDepth(float depth)
+    {
+        if (!(depth > 0f) || !float.IsFinite(depth) || InsetDepth == depth)
+            return;
+
+        InsetDepth = depth;
         Changed?.Invoke();
     }
 }

@@ -17,6 +17,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
     private bool _extrudeAlongFaceNormal;
     private bool _extrudeOperationSelected;
     private bool _faceExtrusionEnabled;
+    private bool _inputSuppressed;
     private GizmoRegistration _dragRegistration;
     private SelectionSnapshot _dragSelection = SelectionSnapshot.Empty;
     private Vector3 _dragCenter;
@@ -67,6 +68,17 @@ public sealed class SelectionTranslationGizmoController : IDisposable
     {
         _extrudeOperationSelected = selected;
         _extrudeAlongFaceNormal = alongFaceNormal;
+    }
+
+    public void SetInputSuppressed(bool suppressed)
+    {
+        if (_inputSuppressed == suppressed)
+            return;
+
+        _inputSuppressed = suppressed;
+        if (suppressed)
+            CancelDrag();
+        UpdateGizmos();
     }
 
     public void Refresh()
@@ -150,6 +162,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
     {
         if (
             !_active
+            || _inputSuppressed
             || (Gizmo3D.TransformMode)mode != Gizmo3D.TransformMode.Translate
             || !_scene.TryGetSelectionCenter(_selection.Current, out _dragCenter)
         )
@@ -242,7 +255,11 @@ public sealed class SelectionTranslationGizmoController : IDisposable
 
     private void UpdateGizmos()
     {
-        if (!_active || !_scene.TryGetSelectionCenter(_selection.Current, out Vector3 center))
+        if (
+            !_active
+            || _inputSuppressed
+            || !_scene.TryGetSelectionCenter(_selection.Current, out Vector3 center)
+        )
         {
             HideGizmos();
             return;

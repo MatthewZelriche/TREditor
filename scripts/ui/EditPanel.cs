@@ -3,6 +3,8 @@ using Godot;
 
 public partial class EditPanel : PanelContainer
 {
+    private const float DefaultInsetSliderStep = 0.05f;
+    private const float MinimumInsetSliderStep = 0.0001f;
     private const int OperationButtonHeight = 42;
     private const int IconPlaceholderSize = 24;
 
@@ -13,6 +15,11 @@ public partial class EditPanel : PanelContainer
     private Label _optionsTitle;
     private Label _noOptions;
     private CheckBox _extrudeAlongFaceNormal;
+    private Control _insetOptions;
+    private HSlider _insetDepth;
+    private Label _insetDepthValue;
+    private Button _insetApply;
+    private Button _insetCancel;
 
     public override void _Ready()
     {
@@ -23,15 +30,38 @@ public partial class EditPanel : PanelContainer
         _extrudeAlongFaceNormal = GetNode<CheckBox>(
             "Margin/Scroll/Column/ExtrudeOptions/AlongFaceNormal"
         );
+        _insetOptions = GetNode<Control>("Margin/Scroll/Column/InsetOptions");
+        _insetDepth = GetNode<HSlider>("Margin/Scroll/Column/InsetOptions/DepthRow/Depth");
+        _insetDepthValue = GetNode<Label>("Margin/Scroll/Column/InsetOptions/DepthRow/DepthValue");
+        _insetApply = GetNode<Button>("Margin/Scroll/Column/InsetOptions/Actions/Apply");
+        _insetCancel = GetNode<Button>("Margin/Scroll/Column/InsetOptions/Actions/Cancel");
 
         BuildOperationButtons();
         _extrudeAlongFaceNormal.Toggled += OnExtrudeAlongFaceNormalToggled;
+        _insetDepth.ValueChanged += OnInsetDepthChanged;
+        _insetApply.Pressed += OnInsetApplyPressed;
+        _insetCancel.Pressed += OnInsetCancelPressed;
+        if (_session != null)
+        {
+            _session.EditOperationSettings.Changed += RefreshOperationSelection;
+            _session.GridSnapSizeChanged += RefreshOperationSelection;
+            _session.Selection.SelectionChanged += RefreshOperationSelection;
+        }
         RefreshOperationSelection();
     }
 
     public override void _ExitTree()
     {
         _extrudeAlongFaceNormal.Toggled -= OnExtrudeAlongFaceNormalToggled;
+        _insetDepth.ValueChanged -= OnInsetDepthChanged;
+        _insetApply.Pressed -= OnInsetApplyPressed;
+        _insetCancel.Pressed -= OnInsetCancelPressed;
+        if (_session != null)
+        {
+            _session.EditOperationSettings.Changed -= RefreshOperationSelection;
+            _session.GridSnapSizeChanged -= RefreshOperationSelection;
+            _session.Selection.SelectionChanged -= RefreshOperationSelection;
+        }
     }
 
     private void BuildOperationButtons()
@@ -105,16 +135,47 @@ public partial class EditPanel : PanelContainer
             button.SetPressedNoSignal(id == selectedId);
 
         bool extrudeSelected = selectedId == "ExtrudeFace";
-        _optionsTitle.Text = extrudeSelected ? "EXTRUDE FACE OPTIONS" : "OPTIONS";
+        bool insetSelected = selectedId == "InsetFace";
+        _optionsTitle.Text = selectedId switch
+        {
+            "ExtrudeFace" => "EXTRUDE FACE OPTIONS",
+            "InsetFace" => "INSET FACE OPTIONS",
+            _ => "OPTIONS",
+        };
         _noOptions.Text =
             selectedId == null
                 ? "Select an operation to view its settings."
                 : "This operation has no settings.";
-        _noOptions.Visible = !extrudeSelected;
+        _noOptions.Visible = !extrudeSelected && !insetSelected;
         _extrudeAlongFaceNormal.GetParent<Control>().Visible = extrudeSelected;
+        _insetOptions.Visible = insetSelected;
         _extrudeAlongFaceNormal.SetPressedNoSignal(
             _session?.EditOperationSettings.ExtrudeAlongFaceNormal ?? true
         );
+        float insetDepth = _session?.EditOperationSettings.InsetDepth ?? 0.25f;
+        float maximumInsetDepth = 0f;
+        bool canInset =
+            insetSelected
+            && _session != null
+            && _session.TryGetMaximumSelectedFaceInsetDepth(out maximumInsetDepth);
+        if (canInset)
+        {
+            float gridSnapSize = _session.GridSnapSize;
+            float step =
+                gridSnapSize > GridSnap.Off
+                    ? Mathf.Min(gridSnapSize, maximumInsetDepth)
+                    : Mathf.Max(
+                        MinimumInsetSliderStep,
+                        Mathf.Min(DefaultInsetSliderStep, maximumInsetDepth / 100f)
+                    );
+            _insetDepth.MinValue = step;
+            _insetDepth.MaxValue = maximumInsetDepth;
+            _insetDepth.Step = step;
+            insetDepth = _session.GetSnappedInsetDepth();
+        }
+        _insetDepth.SetValueNoSignal(insetDepth);
+        _insetDepthValue.Text = FormatInsetDepth(insetDepth);
+        _insetApply.Disabled = !canInset;
     }
 
     private void OnExtrudeAlongFaceNormalToggled(bool enabled)
@@ -122,6 +183,30 @@ public partial class EditPanel : PanelContainer
         _session?.EditOperationSettings.SetExtrudeAlongFaceNormal(enabled);
     }
 
+    private void OnInsetDepthChanged(double depth)
+    {
+        if (_session == null)
+            return;
+
+        float snappedDepth = _session.TryGetMaximumSelectedFaceInsetDepth(out float maximumDepth)
+            ? GridSnap.SnapDistance((float)depth, _session.GridSnapSize, maximumDepth)
+            : (float)depth;
+        _session.EditOperationSettings.SetInsetDepth(snappedDepth);
+    }
+
+    private void OnInsetApplyPressed()
+    {
+        _session?.ApplySelectedEditOperation();
+    }
+
+    private void OnInsetCancelPressed()
+    {
+        _session?.CancelSelectedEditOperation();
+    }
+
     internal static string BuildTooltip(EditOperationDefinition operation) =>
         $"{operation.Description}\nSelection: {operation.Selection}\nInput: {operation.Input}";
+
+    internal static string FormatInsetDepth(float depth) =>
+        depth >= 0.01f ? depth.ToString("0.00") : depth.ToString("0.0000");
 }

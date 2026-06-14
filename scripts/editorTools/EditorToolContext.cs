@@ -9,6 +9,7 @@ public sealed class EditorToolContext
         ObjectSelectionHighlightController objectSelectionHighlight,
         ComponentSelectionHighlightController componentSelectionHighlight,
         SelectionTranslationGizmoController selectionTranslationGizmo,
+        EditOperationSettings editOperationSettings,
         TextureAssetCatalog textureCatalog,
         TextureMaterialLibrary textureMaterials,
         Action<string> reportStatus,
@@ -20,6 +21,7 @@ public sealed class EditorToolContext
         ArgumentNullException.ThrowIfNull(objectSelectionHighlight);
         ArgumentNullException.ThrowIfNull(componentSelectionHighlight);
         ArgumentNullException.ThrowIfNull(selectionTranslationGizmo);
+        ArgumentNullException.ThrowIfNull(editOperationSettings);
         ArgumentNullException.ThrowIfNull(textureCatalog);
         ArgumentNullException.ThrowIfNull(textureMaterials);
         ArgumentNullException.ThrowIfNull(reportStatus);
@@ -30,6 +32,7 @@ public sealed class EditorToolContext
         ObjectSelectionHighlight = objectSelectionHighlight;
         ComponentSelectionHighlight = componentSelectionHighlight;
         SelectionTranslationGizmo = selectionTranslationGizmo;
+        EditOperationSettings = editOperationSettings;
         TextureCatalog = textureCatalog;
         TextureMaterials = textureMaterials;
         ReportStatus = reportStatus;
@@ -41,6 +44,7 @@ public sealed class EditorToolContext
     public ObjectSelectionHighlightController ObjectSelectionHighlight { get; }
     public ComponentSelectionHighlightController ComponentSelectionHighlight { get; }
     public SelectionTranslationGizmoController SelectionTranslationGizmo { get; }
+    public EditOperationSettings EditOperationSettings { get; }
     public TextureAssetCatalog TextureCatalog { get; }
     public TextureMaterialLibrary TextureMaterials { get; }
     public Action<string> ReportStatus { get; }

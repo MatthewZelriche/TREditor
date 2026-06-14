@@ -57,9 +57,9 @@ public static class EditOperationCatalog
             "InsetFace",
             "Inset Face",
             "Shrink a face inward, leaving a smaller face inside a raised border.",
-            "One or more faces",
-            "Coming soon",
-            EditOperationAvailability.Planned
+            "Exactly one face",
+            "Adjust depth, then Apply or press Enter",
+            EditOperationAvailability.Available
         ),
         new(
             "BevelEdge",

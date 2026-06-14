@@ -10,4 +10,6 @@ public abstract record EditorPreviewRequest
 
     public sealed record ExtrudeFace(SelectionTarget Face, Godot.Vector3 Delta)
         : EditorPreviewRequest;
+
+    public sealed record InsetFace(SelectionTarget Face, float Depth) : EditorPreviewRequest;
 }

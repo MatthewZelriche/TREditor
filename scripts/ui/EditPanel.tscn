@@ -56,3 +56,47 @@ layout_mode = 2
 button_pressed = true
 text = "Extrude along face normal"
 tooltip_text = "Enabled: local extrusion along the selected face normal. Disabled: global extrusion along the gizmo drag direction."
+
+[node name="InsetOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DepthRow" type="HBoxContainer" parent="Margin/Scroll/Column/InsetOptions"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="DepthLabel" type="Label" parent="Margin/Scroll/Column/InsetOptions/DepthRow"]
+layout_mode = 2
+text = "Depth"
+
+[node name="Depth" type="HSlider" parent="Margin/Scroll/Column/InsetOptions/DepthRow"]
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.05
+max_value = 4.0
+step = 0.05
+value = 0.25
+tooltip_text = "Distance from each original edge to the inset edge."
+
+[node name="DepthValue" type="Label" parent="Margin/Scroll/Column/InsetOptions/DepthRow"]
+custom_minimum_size = Vector2(36, 0)
+layout_mode = 2
+text = "0.25"
+horizontal_alignment = 2
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Scroll/Column/InsetOptions"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="Apply" type="Button" parent="Margin/Scroll/Column/InsetOptions/Actions"]
+layout_mode = 2
+text = "Apply"
+tooltip_text = "Commit the inset. Shortcut: Enter"
+
+[node name="Cancel" type="Button" parent="Margin/Scroll/Column/InsetOptions/Actions"]
+layout_mode = 2
+text = "Cancel"
+tooltip_text = "Cancel the inset. Shortcut: Esc"
