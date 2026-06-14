@@ -26,8 +26,8 @@ public class PrimitiveCreationSettingsTests
     [InlineData(2)]
     public void Cylinder_BelowMinimumSegments_Throws(int radialSegments)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            PrimitiveCreationSettings.Cylinder(radialSegments)
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => PrimitiveCreationSettings.Cylinder(radialSegments)
         );
     }
 }

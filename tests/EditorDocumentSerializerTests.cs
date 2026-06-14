@@ -57,7 +57,9 @@ public sealed class EditorDocumentSerializerTests
         // embedded blob is intact and that the textured face's slot and UVs survived.
         Assert.Equal(SortedPositions(mesh), SortedPositions(reloadedObject.Mesh));
         FaceHandle reloadedTexturedFace = SingleFaceWithSlot(reloadedObject.Mesh, slot);
-        foreach (HalfEdgeHandle corner in reloadedObject.Mesh.HalfEdgesAroundFace(reloadedTexturedFace))
+        foreach (
+            HalfEdgeHandle corner in reloadedObject.Mesh.HalfEdgesAroundFace(reloadedTexturedFace)
+        )
         {
             Assert.Equal(expectedUv, reloadedObject.Mesh.GetFaceCornerUv(corner));
         }

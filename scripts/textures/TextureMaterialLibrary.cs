@@ -12,8 +12,9 @@ using Godot;
 public sealed class TextureMaterialLibrary
 {
     private const int CheckerSize = 2;
-    internal const BaseMaterial3D.ShadingModeEnum SurfaceShadingMode =
-        BaseMaterial3D.ShadingModeEnum.Unshaded;
+    internal const BaseMaterial3D.ShadingModeEnum SurfaceShadingMode = BaseMaterial3D
+        .ShadingModeEnum
+        .Unshaded;
 
     private readonly Dictionary<int, string> _assetIdsBySlot = [];
     private readonly Dictionary<string, int> _slotsByAssetId = new(StringComparer.Ordinal);

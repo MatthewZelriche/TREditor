@@ -10,11 +10,13 @@ public sealed class DeleteFaceCommandTests
     public void GetSelectedFaces_ReturnsOnlyUniqueFaceSelections()
     {
         FaceHandle face = new(1, 0);
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForFace(ObjectId, face),
-            SelectionTarget.ForFace(ObjectId, face),
-            SelectionTarget.ForVertex(ObjectId, new VertexHandle(2, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [
+                SelectionTarget.ForFace(ObjectId, face),
+                SelectionTarget.ForFace(ObjectId, face),
+                SelectionTarget.ForVertex(ObjectId, new VertexHandle(2, 0)),
+            ]
+        );
 
         SelectionTarget selectedFace = Assert.Single(DeleteFaceCommand.GetSelectedFaces(selection));
 
@@ -25,9 +27,9 @@ public sealed class DeleteFaceCommandTests
     [Fact]
     public void CreateIfAny_SelectionWithoutFacesReturnsNull()
     {
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForVertex(ObjectId, new VertexHandle(2, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [SelectionTarget.ForVertex(ObjectId, new VertexHandle(2, 0))]
+        );
 
         Assert.Null(DeleteFaceCommand.CreateIfAny(selection));
     }

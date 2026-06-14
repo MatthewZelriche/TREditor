@@ -4,6 +4,7 @@ using Godot;
 public partial class ViewportPane : Control
 {
     private const string ScenePath = "res://scripts/ui/viewportWorkspace/ViewportPane.tscn";
+
     // Gizmo3D renders into the shared world scenario, so panes isolate their gizmos by
     // camera layer to avoid duplicate gizmos in split viewports.
     private const int FirstGizmoLayerBit = 10;

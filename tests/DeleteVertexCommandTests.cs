@@ -10,11 +10,13 @@ public sealed class DeleteVertexCommandTests
     public void GetSelectedVertices_ReturnsOnlyUniqueVertexSelections()
     {
         VertexHandle vertex = new(1, 0);
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForVertex(ObjectId, vertex),
-            SelectionTarget.ForVertex(ObjectId, vertex),
-            SelectionTarget.ForEdge(ObjectId, new HalfEdgeHandle(2, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [
+                SelectionTarget.ForVertex(ObjectId, vertex),
+                SelectionTarget.ForVertex(ObjectId, vertex),
+                SelectionTarget.ForEdge(ObjectId, new HalfEdgeHandle(2, 0)),
+            ]
+        );
 
         SelectionTarget selectedVertex = Assert.Single(
             DeleteVertexCommand.GetSelectedVertices(selection)
@@ -27,9 +29,9 @@ public sealed class DeleteVertexCommandTests
     [Fact]
     public void CreateIfAny_SelectionWithoutVerticesReturnsNull()
     {
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForEdge(ObjectId, new HalfEdgeHandle(1, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [SelectionTarget.ForEdge(ObjectId, new HalfEdgeHandle(1, 0))]
+        );
 
         Assert.Null(DeleteVertexCommand.CreateIfAny(selection));
     }

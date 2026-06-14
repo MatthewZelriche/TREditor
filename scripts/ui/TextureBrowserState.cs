@@ -23,12 +23,7 @@ public sealed class TextureBrowserState
             .ToArray();
     }
 
-    public string GetStatus(
-        string? rootPath,
-        int assetCount,
-        int visibleCount,
-        int errorCount
-    )
+    public string GetStatus(string? rootPath, int assetCount, int visibleCount, int errorCount)
     {
         if (rootPath == null)
             return "Choose a texture folder to begin.";

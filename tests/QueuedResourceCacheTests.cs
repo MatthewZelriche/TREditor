@@ -89,10 +89,7 @@ public sealed class QueuedResourceCacheTests
     private static QueuedResourceCache<string, object> CreateCache(Func<string, object?> load) =>
         new(load, () => new object());
 
-    private static QueuedResource<object> Get(
-        QueuedResourceCache<string, object> cache,
-        string key
-    )
+    private static QueuedResource<object> Get(QueuedResourceCache<string, object> cache, string key)
     {
         Assert.True(cache.TryGet(key, out QueuedResource<object> resource));
         return resource;

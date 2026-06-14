@@ -130,8 +130,8 @@ public class SelectionSnapshotTests
     {
         SelectionSnapshot snapshot = SelectionSnapshot.Empty;
 
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            snapshot.Apply((SelectionChangeMode)999, TargetA)
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => snapshot.Apply((SelectionChangeMode)999, TargetA)
         );
     }
 

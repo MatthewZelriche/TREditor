@@ -67,12 +67,14 @@ public sealed class FaceInsetChangeTests
     private static SpatialMesh BuildQuad(out FaceHandle face)
     {
         SpatialMesh mesh = new();
-        face = mesh.AddFace([
-            mesh.AddVertex(Vector3.Zero),
-            mesh.AddVertex(Vector3.UnitX),
-            mesh.AddVertex(Vector3.UnitX + Vector3.UnitY),
-            mesh.AddVertex(Vector3.UnitY),
-        ]);
+        face = mesh.AddFace(
+            [
+                mesh.AddVertex(Vector3.Zero),
+                mesh.AddVertex(Vector3.UnitX),
+                mesh.AddVertex(Vector3.UnitX + Vector3.UnitY),
+                mesh.AddVertex(Vector3.UnitY),
+            ]
+        );
         return mesh;
     }
 }

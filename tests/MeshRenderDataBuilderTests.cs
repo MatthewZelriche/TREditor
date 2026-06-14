@@ -212,11 +212,7 @@ public sealed class MeshRenderDataBuilderTests
         throw new InvalidOperationException($"Face {face} has no corner at the origin.");
     }
 
-    private static void AppendFace(
-        SpatialMesh mesh,
-        MeshRenderSurfaceSet surfaces,
-        FaceHandle face
-    )
+    private static void AppendFace(SpatialMesh mesh, MeshRenderSurfaceSet surfaces, FaceHandle face)
     {
         List<FaceCornerHandle> triangles = [];
         Assert.True(mesh.TriangulateFace(face, triangles));

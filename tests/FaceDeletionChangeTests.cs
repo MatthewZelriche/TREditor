@@ -81,12 +81,14 @@ public sealed class FaceDeletionChangeTests
     private static SpatialMesh BuildQuad()
     {
         SpatialMesh mesh = new();
-        mesh.AddFace([
-            mesh.AddVertex(Vector3.Zero),
-            mesh.AddVertex(Vector3.UnitX),
-            mesh.AddVertex(Vector3.One),
-            mesh.AddVertex(Vector3.UnitY),
-        ]);
+        mesh.AddFace(
+            [
+                mesh.AddVertex(Vector3.Zero),
+                mesh.AddVertex(Vector3.UnitX),
+                mesh.AddVertex(Vector3.One),
+                mesh.AddVertex(Vector3.UnitY),
+            ]
+        );
         return mesh;
     }
 

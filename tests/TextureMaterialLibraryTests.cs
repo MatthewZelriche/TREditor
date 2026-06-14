@@ -53,12 +53,8 @@ public sealed class TextureMaterialLibraryTests
         TextureMaterialLibrary library = CreateLibrary();
         library.RegisterSlot(4, "walls/brick.png");
 
-        Assert.Throws<InvalidOperationException>(() =>
-            library.RegisterSlot(4, "walls/metal.png")
-        );
-        Assert.Throws<InvalidOperationException>(() =>
-            library.RegisterSlot(5, "walls/brick.png")
-        );
+        Assert.Throws<InvalidOperationException>(() => library.RegisterSlot(4, "walls/metal.png"));
+        Assert.Throws<InvalidOperationException>(() => library.RegisterSlot(5, "walls/brick.png"));
     }
 
     [Fact]
@@ -99,8 +95,8 @@ public sealed class TextureMaterialLibraryTests
     {
         TextureMaterialLibrary library = CreateLibrary();
 
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            library.RegisterSlot(slot, "walls/brick.png")
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => library.RegisterSlot(slot, "walls/brick.png")
         );
     }
 
@@ -116,6 +112,5 @@ public sealed class TextureMaterialLibraryTests
         Assert.Throws<ArgumentException>(() => TextureMaterialLibrary.NormalizeAssetId(assetId));
     }
 
-    private static TextureMaterialLibrary CreateLibrary() =>
-        new(_ => null);
+    private static TextureMaterialLibrary CreateLibrary() => new(_ => null);
 }

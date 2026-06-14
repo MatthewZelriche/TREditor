@@ -48,11 +48,13 @@ public sealed class FillHoleChangeTests
     private static SpatialMesh BuildTriangle(out FaceHandle face, out HalfEdgeHandle edge)
     {
         SpatialMesh mesh = new();
-        face = mesh.AddFace([
-            mesh.AddVertex(Vector3.Zero),
-            mesh.AddVertex(Vector3.UnitX),
-            mesh.AddVertex(Vector3.UnitY),
-        ]);
+        face = mesh.AddFace(
+            [
+                mesh.AddVertex(Vector3.Zero),
+                mesh.AddVertex(Vector3.UnitX),
+                mesh.AddVertex(Vector3.UnitY),
+            ]
+        );
         foreach (HalfEdgeHandle faceEdge in mesh.HalfEdgesAroundFace(face))
         {
             edge = faceEdge;

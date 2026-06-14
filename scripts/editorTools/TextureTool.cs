@@ -80,8 +80,9 @@ public sealed class TextureTool : IEditorTool
 
     private void UpdateHover(Vector3 cameraOrigin, ScenePickHit hit)
     {
-        SelectionTarget? hover =
-            SelectionTarget.TryFromHit(hit, out SelectionTarget target) ? target : null;
+        SelectionTarget? hover = SelectionTarget.TryFromHit(hit, out SelectionTarget target)
+            ? target
+            : null;
         _context.ComponentSelectionHighlight.SetPointerState(cameraOrigin, hover);
     }
 
@@ -93,6 +94,8 @@ public sealed class TextureTool : IEditorTool
             && _context.TextureCatalog.TryGetPreview(activeAssetId, out var preview)
                 ? preview.State
                 : null;
-        _context.ReportStatus(TextureToolStatus.GetActiveTextureMessage(activeAssetId, previewState));
+        _context.ReportStatus(
+            TextureToolStatus.GetActiveTextureMessage(activeAssetId, previewState)
+        );
     }
 }

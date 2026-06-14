@@ -15,10 +15,9 @@ public sealed class FillHoleCommandTests
         Assert.False(FillHoleCommand.CanCreate(SelectionSnapshot.Empty));
         Assert.False(
             FillHoleCommand.CanCreate(
-                SelectionSnapshot.From([
-                    edge,
-                    SelectionTarget.ForEdge(ObjectId, new HalfEdgeHandle(2, 0)),
-                ])
+                SelectionSnapshot.From(
+                    [edge, SelectionTarget.ForEdge(ObjectId, new HalfEdgeHandle(2, 0))]
+                )
             )
         );
     }

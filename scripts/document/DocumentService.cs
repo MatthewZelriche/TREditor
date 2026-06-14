@@ -51,7 +51,9 @@ public sealed class DocumentService
 
         using FileAccess file = FileAccess.Open(path, FileAccess.ModeFlags.Write);
         if (file == null)
-            throw new IOException($"Unable to save document '{path}': {FileAccess.GetOpenError()}.");
+            throw new IOException(
+                $"Unable to save document '{path}': {FileAccess.GetOpenError()}."
+            );
 
         file.StoreBuffer(buffer.ToArray());
     }
@@ -112,7 +114,9 @@ public sealed class DocumentService
     {
         using FileAccess file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
         if (file == null)
-            throw new IOException($"Unable to open document '{path}': {FileAccess.GetOpenError()}.");
+            throw new IOException(
+                $"Unable to open document '{path}': {FileAccess.GetOpenError()}."
+            );
 
         byte[] data = file.GetBuffer((long)file.GetLength());
         return new MemoryStream(data, writable: false);

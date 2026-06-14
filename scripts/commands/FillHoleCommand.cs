@@ -29,9 +29,9 @@ public sealed partial class FillHoleCommand : EditorCommand
             if (_change == null)
                 return;
 
-            _selectionAfter = SelectionSnapshot.From([
-                SelectionTarget.ForFace(_change.ObjectId, _change.Face),
-            ]);
+            _selectionAfter = SelectionSnapshot.From(
+                [SelectionTarget.ForFace(_change.ObjectId, _change.Face)]
+            );
         }
         else
         {

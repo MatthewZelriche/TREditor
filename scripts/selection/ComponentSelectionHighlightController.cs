@@ -208,5 +208,4 @@ public sealed class ComponentSelectionHighlightController : IDisposable
         overlay.GetParent()?.RemoveChild(overlay);
         overlay.QueueFree();
     }
-
 }

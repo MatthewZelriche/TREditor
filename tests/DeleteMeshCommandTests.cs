@@ -12,12 +12,14 @@ public class DeleteMeshCommandTests
     [Fact]
     public void GetSelectedObjectIds_ReturnsOnlyUniqueObjectSelections()
     {
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForObject(FirstId),
-            SelectionTarget.ForObject(FirstId),
-            SelectionTarget.ForObject(SecondId),
-            SelectionTarget.ForVertex(SecondId, new VertexHandle(1, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [
+                SelectionTarget.ForObject(FirstId),
+                SelectionTarget.ForObject(FirstId),
+                SelectionTarget.ForObject(SecondId),
+                SelectionTarget.ForVertex(SecondId, new VertexHandle(1, 0)),
+            ]
+        );
 
         EditorObjectId[] objectIds = DeleteMeshCommand.GetSelectedObjectIds(selection).ToArray();
 
@@ -27,9 +29,9 @@ public class DeleteMeshCommandTests
     [Fact]
     public void GetSelectedObjectIds_ComponentOnlySelection_ReturnsEmpty()
     {
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForVertex(FirstId, new VertexHandle(1, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [SelectionTarget.ForVertex(FirstId, new VertexHandle(1, 0))]
+        );
 
         Assert.Empty(DeleteMeshCommand.GetSelectedObjectIds(selection));
     }

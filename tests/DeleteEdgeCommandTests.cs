@@ -10,11 +10,13 @@ public sealed class DeleteEdgeCommandTests
     public void GetSelectedEdges_ReturnsOnlyUniqueEdgeSelections()
     {
         HalfEdgeHandle edge = new(1, 0);
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForEdge(ObjectId, edge),
-            SelectionTarget.ForEdge(ObjectId, edge),
-            SelectionTarget.ForFace(ObjectId, new FaceHandle(2, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [
+                SelectionTarget.ForEdge(ObjectId, edge),
+                SelectionTarget.ForEdge(ObjectId, edge),
+                SelectionTarget.ForFace(ObjectId, new FaceHandle(2, 0)),
+            ]
+        );
 
         SelectionTarget selectedEdge = Assert.Single(DeleteEdgeCommand.GetSelectedEdges(selection));
 
@@ -25,9 +27,9 @@ public sealed class DeleteEdgeCommandTests
     [Fact]
     public void CreateIfAny_SelectionWithoutEdgesReturnsNull()
     {
-        SelectionSnapshot selection = SelectionSnapshot.From([
-            SelectionTarget.ForFace(ObjectId, new FaceHandle(1, 0)),
-        ]);
+        SelectionSnapshot selection = SelectionSnapshot.From(
+            [SelectionTarget.ForFace(ObjectId, new FaceHandle(1, 0))]
+        );
 
         Assert.Null(DeleteEdgeCommand.CreateIfAny(selection));
     }

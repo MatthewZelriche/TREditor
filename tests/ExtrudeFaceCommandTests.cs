@@ -19,18 +19,16 @@ public sealed class ExtrudeFaceCommandTests
         Assert.False(ExtrudeFaceCommand.CanCreate(SelectionSnapshot.Empty));
         Assert.False(
             ExtrudeFaceCommand.CanCreate(
-                SelectionSnapshot.From([
-                    Face,
-                    SelectionTarget.ForVertex(ObjectId, new VertexHandle(2, 0)),
-                ])
+                SelectionSnapshot.From(
+                    [Face, SelectionTarget.ForVertex(ObjectId, new VertexHandle(2, 0))]
+                )
             )
         );
         Assert.False(
             ExtrudeFaceCommand.CanCreate(
-                SelectionSnapshot.From([
-                    Face,
-                    SelectionTarget.ForFace(ObjectId, new FaceHandle(3, 0)),
-                ])
+                SelectionSnapshot.From(
+                    [Face, SelectionTarget.ForFace(ObjectId, new FaceHandle(3, 0))]
+                )
             )
         );
     }

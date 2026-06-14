@@ -112,7 +112,12 @@ public sealed class EdgeDeletionBatchTests
     [Fact]
     public void Delete_TwinSelectionsAreDeduplicatedToOneEdge()
     {
-        using SpatialMesh mesh = BuildTriangle(out VertexHandle a, out VertexHandle b, out _, out _);
+        using SpatialMesh mesh = BuildTriangle(
+            out VertexHandle a,
+            out VertexHandle b,
+            out _,
+            out _
+        );
         HalfEdgeHandle edge = FindEdge(mesh, a, b);
         HalfEdgeHandle twin = mesh.GetHalfEdge(edge).Twin;
 
@@ -127,7 +132,11 @@ public sealed class EdgeDeletionBatchTests
     [Fact]
     public void Delete_PreservesFaceTextureAndUvStateThroughUndo()
     {
-        using SpatialMesh mesh = BuildQuad(out VertexHandle a, out VertexHandle b, out FaceHandle face);
+        using SpatialMesh mesh = BuildQuad(
+            out VertexHandle a,
+            out VertexHandle b,
+            out FaceHandle face
+        );
         Vector2[] expectedUvs = CaptureUvs(mesh, face);
         for (int i = 0; i < expectedUvs.Length; i++)
             expectedUvs[i] = new Vector2(i + 1, (i + 1) * 2);
@@ -222,7 +231,11 @@ public sealed class EdgeDeletionBatchTests
         return mesh;
     }
 
-    private static SpatialMesh BuildQuad(out VertexHandle a, out VertexHandle b, out FaceHandle face)
+    private static SpatialMesh BuildQuad(
+        out VertexHandle a,
+        out VertexHandle b,
+        out FaceHandle face
+    )
     {
         SpatialMesh mesh = new();
         a = mesh.AddVertex(Vector3.Zero);
@@ -250,18 +263,13 @@ public sealed class EdgeDeletionBatchTests
         foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
         {
             HalfEdge halfEdge = mesh.GetHalfEdge(edge);
-            if (
-                halfEdge.Origin == origin
-                && mesh.GetHalfEdge(halfEdge.Twin).Origin == destination
-            )
+            if (halfEdge.Origin == origin && mesh.GetHalfEdge(halfEdge.Twin).Origin == destination)
             {
                 return edge;
             }
         }
 
-        throw new InvalidOperationException(
-            $"No live half-edge from {origin} to {destination}."
-        );
+        throw new InvalidOperationException($"No live half-edge from {origin} to {destination}.");
     }
 
     private static HalfEdgeHandle[] UniqueEdges(SpatialMesh mesh)

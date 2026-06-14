@@ -12,7 +12,10 @@ public sealed class FaceExtrusionChangeTests
     [Fact]
     public void Extrude_TranslatesCapByFullDeltaAndUndoRedoRestoresExactHandles()
     {
-        using SpatialMesh mesh = BuildQuad(out FaceHandle sourceFace, out Vector3[] sourcePositions);
+        using SpatialMesh mesh = BuildQuad(
+            out FaceHandle sourceFace,
+            out Vector3[] sourcePositions
+        );
         Vector3 delta = new(2, 3, 4);
         using FaceExtrusionChange change = AssertExtruded(mesh, sourceFace, delta);
 
@@ -61,11 +64,7 @@ public sealed class FaceExtrusionChangeTests
         InitializeProjectedUvs(mesh, sourceFace);
         Vector2[] sourceUvs = CaptureUvs(mesh, sourceFace);
 
-        using FaceExtrusionChange change = AssertExtruded(
-            mesh,
-            sourceFace,
-            new Vector3(0, 0, 2)
-        );
+        using FaceExtrusionChange change = AssertExtruded(mesh, sourceFace, new Vector3(0, 0, 2));
 
         Assert.Equal(7, mesh.GetFaceMaterialSlot(change.CapFace));
         Assert.All(
@@ -104,11 +103,7 @@ public sealed class FaceExtrusionChangeTests
     {
         using SpatialMesh mesh = BuildQuad(out FaceHandle sourceFace, out _);
 
-        using FaceExtrusionChange change = AssertExtruded(
-            mesh,
-            sourceFace,
-            new Vector3(0, 0, 2)
-        );
+        using FaceExtrusionChange change = AssertExtruded(mesh, sourceFace, new Vector3(0, 0, 2));
 
         Assert.All(
             change.SideFaces.Append(change.CapFace),
@@ -130,12 +125,7 @@ public sealed class FaceExtrusionChangeTests
     private static SpatialMesh BuildQuad(out FaceHandle face, out Vector3[] positions)
     {
         SpatialMesh mesh = new();
-        positions = [
-            Vector3.Zero,
-            Vector3.UnitX,
-            Vector3.UnitX + Vector3.UnitY,
-            Vector3.UnitY,
-        ];
+        positions = [Vector3.Zero, Vector3.UnitX, Vector3.UnitX + Vector3.UnitY, Vector3.UnitY];
         VertexHandle[] vertices = positions.Select(mesh.AddVertex).ToArray();
         face = mesh.AddFace(vertices);
         return mesh;

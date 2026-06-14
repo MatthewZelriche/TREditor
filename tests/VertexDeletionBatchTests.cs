@@ -232,10 +232,7 @@ public sealed class VertexDeletionBatchTests
         foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
         {
             HalfEdge halfEdge = mesh.GetHalfEdge(edge);
-            if (
-                halfEdge.Origin == origin
-                && mesh.GetHalfEdge(halfEdge.Twin).Origin == destination
-            )
+            if (halfEdge.Origin == origin && mesh.GetHalfEdge(halfEdge.Twin).Origin == destination)
             {
                 return edge;
             }

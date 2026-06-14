@@ -33,9 +33,9 @@ public sealed partial class InsetFaceCommand : EditorCommand
             if (_change == null)
                 return;
 
-            _selectionAfter = SelectionSnapshot.From([
-                SelectionTarget.ForFace(_change.ObjectId, _change.CapFace),
-            ]);
+            _selectionAfter = SelectionSnapshot.From(
+                [SelectionTarget.ForFace(_change.ObjectId, _change.CapFace)]
+            );
         }
         else
         {
