@@ -1,0 +1,30 @@
+version: 1
+
+# Licenses that apply to the product but do not live in the project tree.
+implicit:
+  - id: godot-engine
+    displayName: Godot Engine
+    category: Runtime
+    license: MIT
+    url: https://github.com/godotengine/godot/blob/master/LICENSE.txt
+
+  - id: jolt-physics
+    displayName: Jolt Physics
+    category: Runtime
+    license: Zlib
+    url: https://github.com/jrouwe/JoltPhysics/blob/master/LICENSE
+
+# Each scan path must contain one subdirectory per bundled component, and each
+# subdirectory must include a license file (LICENSE, LICENSE.md, etc.).
+scanPaths:
+  - path: resource
+    category: Assets
+  - path: vendor
+    category: Code & Shaders
+
+# Submodule display names. Each submodule root must contain a license file.
+submodules:
+  - path: submodules/TRMesh
+    displayName: TRMesh
+  - path: submodules/Gizmo3D
+    displayName: Gizmo3D

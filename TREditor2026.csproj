@@ -8,6 +8,7 @@
     <Compile Remove="submodules/TRMesh/**/*.cs" />
     <Compile Remove="submodules/Gizmo3D/**/*.cs" />
     <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="tools/**/*.cs" />
     <!-- Pull in Handle Aliases (global usings are per-assembly). -->
     <Compile Include="submodules/TRMesh/src/HandleAliases.cs" Link="HandleAliases.cs" />
     <Compile Include="submodules/Gizmo3D/addons/Gizmo3DSharp/Gizmo3D.cs" Link="vendor/Gizmo3D/Gizmo3D.cs" />

@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TREditor2026.csproj" />
+    <ProjectReference Include="..\tools\LicenseCollector\LicenseCollector.csproj" />
   </ItemGroup>
 
 </Project>

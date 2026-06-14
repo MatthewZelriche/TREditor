@@ -1,0 +1,52 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/LicensesDialog.cs" id="1_dialog"]
+
+[node name="LicensesDialog" type="Window"]
+title = "Third-Party Licenses"
+initial_position = 1
+size = Vector2i(900, 600)
+script = ExtResource("1_dialog")
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="HBoxContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="EntryList" type="ItemList" parent="Margin/Content"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_vertical = 3
+allow_reselect = true
+
+[node name="Details" type="VBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/Content/Details"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="LicenseText" type="RichTextLabel" parent="Margin/Content/Details/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+fit_content = true
+scroll_active = false
+autowrap_mode = 3
+selection_enabled = true

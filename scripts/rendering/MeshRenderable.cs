@@ -5,9 +5,9 @@ using GodotArray = Godot.Collections.Array;
 
 public partial class MeshRenderable : MeshInstance3D
 {
-    private const string DefaultMaterialPath = "res://resource/matcap_material.tres";
+    private const string DefaultMaterialPath = "res://resource/matcap/matcap_material.tres";
     private const string SelectionMaterialPath =
-        "res://resource/matcap_stencil_write_material.tres";
+        "res://resource/matcap/matcap_stencil_write_material.tres";
     private static Material _defaultMaterial;
     private static Material _selectionMaterial;
 

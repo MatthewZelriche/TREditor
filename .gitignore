@@ -3,3 +3,6 @@
 /android/
 tests/bin/
 tests/obj/
+tools/LicenseCollector/bin/
+tools/LicenseCollector/obj/
+licenses/generated/

@@ -10,10 +10,14 @@ public partial class EditorMenuBar : MenuBar
     private const int FileSaveId = 2;
     private const int FileQuitId = 3;
 
+    private const int ThirdPartyLicensesMenuId = 0;
+
     private EditorSession _session;
     private PopupMenu _editMenu;
     private PopupMenu _fileMenu;
+    private PopupMenu _aboutMenu;
     private FileDialog _fileDialog;
+    private LicensesDialog _licensesDialog;
 
     public override void _Ready()
     {
@@ -29,6 +33,7 @@ public partial class EditorMenuBar : MenuBar
 
         WireEditMenu();
         WireFileMenu();
+        WireAboutMenu();
     }
 
     private void WireEditMenu()
@@ -54,6 +59,36 @@ public partial class EditorMenuBar : MenuBar
         }
 
         _fileMenu.IdPressed += OnFileMenuIdPressed;
+    }
+
+    private void WireAboutMenu()
+    {
+        _aboutMenu = GetNodeOrNull<PopupMenu>("About");
+        if (_aboutMenu == null)
+        {
+            GD.PushWarning("EditorMenuBar could not find the About menu.");
+            return;
+        }
+
+        _aboutMenu.IdPressed += OnAboutMenuIdPressed;
+    }
+
+    private void OnAboutMenuIdPressed(long id)
+    {
+        if (id == ThirdPartyLicensesMenuId)
+            ShowLicensesDialog();
+    }
+
+    private void ShowLicensesDialog()
+    {
+        if (_licensesDialog == null)
+        {
+            PackedScene scene = GD.Load<PackedScene>("res://scripts/ui/LicensesDialog.tscn");
+            _licensesDialog = scene.Instantiate<LicensesDialog>();
+            AddChild(_licensesDialog);
+        }
+
+        _licensesDialog.PopupCentered();
     }
 
     private void OnEditMenuIdPressed(long id)
