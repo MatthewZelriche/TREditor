@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Verify third-party licenses
+        run: dotnet run --project tools/LicenseCollector/LicenseCollector.csproj -- --root . --check
+
+      - name: Test
+        run: dotnet test TREditor2026.sln --configuration Release

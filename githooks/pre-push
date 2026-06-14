@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "Running third-party license check..."
+
+if ! dotnet run --project tools/LicenseCollector/LicenseCollector.csproj -- --root "$repo_root" --check; then
+  echo
+  echo "Pre-push license check failed."
+  echo "If licenses changed, regenerate the report with:"
+  echo "  dotnet run --project tools/LicenseCollector -- --root ."
+  echo
+  echo "To bypass this hook once, use: git push --no-verify"
+  exit 1
+fi

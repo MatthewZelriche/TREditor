@@ -109,6 +109,85 @@ public static class LicenseCollectorService
         File.WriteAllText(outputFullPath, json);
     }
 
+    public static LicenseCollectionResult Check(
+        string rootDirectory,
+        string manifestPath,
+        string outputPath
+    )
+    {
+        LicenseCollectionResult collection = Collect(rootDirectory, manifestPath);
+        if (!collection.Succeeded || collection.Report == null)
+            return collection;
+
+        string outputFullPath = Path.GetFullPath(outputPath);
+        if (!File.Exists(outputFullPath))
+        {
+            return new LicenseCollectionResult
+            {
+                Succeeded = false,
+                Errors =
+                [
+                    $"Committed license report not found at '{ToRepoRelativePath(rootDirectory, outputFullPath)}'. "
+                        + "Run the collector without --check to generate it.",
+                ],
+            };
+        }
+
+        ThirdPartyLicenseReport committedReport;
+        try
+        {
+            committedReport = ReadReport(outputFullPath);
+        }
+        catch (Exception exception)
+        {
+            return Failure([$"Failed to read committed license report: {exception.Message}"]);
+        }
+
+        if (!EntriesMatch(collection.Report.Entries, committedReport.Entries))
+        {
+            return new LicenseCollectionResult
+            {
+                Succeeded = false,
+                Errors =
+                [
+                    "Committed third-party license report is out of date. "
+                        + "Regenerate it with: dotnet run --project tools/LicenseCollector -- --root .",
+                ],
+            };
+        }
+
+        return new LicenseCollectionResult
+        {
+            Succeeded = true,
+            Errors = [],
+            Report = collection.Report,
+        };
+    }
+
+    internal static ThirdPartyLicenseReport ReadReport(string outputPath)
+    {
+        string json = File.ReadAllText(outputPath);
+        ThirdPartyLicenseReport? report = JsonSerializer.Deserialize<ThirdPartyLicenseReport>(
+            json,
+            JsonOptions
+        );
+
+        return report
+            ?? throw new InvalidOperationException(
+                "Committed license report deserialized to null."
+            );
+    }
+
+    internal static bool EntriesMatch(
+        IReadOnlyList<ThirdPartyLicenseEntry> generated,
+        IReadOnlyList<ThirdPartyLicenseEntry> committed
+    )
+    {
+        string generatedJson = JsonSerializer.Serialize(generated, JsonOptions);
+        string committedJson = JsonSerializer.Serialize(committed, JsonOptions);
+        return string.Equals(generatedJson, committedJson, StringComparison.Ordinal);
+    }
+
     internal static LicenseManifest LoadManifest(string manifestPath)
     {
         string yaml = File.ReadAllText(manifestPath);

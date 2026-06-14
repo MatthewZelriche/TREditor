@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 using LicenseCollector;
 
 namespace TREditor2026.Tests;
@@ -133,6 +132,126 @@ public sealed class LicenseCollectorTests
             result.Errors,
             error => error.Contains("submodules/Gizmo3D", StringComparison.Ordinal)
         );
+    }
+
+    [Fact]
+    public void Check_FailsWhenCommittedReportIsMissing()
+    {
+        string root = CreateTempRoot("licenses/manifest.yaml");
+        WriteManifest(
+            root,
+            """
+            version: 1
+            scanPaths:
+              - path: vendor
+                category: Code & Shaders
+            """
+        );
+        Directory.CreateDirectory(Path.Combine(root, "vendor", "outlineShader"));
+        File.WriteAllText(
+            Path.Combine(root, "vendor", "outlineShader", "LICENSE.md"),
+            "Outline License"
+        );
+
+        string outputPath = Path.Combine(root, "licenses", "generated", "third-party.json");
+        LicenseCollectionResult result = LicenseCollectorService.Check(
+            root,
+            Path.Combine(root, "licenses", "manifest.yaml"),
+            outputPath
+        );
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(
+            result.Errors,
+            error => error.Contains("not found", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void Check_FailsWhenCommittedReportIsOutOfDate()
+    {
+        string root = CreateTempRoot("licenses/manifest.yaml");
+        WriteManifest(
+            root,
+            """
+            version: 1
+            scanPaths:
+              - path: vendor
+                category: Code & Shaders
+            """
+        );
+        Directory.CreateDirectory(Path.Combine(root, "vendor", "outlineShader"));
+        File.WriteAllText(
+            Path.Combine(root, "vendor", "outlineShader", "LICENSE.md"),
+            "Updated License"
+        );
+
+        string outputDirectory = Path.Combine(root, "licenses", "generated");
+        Directory.CreateDirectory(outputDirectory);
+        string outputPath = Path.Combine(outputDirectory, "third-party.json");
+        File.WriteAllText(
+            outputPath,
+            """
+            {
+              "generatedAt": "2026-01-01T00:00:00+00:00",
+              "entries": [
+                {
+                  "id": "scan.vendor.outlineShader",
+                  "displayName": "Outline Shader",
+                  "category": "Code & Shaders",
+                  "sourcePath": "vendor/outlineShader",
+                  "licenseFile": "vendor/outlineShader/LICENSE.md",
+                  "licenseText": "Old License"
+                }
+              ]
+            }
+            """
+        );
+
+        LicenseCollectionResult result = LicenseCollectorService.Check(
+            root,
+            Path.Combine(root, "licenses", "manifest.yaml"),
+            outputPath
+        );
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(
+            result.Errors,
+            error => error.Contains("out of date", StringComparison.OrdinalIgnoreCase)
+        );
+    }
+
+    [Fact]
+    public void Check_SucceedsWhenCommittedReportMatches()
+    {
+        string root = CreateTempRoot("licenses/manifest.yaml");
+        WriteManifest(
+            root,
+            """
+            version: 1
+            scanPaths:
+              - path: vendor
+                category: Code & Shaders
+            """
+        );
+        Directory.CreateDirectory(Path.Combine(root, "vendor", "outlineShader"));
+        File.WriteAllText(
+            Path.Combine(root, "vendor", "outlineShader", "LICENSE.md"),
+            "Outline License"
+        );
+
+        string manifestPath = Path.Combine(root, "licenses", "manifest.yaml");
+        string outputPath = Path.Combine(root, "licenses", "generated", "third-party.json");
+        LicenseCollectionResult collect = LicenseCollectorService.Collect(root, manifestPath);
+        LicenseCollectorService.WriteReport(collect.Report!, outputPath);
+
+        LicenseCollectionResult check = LicenseCollectorService.Check(
+            root,
+            manifestPath,
+            outputPath
+        );
+
+        Assert.True(check.Succeeded);
     }
 
     [Theory]
