@@ -7,6 +7,7 @@ using NumericVector3 = System.Numerics.Vector3;
 // Centralizes committed scene-node mutation for now. This is intentionally a step toward
 // a proper editor document/model layer, where commands would mutate model state and the
 // Godot scene would become a synchronized view of that model.
+// TODO: This class is getting huge
 public sealed class EditorSceneService : IDisposable
 {
     private readonly Node3D _worldRoot;
@@ -277,6 +278,40 @@ public sealed class EditorSceneService : IDisposable
         return maximumDepth > 0f;
     }
 
+    public bool CanFillHole(SelectionTarget target)
+    {
+        if (
+            target.Kind != ScenePickElementKind.Edge
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return false;
+        }
+
+        List<VertexHandle> boundaryVertices = [];
+        return meshNode.SourceMesh.TryGetHoleBoundaryVertices(target.Edge, boundaryVertices);
+    }
+
+    public FillHoleChange FillHole(SelectionTarget target)
+    {
+        if (
+            target.Kind != ScenePickElementKind.Edge
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        FillHoleChange change = FillHoleChange.Fill(
+            target.ObjectId,
+            meshNode.SourceMesh,
+            target.Edge
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
     public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: true);
 
@@ -288,6 +323,10 @@ public sealed class EditorSceneService : IDisposable
 
     public void ApplyFaceInsetAfter(FaceInsetChange change) =>
         ApplyFaceInset(change, before: false);
+
+    public void ApplyFillHoleBefore(FillHoleChange change) => ApplyFillHole(change, before: true);
+
+    public void ApplyFillHoleAfter(FillHoleChange change) => ApplyFillHole(change, before: false);
 
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
     {
@@ -303,6 +342,19 @@ public sealed class EditorSceneService : IDisposable
     }
 
     private void ApplyFaceInset(FaceInsetChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
+    }
+
+    private void ApplyFillHole(FillHoleChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
         if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))

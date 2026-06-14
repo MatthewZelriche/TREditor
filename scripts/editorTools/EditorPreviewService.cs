@@ -12,6 +12,7 @@ public sealed class EditorPreviewService : IDisposable
     private EditorPreviewRequest.TranslateSelection _translationPreview;
     private FaceExtrusionChange _faceExtrusionPreview;
     private FaceInsetChange _faceInsetPreview;
+    private FillHoleChange _fillHolePreview;
     private bool _disposed;
 
     public EditorPreviewService(
@@ -45,6 +46,7 @@ public sealed class EditorPreviewService : IDisposable
                 ClearTranslationPreview();
                 ClearFaceExtrusionPreview();
                 ClearFaceInsetPreview();
+                ClearFillHolePreview();
                 ShowPrimitivePreview(primitive.Settings, primitive.Bounds);
                 break;
             case EditorPreviewRequest.TranslateSelection translation:
@@ -56,6 +58,9 @@ public sealed class EditorPreviewService : IDisposable
             case EditorPreviewRequest.InsetFace inset:
                 ShowFaceInsetPreview(inset);
                 break;
+            case EditorPreviewRequest.FillHole fillHole:
+                ShowFillHolePreview(fillHole);
+                break;
         }
     }
 
@@ -65,6 +70,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearTranslationPreview();
         ClearFaceExtrusionPreview();
         ClearFaceInsetPreview();
+        ClearFillHolePreview();
     }
 
     public void Dispose()
@@ -102,6 +108,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearFaceExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
+        ClearFillHolePreview(refresh: false);
         ClearTranslationPreview(refresh: false);
 
         if (translation.Selection.IsEmpty || translation.Delta.IsZeroApprox())
@@ -120,6 +127,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
+        ClearFillHolePreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
 
         if (extrusion.Delta.IsZeroApprox())
@@ -138,6 +146,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
+        ClearFillHolePreview(refresh: false);
 
         if (!(inset.Depth > 0f))
         {
@@ -146,6 +155,18 @@ public sealed class EditorPreviewService : IDisposable
         }
 
         _faceInsetPreview = _scene.InsetFace(inset.Face, inset.Depth);
+        _scenePreviewChanged();
+    }
+
+    private void ShowFillHolePreview(EditorPreviewRequest.FillHole fillHole)
+    {
+        _primitivePreview?.Clear();
+        ClearTranslationPreview(refresh: false);
+        ClearFaceExtrusionPreview(refresh: false);
+        ClearFaceInsetPreview(refresh: false);
+        ClearFillHolePreview(refresh: false);
+
+        _fillHolePreview = _scene.FillHole(fillHole.Edge);
         _scenePreviewChanged();
     }
 
@@ -188,6 +209,18 @@ public sealed class EditorPreviewService : IDisposable
         _scene.ApplyFaceInsetBefore(_faceInsetPreview);
         _faceInsetPreview.Dispose();
         _faceInsetPreview = null;
+        if (refresh)
+            _scenePreviewChanged();
+    }
+
+    private void ClearFillHolePreview(bool refresh = true)
+    {
+        if (_fillHolePreview == null)
+            return;
+
+        _scene.ApplyFillHoleBefore(_fillHolePreview);
+        _fillHolePreview.Dispose();
+        _fillHolePreview = null;
         if (refresh)
             _scenePreviewChanged();
     }

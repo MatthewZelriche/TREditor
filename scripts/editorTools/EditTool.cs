@@ -29,7 +29,10 @@ public sealed class EditTool : IEditorTool
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
     {
-        if (_context.EditOperationSettings.IsSelected("InsetFace"))
+        if (
+            _context.EditOperationSettings.IsSelected("InsetFace")
+            || _context.EditOperationSettings.IsSelected("FillHole")
+        )
             return EditorToolResult.Continue;
 
         UpdateHover(input.RayOrigin, input.RayDirection);

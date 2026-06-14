@@ -59,6 +59,9 @@ public partial class EditorSession : Node3D
     private ComponentSelectionHighlightController _componentSelectionHighlightController;
     private EditorSceneService _sceneService;
     private bool _translationGizmoEventsWired;
+
+    // TODO: Feels like this shouldn't be such a globally available state.
+    private bool _canFillHole;
     private float _maximumInsetDepth;
 
     public override void _EnterTree()
@@ -112,15 +115,15 @@ public partial class EditorSession : Node3D
             return;
         }
 
-        if (EditOperationSettings.IsSelected("InsetFace"))
+        if (IsModalEditOperationSelected())
         {
-            bool insetHandled = key.Keycode switch
+            bool operationHandled = key.Keycode switch
             {
                 Key.Enter or Key.KpEnter => ApplySelectedEditOperation(),
                 Key.Escape => CancelSelectedEditOperation(),
                 _ => false,
             };
-            if (insetHandled)
+            if (operationHandled)
             {
                 GetViewport().SetInputAsHandled();
                 return;
@@ -188,13 +191,12 @@ public partial class EditorSession : Node3D
 
     public bool ApplySelectedEditOperation()
     {
-        if (!EditOperationSettings.IsSelected("InsetFace"))
-            return false;
-
-        InsetFaceCommand command = InsetFaceCommand.Create(
-            Selection.Current,
-            GetEffectiveInsetDepth()
-        );
+        EditorCommand command = EditOperationSettings.SelectedOperationId switch
+        {
+            "InsetFace" => InsetFaceCommand.Create(Selection.Current, GetEffectiveInsetDepth()),
+            "FillHole" when _canFillHole => FillHoleCommand.Create(Selection.Current),
+            _ => null,
+        };
         if (command == null)
             return false;
 
@@ -215,9 +217,17 @@ public partial class EditorSession : Node3D
             ? GridSnap.SnapDistance(EditOperationSettings.InsetDepth, GridSnapSize, maximumDepth)
             : EditOperationSettings.InsetDepth;
 
+    public bool CanApplySelectedEditOperation() =>
+        EditOperationSettings.SelectedOperationId switch
+        {
+            "InsetFace" => _maximumInsetDepth > 0f,
+            "FillHole" => _canFillHole,
+            _ => false,
+        };
+
     public bool CancelSelectedEditOperation()
     {
-        if (!EditOperationSettings.IsSelected("InsetFace"))
+        if (!IsModalEditOperationSelected())
             return false;
 
         _previewService?.Apply(new EditorPreviewRequest.Clear());
@@ -299,7 +309,7 @@ public partial class EditorSession : Node3D
 
     private void OnPersistentToolChanged(EditorToolId toolId)
     {
-        if (toolId != EditorToolId.Edit && EditOperationSettings.IsSelected("InsetFace"))
+        if (toolId != EditorToolId.Edit && IsModalEditOperationSelected())
             CancelSelectedEditOperation();
 
         ReportStatus("");
@@ -315,11 +325,13 @@ public partial class EditorSession : Node3D
     private void ApplyEditOperationSettings()
     {
         bool insetSelected = EditOperationSettings.IsSelected("InsetFace");
+        bool fillHoleSelected = EditOperationSettings.IsSelected("FillHole");
+        bool modalOperationSelected = insetSelected || fillHoleSelected;
         _selectionTranslationGizmoController.SetExtrudeOperation(
             EditOperationSettings.IsSelected("ExtrudeFace"),
             EditOperationSettings.ExtrudeAlongFaceNormal
         );
-        _selectionTranslationGizmoController.SetInputSuppressed(insetSelected);
+        _selectionTranslationGizmoController.SetInputSuppressed(modalOperationSelected);
 
         if (!insetSelected)
             _maximumInsetDepth = 0f;
@@ -332,6 +344,15 @@ public partial class EditorSession : Node3D
             )
         )
             _maximumInsetDepth = maximumInsetDepth;
+
+        if (!fillHoleSelected)
+            _canFillHole = false;
+        else if (
+            !_canFillHole
+            && FillHoleCommand.CanCreate(Selection.Current)
+            && _sceneService.CanFillHole(Selection.Current.Targets[0])
+        )
+            _canFillHole = true;
 
         if (_previewService == null)
             return;
@@ -349,6 +370,10 @@ public partial class EditorSession : Node3D
                 )
             );
         }
+        else if (fillHoleSelected && FillHoleCommand.CanCreate(Selection.Current) && _canFillHole)
+        {
+            _previewService.Apply(new EditorPreviewRequest.FillHole(Selection.Current.Targets[0]));
+        }
         else
         {
             _previewService.Apply(new EditorPreviewRequest.Clear());
@@ -357,14 +382,18 @@ public partial class EditorSession : Node3D
 
     private void OnSelectionChangedForEditOperation()
     {
-        if (EditOperationSettings.IsSelected("InsetFace"))
+        if (IsModalEditOperationSelected())
         {
             _previewService?.Apply(new EditorPreviewRequest.Clear());
             _maximumInsetDepth = 0f;
+            _canFillHole = false;
             ApplyEditOperationSettings();
         }
     }
 
-    private float GetEffectiveInsetDepth() =>
-        GetSnappedInsetDepth();
+    private float GetEffectiveInsetDepth() => GetSnappedInsetDepth();
+
+    private bool IsModalEditOperationSelected() =>
+        EditOperationSettings.IsSelected("InsetFace")
+        || EditOperationSettings.IsSelected("FillHole");
 }

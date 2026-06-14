@@ -10,7 +10,7 @@
   - [x] **Inset Face**
   - [ ] **Bevel Vertex**
   - [ ] **Bevel Edge**
-  - [ ] **Fill Hole**
+  - [x] **Fill Hole**
   - [ ] **Bridge Edges**
   - [ ] **Detach Face**
   - [ ] **Edge Cut (Vertex, Edge, Face)**
@@ -27,6 +27,8 @@
 # Controls
 - [ ] **Hook up some Common Hotkeys eg Undo/Redo**
 - [ ] **Keybindings Menu**
+- [ ] **Click-And-Drag selection & Application For Materials**
+- [ ] **Edge Loop Selection**
 
 
 # Bugs/Regressions

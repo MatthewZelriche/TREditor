@@ -81,9 +81,9 @@ public static class EditOperationCatalog
             "FillHole",
             "Fill Hole",
             "Cover a gap in the mesh with a new face.",
-            "Edges around an open hole",
-            "Coming soon",
-            EditOperationAvailability.Planned
+            "One edge on an open boundary",
+            "Preview, then Apply or press Enter",
+            EditOperationAvailability.Available
         ),
         new(
             "BridgeEdges",
