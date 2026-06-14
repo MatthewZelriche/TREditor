@@ -18,6 +18,8 @@ public partial class EditorSession : Node3D
 
     public DocumentService Document { get; private set; }
 
+    public EditOperationSettings EditOperationSettings { get; private set; }
+
     public PrimitiveCreationSettings PrimitiveCreationSettings { get; set; } =
         PrimitiveCreationSettings.Box();
 
@@ -51,6 +53,7 @@ public partial class EditorSession : Node3D
     {
         ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
+        EditOperationSettings = new EditOperationSettings();
         TextureRootSettings = new TextureRootSettingsService();
         TextureCatalog = new TextureAssetCatalog();
         TextureCatalog.Rescan(TextureRootSettings.RootPath);
@@ -72,6 +75,8 @@ public partial class EditorSession : Node3D
             _sceneService,
             Selection
         );
+        EditOperationSettings.Changed += ApplyEditOperationSettings;
+        ApplyEditOperationSettings();
         Commands = new CommandService(new EditorCommandContext(_sceneService, Selection));
         Commands.CommandHistoryChanged += OnCommandHistoryChanged;
         Document = new DocumentService(_sceneService, TextureMaterials, Selection, Commands);
@@ -175,6 +180,7 @@ public partial class EditorSession : Node3D
         _previewService = null;
         _selectionTranslationGizmoController?.Dispose();
         _selectionTranslationGizmoController = null;
+        EditOperationSettings.Changed -= ApplyEditOperationSettings;
         _objectSelectionHighlightController?.Dispose();
         _objectSelectionHighlightController = null;
         _componentSelectionHighlightController?.Dispose();
@@ -231,5 +237,13 @@ public partial class EditorSession : Node3D
     {
         _componentSelectionHighlightController.Refresh();
         _selectionTranslationGizmoController.Refresh();
+    }
+
+    private void ApplyEditOperationSettings()
+    {
+        _selectionTranslationGizmoController.SetExtrudeOperation(
+            EditOperationSettings.IsSelected("ExtrudeFace"),
+            EditOperationSettings.ExtrudeAlongFaceNormal
+        );
     }
 }

@@ -44,12 +44,14 @@ public sealed class ExtrudeFaceCommandTests
     }
 
     [Theory]
-    [InlineData(true, true, true)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    public void ShouldExtrudeFace_RequiresEditModeModifierAndEligibleSelection(
+    [InlineData(true, true, false, true)]
+    [InlineData(true, false, true, true)]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, true, false)]
+    public void ShouldExtrudeFace_RequiresEditModeAndModifierOrSelectedOperation(
         bool editMode,
         bool shiftPressed,
+        bool operationSelected,
         bool expected
     )
     {
@@ -58,8 +60,24 @@ public sealed class ExtrudeFaceCommandTests
             SelectionTranslationGizmoController.ShouldExtrudeFace(
                 SelectionSnapshot.From([Face]),
                 editMode,
-                shiftPressed
+                shiftPressed,
+                operationSelected
             )
+        );
+    }
+
+    [Fact]
+    public void ConstrainExtrusionDelta_LocalModeProjectsOntoFaceNormal()
+    {
+        Vector3 delta = new(3, 4, 5);
+
+        Assert.Equal(
+            new Vector3(0, 4, 0),
+            SelectionTranslationGizmoController.ConstrainExtrusionDelta(delta, Vector3.Up)
+        );
+        Assert.Equal(
+            delta,
+            SelectionTranslationGizmoController.ConstrainExtrusionDelta(delta, Vector3.Zero)
         );
     }
 

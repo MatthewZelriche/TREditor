@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://vendor/shaders/Outline/outlineCompositorEffect.gd" id="8_outline"]
 [ext_resource type="Script" path="res://scripts/ui/EditorSidePanel.cs" id="9_side_panel"]
 [ext_resource type="PackedScene" path="res://scripts/ui/TextureBrowserPanel.tscn" id="10_texture_browser"]
+[ext_resource type="PackedScene" path="res://scripts/ui/EditPanel.tscn" id="11_edit_panel"]
 
 [sub_resource type="Environment" id="Environment_j6ixq"]
 background_mode = 1
@@ -155,11 +156,6 @@ layout_mode = 2
 layout_mode = 2
 alignment = 2
 
-[node name="TexturesButton" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Textures"
-
 [node name="CollapseButton" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Header"]
 layout_mode = 2
 tooltip_text = "Collapse side panel"
@@ -177,6 +173,8 @@ size_flags_vertical = 3
 [node name="Create" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Tabs" instance=ExtResource("6_create_panel")]
 
 [node name="Textures" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Tabs" instance=ExtResource("10_texture_browser")]
+
+[node name="Edit" parent="UI_ROOT/VBoxContainer/HBoxContainer/EditorSidePanel/Column/Tabs" instance=ExtResource("11_edit_panel")]
 
 [node name="SidePanelExpandButton" type="Button" parent="UI_ROOT/VBoxContainer/HBoxContainer"]
 custom_minimum_size = Vector2(24, 0)

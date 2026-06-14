@@ -38,6 +38,7 @@ public partial class EditorToolBar : PanelContainer
 
     private void OnEditPressed()
     {
+        OpenSidePanelTab("Edit");
         ActivatePersistentTool(EditorToolId.Edit);
     }
 

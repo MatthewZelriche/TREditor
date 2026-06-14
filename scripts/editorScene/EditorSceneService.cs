@@ -131,6 +131,22 @@ public sealed class EditorSceneService : IDisposable
         return true;
     }
 
+    public bool TryGetFaceWorldNormal(SelectionTarget target, out Vector3 normal)
+    {
+        normal = Vector3.Zero;
+        if (
+            target.Kind != ScenePickElementKind.Face
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return false;
+        }
+
+        Vector3 localNormal = ToGodotVector3(meshNode.SourceMesh.ComputeFaceNormal(target.Face));
+        normal = (meshNode.GlobalTransform.Basis.Inverse().Transposed() * localNormal).Normalized();
+        return !normal.IsZeroApprox();
+    }
+
     public void TranslateSelection(SelectionSnapshot selection, Vector3 worldDelta)
     {
         if (selection.IsEmpty || worldDelta.IsZeroApprox())

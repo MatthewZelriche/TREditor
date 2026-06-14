@@ -8,7 +8,6 @@ public partial class EditorSidePanel : PanelContainer
     private Button _collapseButton;
     private Button _closeTabButton;
     private Button _expandButton;
-    private Button _texturesButton;
     private bool _syncingView;
 
     public override void _Ready()
@@ -16,12 +15,10 @@ public partial class EditorSidePanel : PanelContainer
         _tabs = GetNode<TabContainer>("Column/Tabs");
         _collapseButton = GetNode<Button>("Column/Header/CollapseButton");
         _closeTabButton = GetNode<Button>("Column/Header/CloseTabButton");
-        _texturesButton = GetNode<Button>("Column/Header/TexturesButton");
         _expandButton = GetNode<Button>("../SidePanelExpandButton");
 
         _collapseButton.Pressed += Collapse;
         _closeTabButton.Pressed += CloseActiveTab;
-        _texturesButton.Pressed += () => OpenTab("Textures");
         _expandButton.Pressed += Expand;
         _tabs.TabChanged += OnTabChanged;
 

@@ -1,0 +1,58 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/EditPanel.cs" id="1_panel"]
+
+[node name="Edit" type="PanelContainer"]
+layout_mode = 2
+script = ExtResource("1_panel")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Scroll" type="ScrollContainer" parent="Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Column" type="VBoxContainer" parent="Margin/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="OperationsTitle" type="Label" parent="Margin/Scroll/Column"]
+layout_mode = 2
+text = "OPERATIONS"
+
+[node name="OperationGrid" type="GridContainer" parent="Margin/Scroll/Column"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 5
+theme_override_constants/v_separation = 5
+columns = 2
+
+[node name="SectionSeparator" type="HSeparator" parent="Margin/Scroll/Column"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OptionsTitle" type="Label" parent="Margin/Scroll/Column"]
+layout_mode = 2
+text = "OPTIONS"
+
+[node name="NoOptions" type="Label" parent="Margin/Scroll/Column"]
+layout_mode = 2
+text = "Select an operation to view its settings."
+
+[node name="ExtrudeOptions" type="HBoxContainer" parent="Margin/Scroll/Column"]
+layout_mode = 2
+visible = false
+
+[node name="AlongFaceNormal" type="CheckBox" parent="Margin/Scroll/Column/ExtrudeOptions"]
+layout_mode = 2
+button_pressed = true
+text = "Extrude along face normal"
+tooltip_text = "Enabled: local extrusion along the selected face normal. Disabled: global extrusion along the gizmo drag direction."

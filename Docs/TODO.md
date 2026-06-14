@@ -1,13 +1,34 @@
 # TODO
 
-## Primitive creation
 
-- [ ] **Define interactive Sphere and Plane creation semantics** before wiring them into the dynamic creation flow. Box and Cylinder fit the current footprint-plus-height workflow, but Sphere needs a radius/ellipsoid decision and Plane likely needs a footprint-only commit path.
+# Features
+### Core
+- [ ] **Sphere, Plane Primitive Creation** - Predicated on deciding a flow that doesn't involve footprint-plus-height workflow
+- [ ] **Remove Bad Faces**?
+- [ ] **Continue Core Suite of Mesh Ops**
+  - [ ] **Collapse Face**
+  - [ ] **Inset Face**
+  - [ ] **Bevel Vertex**
+  - [ ] **Bevel Edge**
+  - [ ] **Fill Hole**
+  - [ ] **Bridge Edges**
+  - [ ] **Detach Face**
+  - [ ] **Edge Cut (Vertex, Edge, Face)**
+  - [ ] **Rotation Gizmo**
+- [ ] **UV/Texturing Ops**
 
-## Selection highlighting
+### UI
+- [ ] **Implement Camera Perspective Menu**
+- [ ] **Track Unsaved Changes and Have Confirmation Dialog on Close**
+- [x] **UI Pane for Mesh Operators**
+- [ ] **Wireframe Overlay**
 
-- [ ] **Size component selection highlights per viewport camera**. Component selection highlighting currently resizes based on distance from the active viewport's camera, instead of from each viewport's camera independently.
 
-## Viewport camera settings
+# Controls
+- [ ] **Hook up some Common Hotkeys eg Undo/Redo**
+- [ ] **Keybindings Menu**
 
-- [ ] **Hook up the camera perspective menu** in `scripts/ui/viewportWorkspace/ViewportCameraSettingsPopup.cs` — wire the `ProjectionOption` `OptionButton` (scene path: `Margin/Column/Controls/ProjectionOption` in `ViewportPane.tscn`) to the pane’s `ViewCamera` so users can switch between perspective and orthographic projection from the camera settings popup.
+
+# Bugs/Regressions
+- [ ] **Fix Component Selection Gizmo Sizes With Multiple Viewports** - Current impl resizes component selection based on active viewport camera only
+- [ ] **Fix Grid LODs With Multiple Viewports** - Same as above
