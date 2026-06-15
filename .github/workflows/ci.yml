@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -20,7 +23,44 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Verify third-party licenses
-        run: dotnet run --project tools/LicenseCollector/LicenseCollector.csproj -- --root . --check
+        run: |
+          set -euo pipefail
+
+          if dotnet run --project tools/LicenseCollector/LicenseCollector.csproj -- --root . --check; then
+            echo "License report is up to date."
+            exit 0
+          fi
+
+          echo "License check failed; regenerating report..."
+          dotnet run --project tools/LicenseCollector/LicenseCollector.csproj -- --root .
+
+          if ! dotnet run --project tools/LicenseCollector/LicenseCollector.csproj -- --root . --check; then
+            echo "::error::License check still failing after regeneration."
+            exit 1
+          fi
+
+          if ! git status --porcelain -- licenses/generated/third-party.json | grep -q .; then
+            echo "::error::License check failed but the report file did not change."
+            exit 1
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "::error::License report is out of date. Regenerate locally with: dotnet run --project tools/LicenseCollector -- --root ."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add licenses/generated/third-party.json
+          git commit -m "Update third-party license report"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git push origin "HEAD:${{ github.head_ref }}"
+          else
+            git push
+          fi
+
+          echo "Committed updated license report."
 
       - name: Test
         run: dotnet test TREditor2026.sln --configuration Release

@@ -254,6 +254,65 @@ public sealed class LicenseCollectorTests
         Assert.True(check.Succeeded);
     }
 
+    [Fact]
+    public void Check_SucceedsWhenLicenseFileUsesCrlfButCommittedReportUsesLf()
+    {
+        string root = CreateTempRoot("licenses/manifest.yaml");
+        WriteManifest(
+            root,
+            """
+            version: 1
+            scanPaths:
+              - path: vendor
+                category: Code & Shaders
+            """
+        );
+        Directory.CreateDirectory(Path.Combine(root, "vendor", "outlineShader"));
+        File.WriteAllText(
+            Path.Combine(root, "vendor", "outlineShader", "LICENSE.md"),
+            "Line one\r\nLine two\r\n"
+        );
+
+        string manifestPath = Path.Combine(root, "licenses", "manifest.yaml");
+        string outputPath = Path.Combine(root, "licenses", "generated", "third-party.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        File.WriteAllText(
+            outputPath,
+            """
+            {
+              "generatedAt": "2026-01-01T00:00:00+00:00",
+              "entries": [
+                {
+                  "id": "scan.vendor.outlineShader",
+                  "displayName": "Outline Shader",
+                  "category": "Code & Shaders",
+                  "sourcePath": "vendor/outlineShader",
+                  "licenseFile": "vendor/outlineShader/LICENSE.md",
+                  "licenseText": "Line one\nLine two\n"
+                }
+              ]
+            }
+            """
+        );
+
+        LicenseCollectionResult check = LicenseCollectorService.Check(
+            root,
+            manifestPath,
+            outputPath
+        );
+
+        Assert.True(check.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("a\r\nb\r\nc", "a\nb\nc")]
+    [InlineData("a\rb\rc", "a\nb\nc")]
+    [InlineData("already\nlf", "already\nlf")]
+    public void NormalizeLineEndings_ConvertsToLf(string input, string expected)
+    {
+        Assert.Equal(expected, LicenseCollectorService.NormalizeLineEndings(input));
+    }
+
     [Theory]
     [InlineData("outlineShader", "Outline Shader")]
     [InlineData("matcap", "Matcap")]

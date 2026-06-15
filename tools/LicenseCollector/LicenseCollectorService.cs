@@ -254,7 +254,7 @@ public static class LicenseCollectorService
                         Category = scanPath.Category,
                         SourcePath = relativeSourcePath,
                         LicenseFile = ToRepoRelativePath(rootDirectory, licenseFile),
-                        LicenseText = File.ReadAllText(licenseFile),
+                        LicenseText = ReadLicenseText(licenseFile),
                     }
                 );
             }
@@ -295,11 +295,17 @@ public static class LicenseCollectorService
                     Category = "Submodules",
                     SourcePath = submodule.Path.Replace('\\', '/'),
                     LicenseFile = ToRepoRelativePath(rootDirectory, licenseFile),
-                    LicenseText = File.ReadAllText(licenseFile),
+                    LicenseText = ReadLicenseText(licenseFile),
                 }
             );
         }
     }
+
+    public static string NormalizeLineEndings(string text) =>
+        text.Replace("\r\n", "\n").Replace('\r', '\n');
+
+    private static string ReadLicenseText(string licenseFile) =>
+        NormalizeLineEndings(File.ReadAllText(licenseFile));
 
     public static string FormatFolderDisplayName(string folderName)
     {
