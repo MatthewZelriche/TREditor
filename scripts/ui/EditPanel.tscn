@@ -119,3 +119,22 @@ tooltip_text = "Commit the filled face. Shortcut: Enter"
 layout_mode = 2
 text = "Cancel"
 tooltip_text = "Cancel filling the hole. Shortcut: Esc"
+
+[node name="CollapseFaceOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
+visible = false
+layout_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Scroll/Column/CollapseFaceOptions"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="Apply" type="Button" parent="Margin/Scroll/Column/CollapseFaceOptions/Actions"]
+layout_mode = 2
+text = "Apply"
+tooltip_text = "Commit the collapsed face. Shortcut: Enter"
+
+[node name="Cancel" type="Button" parent="Margin/Scroll/Column/CollapseFaceOptions/Actions"]
+layout_mode = 2
+text = "Cancel"
+tooltip_text = "Cancel collapsing the face. Shortcut: Esc"

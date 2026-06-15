@@ -61,6 +61,7 @@ public partial class EditorSession : Node3D
     private bool _translationGizmoEventsWired;
 
     // TODO: Feels like this shouldn't be such a globally available state.
+    private bool _canCollapseFace;
     private bool _canFillHole;
     private float _maximumInsetDepth;
 
@@ -195,6 +196,7 @@ public partial class EditorSession : Node3D
         {
             "InsetFace" => InsetFaceCommand.Create(Selection.Current, GetEffectiveInsetDepth()),
             "FillHole" when _canFillHole => FillHoleCommand.Create(Selection.Current),
+            "CollapseFace" when _canCollapseFace => CollapseFaceCommand.Create(Selection.Current),
             _ => null,
         };
         if (command == null)
@@ -222,6 +224,7 @@ public partial class EditorSession : Node3D
         {
             "InsetFace" => _maximumInsetDepth > 0f,
             "FillHole" => _canFillHole,
+            "CollapseFace" => _canCollapseFace,
             _ => false,
         };
 
@@ -326,7 +329,8 @@ public partial class EditorSession : Node3D
     {
         bool insetSelected = EditOperationSettings.IsSelected("InsetFace");
         bool fillHoleSelected = EditOperationSettings.IsSelected("FillHole");
-        bool modalOperationSelected = insetSelected || fillHoleSelected;
+        bool collapseFaceSelected = EditOperationSettings.IsSelected("CollapseFace");
+        bool modalOperationSelected = insetSelected || fillHoleSelected || collapseFaceSelected;
         _selectionTranslationGizmoController.SetExtrudeOperation(
             EditOperationSettings.IsSelected("ExtrudeFace"),
             EditOperationSettings.ExtrudeAlongFaceNormal
@@ -354,6 +358,15 @@ public partial class EditorSession : Node3D
         )
             _canFillHole = true;
 
+        if (!collapseFaceSelected)
+            _canCollapseFace = false;
+        else if (
+            !_canCollapseFace
+            && CollapseFaceCommand.CanCreate(Selection.Current)
+            && _sceneService.CanCollapseFace(Selection.Current.Targets[0])
+        )
+            _canCollapseFace = true;
+
         if (_previewService == null)
             return;
 
@@ -374,6 +387,16 @@ public partial class EditorSession : Node3D
         {
             _previewService.Apply(new EditorPreviewRequest.FillHole(Selection.Current.Targets[0]));
         }
+        else if (
+            collapseFaceSelected
+            && CollapseFaceCommand.CanCreate(Selection.Current)
+            && _canCollapseFace
+        )
+        {
+            _previewService.Apply(
+                new EditorPreviewRequest.CollapseFace(Selection.Current.Targets[0])
+            );
+        }
         else
         {
             _previewService.Apply(new EditorPreviewRequest.Clear());
@@ -387,6 +410,7 @@ public partial class EditorSession : Node3D
             _previewService?.Apply(new EditorPreviewRequest.Clear());
             _maximumInsetDepth = 0f;
             _canFillHole = false;
+            _canCollapseFace = false;
             ApplyEditOperationSettings();
         }
     }
@@ -395,5 +419,6 @@ public partial class EditorSession : Node3D
 
     private bool IsModalEditOperationSelected() =>
         EditOperationSettings.IsSelected("InsetFace")
-        || EditOperationSettings.IsSelected("FillHole");
+        || EditOperationSettings.IsSelected("FillHole")
+        || EditOperationSettings.IsSelected("CollapseFace");
 }

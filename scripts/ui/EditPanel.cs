@@ -23,6 +23,9 @@ public partial class EditPanel : PanelContainer
     private Control _fillHoleOptions;
     private Button _fillHoleApply;
     private Button _fillHoleCancel;
+    private Control _collapseFaceOptions;
+    private Button _collapseFaceApply;
+    private Button _collapseFaceCancel;
 
     public override void _Ready()
     {
@@ -41,6 +44,13 @@ public partial class EditPanel : PanelContainer
         _fillHoleOptions = GetNode<Control>("Margin/Scroll/Column/FillHoleOptions");
         _fillHoleApply = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Apply");
         _fillHoleCancel = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Cancel");
+        _collapseFaceOptions = GetNode<Control>("Margin/Scroll/Column/CollapseFaceOptions");
+        _collapseFaceApply = GetNode<Button>(
+            "Margin/Scroll/Column/CollapseFaceOptions/Actions/Apply"
+        );
+        _collapseFaceCancel = GetNode<Button>(
+            "Margin/Scroll/Column/CollapseFaceOptions/Actions/Cancel"
+        );
 
         BuildOperationButtons();
         _extrudeAlongFaceNormal.Toggled += OnExtrudeAlongFaceNormalToggled;
@@ -49,6 +59,8 @@ public partial class EditPanel : PanelContainer
         _insetCancel.Pressed += OnInsetCancelPressed;
         _fillHoleApply.Pressed += OnApplyPressed;
         _fillHoleCancel.Pressed += OnCancelPressed;
+        _collapseFaceApply.Pressed += OnApplyPressed;
+        _collapseFaceCancel.Pressed += OnCancelPressed;
         if (_session != null)
         {
             _session.EditOperationSettings.Changed += RefreshOperationSelection;
@@ -66,6 +78,8 @@ public partial class EditPanel : PanelContainer
         _insetCancel.Pressed -= OnInsetCancelPressed;
         _fillHoleApply.Pressed -= OnApplyPressed;
         _fillHoleCancel.Pressed -= OnCancelPressed;
+        _collapseFaceApply.Pressed -= OnApplyPressed;
+        _collapseFaceCancel.Pressed -= OnCancelPressed;
         if (_session != null)
         {
             _session.EditOperationSettings.Changed -= RefreshOperationSelection;
@@ -147,21 +161,25 @@ public partial class EditPanel : PanelContainer
         bool extrudeSelected = selectedId == "ExtrudeFace";
         bool insetSelected = selectedId == "InsetFace";
         bool fillHoleSelected = selectedId == "FillHole";
+        bool collapseFaceSelected = selectedId == "CollapseFace";
         _optionsTitle.Text = selectedId switch
         {
             "ExtrudeFace" => "EXTRUDE FACE OPTIONS",
             "InsetFace" => "INSET FACE OPTIONS",
             "FillHole" => "FILL HOLE OPTIONS",
+            "CollapseFace" => "COLLAPSE FACE OPTIONS",
             _ => "OPTIONS",
         };
         _noOptions.Text =
             selectedId == null
                 ? "Select an operation to view its settings."
                 : "This operation has no settings.";
-        _noOptions.Visible = !extrudeSelected && !insetSelected && !fillHoleSelected;
+        _noOptions.Visible =
+            !extrudeSelected && !insetSelected && !fillHoleSelected && !collapseFaceSelected;
         _extrudeAlongFaceNormal.GetParent<Control>().Visible = extrudeSelected;
         _insetOptions.Visible = insetSelected;
         _fillHoleOptions.Visible = fillHoleSelected;
+        _collapseFaceOptions.Visible = collapseFaceSelected;
         _extrudeAlongFaceNormal.SetPressedNoSignal(
             _session?.EditOperationSettings.ExtrudeAlongFaceNormal ?? true
         );
@@ -190,6 +208,7 @@ public partial class EditPanel : PanelContainer
         _insetDepthValue.Text = FormatInsetDepth(insetDepth);
         _insetApply.Disabled = !canInset;
         _fillHoleApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
+        _collapseFaceApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
     }
 
     private void OnExtrudeAlongFaceNormalToggled(bool enabled)

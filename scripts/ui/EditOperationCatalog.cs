@@ -54,6 +54,14 @@ public static class EditOperationCatalog
             EditOperationAvailability.CoreReady
         ),
         new(
+            "CollapseFace",
+            "Collapse Face",
+            "Merge every vertex of a face into one vertex at its centroid.",
+            "Exactly one face",
+            "Preview, then Apply or press Enter",
+            EditOperationAvailability.Available
+        ),
+        new(
             "InsetFace",
             "Inset Face",
             "Shrink a face inward, leaving a smaller face inside a raised border.",

@@ -8,11 +8,13 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition extrude = EditOperationCatalog.Get("ExtrudeFace");
         EditOperationDefinition inset = EditOperationCatalog.Get("InsetFace");
         EditOperationDefinition fillHole = EditOperationCatalog.Get("FillHole");
+        EditOperationDefinition collapseFace = EditOperationCatalog.Get("CollapseFace");
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
         Assert.Equal(EditOperationAvailability.Available, inset.Availability);
         Assert.Equal(EditOperationAvailability.Available, fillHole.Availability);
+        Assert.Equal(EditOperationAvailability.Available, collapseFace.Availability);
         Assert.Equal(EditOperationAvailability.Available, delete.Availability);
     }
 

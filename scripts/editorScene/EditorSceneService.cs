@@ -312,6 +312,31 @@ public sealed class EditorSceneService : IDisposable
         return change;
     }
 
+    public bool CanCollapseFace(SelectionTarget target) =>
+        target.Kind == ScenePickElementKind.Face
+        && _meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        && FaceCollapseChange.CanCollapse(meshNode.SourceMesh, target.Face);
+
+    public FaceCollapseChange CollapseFace(SelectionTarget target)
+    {
+        if (
+            target.Kind != ScenePickElementKind.Face
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        FaceCollapseChange change = FaceCollapseChange.Collapse(
+            target.ObjectId,
+            meshNode.SourceMesh,
+            target.Face
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
     public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: true);
 
@@ -327,6 +352,12 @@ public sealed class EditorSceneService : IDisposable
     public void ApplyFillHoleBefore(FillHoleChange change) => ApplyFillHole(change, before: true);
 
     public void ApplyFillHoleAfter(FillHoleChange change) => ApplyFillHole(change, before: false);
+
+    public void ApplyFaceCollapseBefore(FaceCollapseChange change) =>
+        ApplyFaceCollapse(change, before: true);
+
+    public void ApplyFaceCollapseAfter(FaceCollapseChange change) =>
+        ApplyFaceCollapse(change, before: false);
 
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
     {
@@ -355,6 +386,19 @@ public sealed class EditorSceneService : IDisposable
     }
 
     private void ApplyFillHole(FillHoleChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
+    }
+
+    private void ApplyFaceCollapse(FaceCollapseChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
         if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
