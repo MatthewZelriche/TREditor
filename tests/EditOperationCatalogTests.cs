@@ -10,6 +10,7 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition fillHole = EditOperationCatalog.Get("FillHole");
         EditOperationDefinition collapseFace = EditOperationCatalog.Get("CollapseFace");
         EditOperationDefinition bevelEdge = EditOperationCatalog.Get("BevelEdge");
+        EditOperationDefinition bevelVertex = EditOperationCatalog.Get("BevelVertex");
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
@@ -17,11 +18,11 @@ public sealed class EditOperationCatalogTests
         Assert.Equal(EditOperationAvailability.Available, fillHole.Availability);
         Assert.Equal(EditOperationAvailability.Available, collapseFace.Availability);
         Assert.Equal(EditOperationAvailability.Available, bevelEdge.Availability);
+        Assert.Equal(EditOperationAvailability.Available, bevelVertex.Availability);
         Assert.Equal(EditOperationAvailability.Available, delete.Availability);
     }
 
     [Theory]
-    [InlineData("BevelVertex")]
     [InlineData("BridgeEdges")]
     [InlineData("DetachFace")]
     public void Catalog_ContainsPlannedTodoOperations(string id)

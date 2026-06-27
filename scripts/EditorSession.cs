@@ -37,6 +37,7 @@ public partial class EditorSession : Node3D
             if (
                 EditOperationSettings?.IsSelected("InsetFace") == true
                 || EditOperationSettings?.IsSelected("BevelEdge") == true
+                || EditOperationSettings?.IsSelected("BevelVertex") == true
             )
                 ApplyEditOperationSettings();
         }
@@ -68,6 +69,7 @@ public partial class EditorSession : Node3D
     private bool _canFillHole;
     private float _maximumInsetDepth;
     private float _maximumBevelWidth;
+    private string _maximumBevelOperationId;
 
     public override void _EnterTree()
     {
@@ -200,6 +202,7 @@ public partial class EditorSession : Node3D
         {
             "InsetFace" => InsetFaceCommand.Create(Selection.Current, GetEffectiveInsetDepth()),
             "BevelEdge" => BevelEdgeCommand.Create(Selection.Current, GetEffectiveBevelWidth()),
+            "BevelVertex" => BevelVertexCommand.Create(Selection.Current, GetEffectiveBevelWidth()),
             "FillHole" when _canFillHole => FillHoleCommand.Create(Selection.Current),
             "CollapseFace" when _canCollapseFace => CollapseFaceCommand.Create(Selection.Current),
             _ => null,
@@ -224,14 +227,18 @@ public partial class EditorSession : Node3D
             ? GridSnap.SnapDistance(EditOperationSettings.InsetDepth, GridSnapSize, maximumDepth)
             : EditOperationSettings.InsetDepth;
 
-    public bool TryGetMaximumSelectedEdgeBevelWidth(out float maximumWidth)
+    public bool TryGetMaximumSelectedBevelWidth(out float maximumWidth)
     {
         maximumWidth = _maximumBevelWidth;
-        return EditOperationSettings.IsSelected("BevelEdge") && maximumWidth > 0f;
+        return (
+                EditOperationSettings.IsSelected("BevelEdge")
+                || EditOperationSettings.IsSelected("BevelVertex")
+            )
+            && maximumWidth > 0f;
     }
 
     public float GetSnappedBevelWidth() =>
-        TryGetMaximumSelectedEdgeBevelWidth(out float maximumWidth)
+        TryGetMaximumSelectedBevelWidth(out float maximumWidth)
             ? GridSnap.SnapDistance(EditOperationSettings.BevelWidth, GridSnapSize, maximumWidth)
             : EditOperationSettings.BevelWidth;
 
@@ -240,6 +247,7 @@ public partial class EditorSession : Node3D
         {
             "InsetFace" => _maximumInsetDepth > 0f,
             "BevelEdge" => _maximumBevelWidth > 0f,
+            "BevelVertex" => _maximumBevelWidth > 0f,
             "FillHole" => _canFillHole,
             "CollapseFace" => _canCollapseFace,
             _ => false,
@@ -346,15 +354,30 @@ public partial class EditorSession : Node3D
     {
         bool insetSelected = EditOperationSettings.IsSelected("InsetFace");
         bool bevelEdgeSelected = EditOperationSettings.IsSelected("BevelEdge");
+        bool bevelVertexSelected = EditOperationSettings.IsSelected("BevelVertex");
         bool fillHoleSelected = EditOperationSettings.IsSelected("FillHole");
         bool collapseFaceSelected = EditOperationSettings.IsSelected("CollapseFace");
         bool modalOperationSelected =
-            insetSelected || bevelEdgeSelected || fillHoleSelected || collapseFaceSelected;
+            insetSelected
+            || bevelEdgeSelected
+            || bevelVertexSelected
+            || fillHoleSelected
+            || collapseFaceSelected;
         _selectionTranslationGizmoController.SetExtrudeOperation(
             EditOperationSettings.IsSelected("ExtrudeFace"),
             EditOperationSettings.ExtrudeAlongFaceNormal
         );
         _selectionTranslationGizmoController.SetInputSuppressed(modalOperationSelected);
+
+        string bevelOperationId =
+            bevelEdgeSelected ? "BevelEdge"
+            : bevelVertexSelected ? "BevelVertex"
+            : null;
+        if (_maximumBevelOperationId != bevelOperationId)
+        {
+            _maximumBevelOperationId = bevelOperationId;
+            _maximumBevelWidth = 0f;
+        }
 
         if (!insetSelected)
             _maximumInsetDepth = 0f;
@@ -368,17 +391,33 @@ public partial class EditorSession : Node3D
         )
             _maximumInsetDepth = maximumInsetDepth;
 
-        if (!bevelEdgeSelected)
+        if (bevelOperationId == null)
             _maximumBevelWidth = 0f;
-        else if (
-            !(_maximumBevelWidth > 0f)
-            && BevelEdgeCommand.CanCreate(Selection.Current)
-            && _sceneService.TryGetMaximumEdgeBevelWidth(
-                Selection.Current.Targets,
-                out float maximumBevelWidth
+        else if (!(_maximumBevelWidth > 0f))
+        {
+            if (
+                bevelEdgeSelected
+                && BevelEdgeCommand.CanCreate(Selection.Current)
+                && _sceneService.TryGetMaximumEdgeBevelWidth(
+                    Selection.Current.Targets,
+                    out float maximumEdgeBevelWidth
+                )
             )
-        )
-            _maximumBevelWidth = maximumBevelWidth;
+            {
+                _maximumBevelWidth = maximumEdgeBevelWidth;
+            }
+            else if (
+                bevelVertexSelected
+                && BevelVertexCommand.CanCreate(Selection.Current)
+                && _sceneService.TryGetMaximumVertexBevelWidth(
+                    Selection.Current.Targets,
+                    out float maximumVertexBevelWidth
+                )
+            )
+            {
+                _maximumBevelWidth = maximumVertexBevelWidth;
+            }
+        }
 
         if (!fillHoleSelected)
             _canFillHole = false;
@@ -424,6 +463,16 @@ public partial class EditorSession : Node3D
                 new EditorPreviewRequest.BevelEdges(Selection.Current, GetEffectiveBevelWidth())
             );
         }
+        else if (
+            bevelVertexSelected
+            && BevelVertexCommand.CanCreate(Selection.Current)
+            && _maximumBevelWidth > 0f
+        )
+        {
+            _previewService.Apply(
+                new EditorPreviewRequest.BevelVertices(Selection.Current, GetEffectiveBevelWidth())
+            );
+        }
         else if (fillHoleSelected && FillHoleCommand.CanCreate(Selection.Current) && _canFillHole)
         {
             _previewService.Apply(new EditorPreviewRequest.FillHole(Selection.Current.Targets[0]));
@@ -464,6 +513,7 @@ public partial class EditorSession : Node3D
     private bool IsModalEditOperationSelected() =>
         EditOperationSettings.IsSelected("InsetFace")
         || EditOperationSettings.IsSelected("BevelEdge")
+        || EditOperationSettings.IsSelected("BevelVertex")
         || EditOperationSettings.IsSelected("FillHole")
         || EditOperationSettings.IsSelected("CollapseFace");
 }

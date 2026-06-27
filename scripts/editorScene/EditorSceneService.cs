@@ -368,6 +368,96 @@ public sealed class EditorSceneService : IDisposable
         return batches.ToArray();
     }
 
+    public bool TryGetMaximumVertexBevelWidth(
+        IReadOnlyList<SelectionTarget> targets,
+        out float maximumWidth
+    )
+    {
+        maximumWidth = float.PositiveInfinity;
+        if (targets.Count == 0)
+            return false;
+
+        Dictionary<EditorObjectId, List<VertexHandle>> verticesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind != ScenePickElementKind.Vertex
+                || !_meshNodes.ContainsKey(target.ObjectId)
+            )
+            {
+                maximumWidth = 0f;
+                return false;
+            }
+
+            if (!verticesByObject.TryGetValue(target.ObjectId, out List<VertexHandle> vertices))
+            {
+                vertices = [];
+                verticesByObject[target.ObjectId] = vertices;
+            }
+            vertices.Add(target.Vertex);
+        }
+
+        foreach ((EditorObjectId objectId, List<VertexHandle> vertices) in verticesByObject)
+        {
+            if (
+                !VertexBevelBatch.TryGetMaximumWidth(
+                    _meshNodes[objectId].SourceMesh,
+                    vertices,
+                    out float objectMaximumWidth
+                )
+            )
+            {
+                maximumWidth = 0f;
+                return false;
+            }
+            maximumWidth = MathF.Min(maximumWidth, objectMaximumWidth);
+        }
+
+        return maximumWidth > 0f && float.IsFinite(maximumWidth);
+    }
+
+    public VertexBevelBatch[] BevelVertices(IReadOnlyList<SelectionTarget> targets, float width)
+    {
+        if (
+            !(width > 0f)
+            || !float.IsFinite(width)
+            || !TryGetMaximumVertexBevelWidth(targets, out float maximumWidth)
+            || width > maximumWidth
+        )
+        {
+            return [];
+        }
+
+        Dictionary<EditorObjectId, List<VertexHandle>> verticesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (!verticesByObject.TryGetValue(target.ObjectId, out List<VertexHandle> vertices))
+            {
+                vertices = [];
+                verticesByObject[target.ObjectId] = vertices;
+            }
+            vertices.Add(target.Vertex);
+        }
+
+        List<VertexBevelBatch> batches = [];
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach ((EditorObjectId objectId, List<VertexHandle> vertices) in verticesByObject)
+        {
+            TRMeshGD meshNode = _meshNodes[objectId];
+            if (
+                VertexBevelBatch.Bevel(objectId, meshNode.SourceMesh, vertices, width)
+                is VertexBevelBatch batch
+            )
+            {
+                batches.Add(batch);
+                changedObjects.Add(objectId);
+            }
+        }
+
+        RebuildObjects(changedObjects);
+        return batches.ToArray();
+    }
+
     public bool CanFillHole(SelectionTarget target)
     {
         if (
@@ -445,6 +535,12 @@ public sealed class EditorSceneService : IDisposable
     public void ApplyEdgeBevelAfter(IReadOnlyList<EdgeBevelBatch> batches) =>
         ApplyEdgeBevel(batches, before: false);
 
+    public void ApplyVertexBevelBefore(IReadOnlyList<VertexBevelBatch> batches) =>
+        ApplyVertexBevel(batches, before: true);
+
+    public void ApplyVertexBevelAfter(IReadOnlyList<VertexBevelBatch> batches) =>
+        ApplyVertexBevel(batches, before: false);
+
     public void ApplyFillHoleBefore(FillHoleChange change) => ApplyFillHole(change, before: true);
 
     public void ApplyFillHoleAfter(FillHoleChange change) => ApplyFillHole(change, before: false);
@@ -485,6 +581,24 @@ public sealed class EditorSceneService : IDisposable
     {
         HashSet<EditorObjectId> changedObjects = [];
         foreach (EdgeBevelBatch batch in batches)
+        {
+            if (!_meshNodes.ContainsKey(batch.ObjectId))
+                continue;
+
+            if (before)
+                batch.ApplyBefore();
+            else
+                batch.ApplyAfter();
+            changedObjects.Add(batch.ObjectId);
+        }
+
+        RebuildObjects(changedObjects);
+    }
+
+    private void ApplyVertexBevel(IReadOnlyList<VertexBevelBatch> batches, bool before)
+    {
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach (VertexBevelBatch batch in batches)
         {
             if (!_meshNodes.ContainsKey(batch.ObjectId))
                 continue;

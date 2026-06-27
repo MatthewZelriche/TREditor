@@ -8,7 +8,7 @@
 - [ ] **Continue Core Suite of Mesh Ops**
   - [x] **Collapse Face**
   - [x] **Inset Face**
-  - [ ] **Bevel Vertex**
+  - [x] **Bevel Vertex**
   - [x] **Bevel Edge**
   - [x] **Fill Hole**
   - [ ] **Bridge Edges**

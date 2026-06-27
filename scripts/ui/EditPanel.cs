@@ -20,7 +20,7 @@ public partial class EditPanel : PanelContainer
     private Label _insetDepthValue;
     private Button _insetApply;
     private Button _insetCancel;
-    private Control _bevelEdgeOptions;
+    private Control _bevelOptions;
     private HSlider _bevelWidth;
     private Label _bevelWidthValue;
     private Button _bevelApply;
@@ -46,13 +46,11 @@ public partial class EditPanel : PanelContainer
         _insetDepthValue = GetNode<Label>("Margin/Scroll/Column/InsetOptions/DepthRow/DepthValue");
         _insetApply = GetNode<Button>("Margin/Scroll/Column/InsetOptions/Actions/Apply");
         _insetCancel = GetNode<Button>("Margin/Scroll/Column/InsetOptions/Actions/Cancel");
-        _bevelEdgeOptions = GetNode<Control>("Margin/Scroll/Column/BevelEdgeOptions");
-        _bevelWidth = GetNode<HSlider>("Margin/Scroll/Column/BevelEdgeOptions/WidthRow/Width");
-        _bevelWidthValue = GetNode<Label>(
-            "Margin/Scroll/Column/BevelEdgeOptions/WidthRow/WidthValue"
-        );
-        _bevelApply = GetNode<Button>("Margin/Scroll/Column/BevelEdgeOptions/Actions/Apply");
-        _bevelCancel = GetNode<Button>("Margin/Scroll/Column/BevelEdgeOptions/Actions/Cancel");
+        _bevelOptions = GetNode<Control>("Margin/Scroll/Column/BevelOptions");
+        _bevelWidth = GetNode<HSlider>("Margin/Scroll/Column/BevelOptions/WidthRow/Width");
+        _bevelWidthValue = GetNode<Label>("Margin/Scroll/Column/BevelOptions/WidthRow/WidthValue");
+        _bevelApply = GetNode<Button>("Margin/Scroll/Column/BevelOptions/Actions/Apply");
+        _bevelCancel = GetNode<Button>("Margin/Scroll/Column/BevelOptions/Actions/Cancel");
         _fillHoleOptions = GetNode<Control>("Margin/Scroll/Column/FillHoleOptions");
         _fillHoleApply = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Apply");
         _fillHoleCancel = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Cancel");
@@ -179,6 +177,8 @@ public partial class EditPanel : PanelContainer
         bool extrudeSelected = selectedId == "ExtrudeFace";
         bool insetSelected = selectedId == "InsetFace";
         bool bevelEdgeSelected = selectedId == "BevelEdge";
+        bool bevelVertexSelected = selectedId == "BevelVertex";
+        bool bevelSelected = bevelEdgeSelected || bevelVertexSelected;
         bool fillHoleSelected = selectedId == "FillHole";
         bool collapseFaceSelected = selectedId == "CollapseFace";
         _optionsTitle.Text = selectedId switch
@@ -186,6 +186,7 @@ public partial class EditPanel : PanelContainer
             "ExtrudeFace" => "EXTRUDE FACE OPTIONS",
             "InsetFace" => "INSET FACE OPTIONS",
             "BevelEdge" => "BEVEL EDGE OPTIONS",
+            "BevelVertex" => "BEVEL VERTEX OPTIONS",
             "FillHole" => "FILL HOLE OPTIONS",
             "CollapseFace" => "COLLAPSE FACE OPTIONS",
             _ => "OPTIONS",
@@ -197,12 +198,12 @@ public partial class EditPanel : PanelContainer
         _noOptions.Visible =
             !extrudeSelected
             && !insetSelected
-            && !bevelEdgeSelected
+            && !bevelSelected
             && !fillHoleSelected
             && !collapseFaceSelected;
         _extrudeAlongFaceNormal.GetParent<Control>().Visible = extrudeSelected;
         _insetOptions.Visible = insetSelected;
-        _bevelEdgeOptions.Visible = bevelEdgeSelected;
+        _bevelOptions.Visible = bevelSelected;
         _fillHoleOptions.Visible = fillHoleSelected;
         _collapseFaceOptions.Visible = collapseFaceSelected;
         _extrudeAlongFaceNormal.SetPressedNoSignal(
@@ -235,9 +236,9 @@ public partial class EditPanel : PanelContainer
         float bevelWidth = _session?.EditOperationSettings.BevelWidth ?? 0.25f;
         float maximumBevelWidth = 0f;
         bool canBevel =
-            bevelEdgeSelected
+            bevelSelected
             && _session != null
-            && _session.TryGetMaximumSelectedEdgeBevelWidth(out maximumBevelWidth);
+            && _session.TryGetMaximumSelectedBevelWidth(out maximumBevelWidth);
         if (canBevel)
         {
             float gridSnapSize = _session.GridSnapSize;
@@ -281,7 +282,7 @@ public partial class EditPanel : PanelContainer
         if (_session == null)
             return;
 
-        float snappedWidth = _session.TryGetMaximumSelectedEdgeBevelWidth(out float maximumWidth)
+        float snappedWidth = _session.TryGetMaximumSelectedBevelWidth(out float maximumWidth)
             ? GridSnap.SnapDistance((float)width, _session.GridSnapSize, maximumWidth)
             : (float)width;
         _session.EditOperationSettings.SetBevelWidth(snappedWidth);

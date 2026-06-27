@@ -80,10 +80,10 @@ public static class EditOperationCatalog
         new(
             "BevelVertex",
             "Bevel Vertex",
-            "Soften sharp corners where edges meet.",
-            "One or more vertices",
-            "Coming soon",
-            EditOperationAvailability.Planned
+            "Chamfer corners by replacing each selected vertex with a cap face.",
+            "One or more non-adjacent solid vertices",
+            "Adjust width, then Apply or press Enter",
+            EditOperationAvailability.Available
         ),
         new(
             "FillHole",

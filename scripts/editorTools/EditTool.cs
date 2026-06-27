@@ -32,6 +32,7 @@ public sealed class EditTool : IEditorTool
         if (
             _context.EditOperationSettings.IsSelected("InsetFace")
             || _context.EditOperationSettings.IsSelected("BevelEdge")
+            || _context.EditOperationSettings.IsSelected("BevelVertex")
             || _context.EditOperationSettings.IsSelected("FillHole")
             || _context.EditOperationSettings.IsSelected("CollapseFace")
         )
