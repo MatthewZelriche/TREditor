@@ -20,6 +20,11 @@ public partial class EditPanel : PanelContainer
     private Label _insetDepthValue;
     private Button _insetApply;
     private Button _insetCancel;
+    private Control _bevelEdgeOptions;
+    private HSlider _bevelWidth;
+    private Label _bevelWidthValue;
+    private Button _bevelApply;
+    private Button _bevelCancel;
     private Control _fillHoleOptions;
     private Button _fillHoleApply;
     private Button _fillHoleCancel;
@@ -41,6 +46,13 @@ public partial class EditPanel : PanelContainer
         _insetDepthValue = GetNode<Label>("Margin/Scroll/Column/InsetOptions/DepthRow/DepthValue");
         _insetApply = GetNode<Button>("Margin/Scroll/Column/InsetOptions/Actions/Apply");
         _insetCancel = GetNode<Button>("Margin/Scroll/Column/InsetOptions/Actions/Cancel");
+        _bevelEdgeOptions = GetNode<Control>("Margin/Scroll/Column/BevelEdgeOptions");
+        _bevelWidth = GetNode<HSlider>("Margin/Scroll/Column/BevelEdgeOptions/WidthRow/Width");
+        _bevelWidthValue = GetNode<Label>(
+            "Margin/Scroll/Column/BevelEdgeOptions/WidthRow/WidthValue"
+        );
+        _bevelApply = GetNode<Button>("Margin/Scroll/Column/BevelEdgeOptions/Actions/Apply");
+        _bevelCancel = GetNode<Button>("Margin/Scroll/Column/BevelEdgeOptions/Actions/Cancel");
         _fillHoleOptions = GetNode<Control>("Margin/Scroll/Column/FillHoleOptions");
         _fillHoleApply = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Apply");
         _fillHoleCancel = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Cancel");
@@ -57,6 +69,9 @@ public partial class EditPanel : PanelContainer
         _insetDepth.ValueChanged += OnInsetDepthChanged;
         _insetApply.Pressed += OnInsetApplyPressed;
         _insetCancel.Pressed += OnInsetCancelPressed;
+        _bevelWidth.ValueChanged += OnBevelWidthChanged;
+        _bevelApply.Pressed += OnApplyPressed;
+        _bevelCancel.Pressed += OnCancelPressed;
         _fillHoleApply.Pressed += OnApplyPressed;
         _fillHoleCancel.Pressed += OnCancelPressed;
         _collapseFaceApply.Pressed += OnApplyPressed;
@@ -76,6 +91,9 @@ public partial class EditPanel : PanelContainer
         _insetDepth.ValueChanged -= OnInsetDepthChanged;
         _insetApply.Pressed -= OnInsetApplyPressed;
         _insetCancel.Pressed -= OnInsetCancelPressed;
+        _bevelWidth.ValueChanged -= OnBevelWidthChanged;
+        _bevelApply.Pressed -= OnApplyPressed;
+        _bevelCancel.Pressed -= OnCancelPressed;
         _fillHoleApply.Pressed -= OnApplyPressed;
         _fillHoleCancel.Pressed -= OnCancelPressed;
         _collapseFaceApply.Pressed -= OnApplyPressed;
@@ -160,12 +178,14 @@ public partial class EditPanel : PanelContainer
 
         bool extrudeSelected = selectedId == "ExtrudeFace";
         bool insetSelected = selectedId == "InsetFace";
+        bool bevelEdgeSelected = selectedId == "BevelEdge";
         bool fillHoleSelected = selectedId == "FillHole";
         bool collapseFaceSelected = selectedId == "CollapseFace";
         _optionsTitle.Text = selectedId switch
         {
             "ExtrudeFace" => "EXTRUDE FACE OPTIONS",
             "InsetFace" => "INSET FACE OPTIONS",
+            "BevelEdge" => "BEVEL EDGE OPTIONS",
             "FillHole" => "FILL HOLE OPTIONS",
             "CollapseFace" => "COLLAPSE FACE OPTIONS",
             _ => "OPTIONS",
@@ -175,9 +195,14 @@ public partial class EditPanel : PanelContainer
                 ? "Select an operation to view its settings."
                 : "This operation has no settings.";
         _noOptions.Visible =
-            !extrudeSelected && !insetSelected && !fillHoleSelected && !collapseFaceSelected;
+            !extrudeSelected
+            && !insetSelected
+            && !bevelEdgeSelected
+            && !fillHoleSelected
+            && !collapseFaceSelected;
         _extrudeAlongFaceNormal.GetParent<Control>().Visible = extrudeSelected;
         _insetOptions.Visible = insetSelected;
+        _bevelEdgeOptions.Visible = bevelEdgeSelected;
         _fillHoleOptions.Visible = fillHoleSelected;
         _collapseFaceOptions.Visible = collapseFaceSelected;
         _extrudeAlongFaceNormal.SetPressedNoSignal(
@@ -207,6 +232,30 @@ public partial class EditPanel : PanelContainer
         _insetDepth.SetValueNoSignal(insetDepth);
         _insetDepthValue.Text = FormatInsetDepth(insetDepth);
         _insetApply.Disabled = !canInset;
+        float bevelWidth = _session?.EditOperationSettings.BevelWidth ?? 0.25f;
+        float maximumBevelWidth = 0f;
+        bool canBevel =
+            bevelEdgeSelected
+            && _session != null
+            && _session.TryGetMaximumSelectedEdgeBevelWidth(out maximumBevelWidth);
+        if (canBevel)
+        {
+            float gridSnapSize = _session.GridSnapSize;
+            float step =
+                gridSnapSize > GridSnap.Off
+                    ? Mathf.Min(gridSnapSize, maximumBevelWidth)
+                    : Mathf.Max(
+                        MinimumInsetSliderStep,
+                        Mathf.Min(DefaultInsetSliderStep, maximumBevelWidth / 100f)
+                    );
+            _bevelWidth.MinValue = step;
+            _bevelWidth.MaxValue = maximumBevelWidth;
+            _bevelWidth.Step = step;
+            bevelWidth = _session.GetSnappedBevelWidth();
+        }
+        _bevelWidth.SetValueNoSignal(bevelWidth);
+        _bevelWidthValue.Text = FormatInsetDepth(bevelWidth);
+        _bevelApply.Disabled = !canBevel;
         _fillHoleApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
         _collapseFaceApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
     }
@@ -225,6 +274,17 @@ public partial class EditPanel : PanelContainer
             ? GridSnap.SnapDistance((float)depth, _session.GridSnapSize, maximumDepth)
             : (float)depth;
         _session.EditOperationSettings.SetInsetDepth(snappedDepth);
+    }
+
+    private void OnBevelWidthChanged(double width)
+    {
+        if (_session == null)
+            return;
+
+        float snappedWidth = _session.TryGetMaximumSelectedEdgeBevelWidth(out float maximumWidth)
+            ? GridSnap.SnapDistance((float)width, _session.GridSnapSize, maximumWidth)
+            : (float)width;
+        _session.EditOperationSettings.SetBevelWidth(snappedWidth);
     }
 
     private void OnInsetApplyPressed()

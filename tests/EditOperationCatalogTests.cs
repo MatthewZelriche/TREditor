@@ -9,18 +9,19 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition inset = EditOperationCatalog.Get("InsetFace");
         EditOperationDefinition fillHole = EditOperationCatalog.Get("FillHole");
         EditOperationDefinition collapseFace = EditOperationCatalog.Get("CollapseFace");
+        EditOperationDefinition bevelEdge = EditOperationCatalog.Get("BevelEdge");
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
         Assert.Equal(EditOperationAvailability.Available, inset.Availability);
         Assert.Equal(EditOperationAvailability.Available, fillHole.Availability);
         Assert.Equal(EditOperationAvailability.Available, collapseFace.Availability);
+        Assert.Equal(EditOperationAvailability.Available, bevelEdge.Availability);
         Assert.Equal(EditOperationAvailability.Available, delete.Availability);
     }
 
     [Theory]
     [InlineData("BevelVertex")]
-    [InlineData("BevelEdge")]
     [InlineData("BridgeEdges")]
     [InlineData("DetachFace")]
     public void Catalog_ContainsPlannedTodoOperations(string id)
@@ -94,6 +95,18 @@ public sealed class EditOperationCatalogTests
         settings.SetInsetDepth(0.75f);
 
         Assert.Equal(0.75f, settings.InsetDepth);
+    }
+
+    [Fact]
+    public void EditOperationSettings_BevelWidthDefaultsAndCanBeChanged()
+    {
+        EditOperationSettings settings = new();
+
+        Assert.Equal(0.25f, settings.BevelWidth);
+
+        settings.SetBevelWidth(0.75f);
+
+        Assert.Equal(0.75f, settings.BevelWidth);
     }
 
     [Theory]

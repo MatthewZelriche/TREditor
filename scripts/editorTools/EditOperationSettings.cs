@@ -8,6 +8,8 @@ public sealed class EditOperationSettings
 
     public float InsetDepth { get; private set; } = 0.25f;
 
+    public float BevelWidth { get; private set; } = 0.25f;
+
     public event Action Changed;
 
     public bool IsSelected(string operationId) => SelectedOperationId == operationId;
@@ -45,6 +47,15 @@ public sealed class EditOperationSettings
             return;
 
         InsetDepth = depth;
+        Changed?.Invoke();
+    }
+
+    public void SetBevelWidth(float width)
+    {
+        if (!(width > 0f) || !float.IsFinite(width) || BevelWidth == width)
+            return;
+
+        BevelWidth = width;
         Changed?.Invoke();
     }
 }

@@ -13,6 +13,9 @@ public abstract record EditorPreviewRequest
 
     public sealed record InsetFace(SelectionTarget Face, float Depth) : EditorPreviewRequest;
 
+    public sealed record BevelEdges(SelectionSnapshot Selection, float Width)
+        : EditorPreviewRequest;
+
     public sealed record FillHole(SelectionTarget Edge) : EditorPreviewRequest;
 
     public sealed record CollapseFace(SelectionTarget Face) : EditorPreviewRequest;

@@ -72,10 +72,10 @@ public static class EditOperationCatalog
         new(
             "BevelEdge",
             "Bevel Edge",
-            "Soften sharp edges by adding a sloped or rounded strip along them.",
-            "One or more edges",
-            "Coming soon",
-            EditOperationAvailability.Planned
+            "Chamfer sharp edges by replacing them with a sloped strip.",
+            "Non-touching solid edges at simple three-edge corners",
+            "Adjust width, then Apply or press Enter",
+            EditOperationAvailability.Available
         ),
         new(
             "BevelVertex",

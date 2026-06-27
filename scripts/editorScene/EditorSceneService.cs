@@ -278,6 +278,96 @@ public sealed class EditorSceneService : IDisposable
         return maximumDepth > 0f;
     }
 
+    public bool TryGetMaximumEdgeBevelWidth(
+        IReadOnlyList<SelectionTarget> targets,
+        out float maximumWidth
+    )
+    {
+        maximumWidth = float.PositiveInfinity;
+        if (targets.Count == 0)
+            return false;
+
+        Dictionary<EditorObjectId, List<HalfEdgeHandle>> edgesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind != ScenePickElementKind.Edge
+                || !_meshNodes.ContainsKey(target.ObjectId)
+            )
+            {
+                maximumWidth = 0f;
+                return false;
+            }
+
+            if (!edgesByObject.TryGetValue(target.ObjectId, out List<HalfEdgeHandle> edges))
+            {
+                edges = [];
+                edgesByObject[target.ObjectId] = edges;
+            }
+            edges.Add(target.Edge);
+        }
+
+        foreach ((EditorObjectId objectId, List<HalfEdgeHandle> edges) in edgesByObject)
+        {
+            if (
+                !EdgeBevelBatch.TryGetMaximumWidth(
+                    _meshNodes[objectId].SourceMesh,
+                    edges,
+                    out float objectMaximumWidth
+                )
+            )
+            {
+                maximumWidth = 0f;
+                return false;
+            }
+            maximumWidth = MathF.Min(maximumWidth, objectMaximumWidth);
+        }
+
+        return maximumWidth > 0f && float.IsFinite(maximumWidth);
+    }
+
+    public EdgeBevelBatch[] BevelEdges(IReadOnlyList<SelectionTarget> targets, float width)
+    {
+        if (
+            !(width > 0f)
+            || !float.IsFinite(width)
+            || !TryGetMaximumEdgeBevelWidth(targets, out float maximumWidth)
+            || width > maximumWidth
+        )
+        {
+            return [];
+        }
+
+        Dictionary<EditorObjectId, List<HalfEdgeHandle>> edgesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (!edgesByObject.TryGetValue(target.ObjectId, out List<HalfEdgeHandle> edges))
+            {
+                edges = [];
+                edgesByObject[target.ObjectId] = edges;
+            }
+            edges.Add(target.Edge);
+        }
+
+        List<EdgeBevelBatch> batches = [];
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach ((EditorObjectId objectId, List<HalfEdgeHandle> edges) in edgesByObject)
+        {
+            TRMeshGD meshNode = _meshNodes[objectId];
+            if (
+                EdgeBevelBatch.Bevel(objectId, meshNode.SourceMesh, edges, width)
+                is EdgeBevelBatch batch
+            )
+            {
+                batches.Add(batch);
+                changedObjects.Add(objectId);
+            }
+        }
+
+        RebuildObjects(changedObjects);
+        return batches.ToArray();
+    }
+
     public bool CanFillHole(SelectionTarget target)
     {
         if (
@@ -349,6 +439,12 @@ public sealed class EditorSceneService : IDisposable
     public void ApplyFaceInsetAfter(FaceInsetChange change) =>
         ApplyFaceInset(change, before: false);
 
+    public void ApplyEdgeBevelBefore(IReadOnlyList<EdgeBevelBatch> batches) =>
+        ApplyEdgeBevel(batches, before: true);
+
+    public void ApplyEdgeBevelAfter(IReadOnlyList<EdgeBevelBatch> batches) =>
+        ApplyEdgeBevel(batches, before: false);
+
     public void ApplyFillHoleBefore(FillHoleChange change) => ApplyFillHole(change, before: true);
 
     public void ApplyFillHoleAfter(FillHoleChange change) => ApplyFillHole(change, before: false);
@@ -383,6 +479,24 @@ public sealed class EditorSceneService : IDisposable
         else
             change.ApplyAfter();
         meshNode.Rebuild();
+    }
+
+    private void ApplyEdgeBevel(IReadOnlyList<EdgeBevelBatch> batches, bool before)
+    {
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach (EdgeBevelBatch batch in batches)
+        {
+            if (!_meshNodes.ContainsKey(batch.ObjectId))
+                continue;
+
+            if (before)
+                batch.ApplyBefore();
+            else
+                batch.ApplyAfter();
+            changedObjects.Add(batch.ObjectId);
+        }
+
+        RebuildObjects(changedObjects);
     }
 
     private void ApplyFillHole(FillHoleChange change, bool before)

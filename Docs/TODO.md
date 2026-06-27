@@ -9,12 +9,13 @@
   - [x] **Collapse Face**
   - [x] **Inset Face**
   - [ ] **Bevel Vertex**
-  - [ ] **Bevel Edge**
+  - [x] **Bevel Edge**
   - [x] **Fill Hole**
   - [ ] **Bridge Edges**
   - [ ] **Detach Face**
   - [ ] **Edge Cut (Vertex, Edge, Face)**
   - [ ] **Rotation Gizmo**
+- [ ] **Expand Edge Bevelling** - To allow arbitrary vertex valences
 - [ ] **UV/Texturing Ops**
 
 ### UI
