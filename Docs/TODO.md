@@ -15,7 +15,10 @@
   - [ ] **Detach Face**
   - [ ] **Edge Cut (Vertex, Edge, Face)**
   - [ ] **Rotation Gizmo**
-- [ ] **Expand Edge Bevelling** - To allow arbitrary vertex valences
+- [ ] **Expand Edge Bevelling**
+  - [ ] **To allow arbitrary vertex valences**
+  - [ ] **To set a configurable number of segments**
+  - [ ] **To set a configurable angle to round out the segments**
 - [ ] **UV/Texturing Ops**
 
 ### UI
