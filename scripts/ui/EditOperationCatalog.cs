@@ -96,10 +96,10 @@ public static class EditOperationCatalog
         new(
             "BridgeEdges",
             "Bridge Edges",
-            "Connect two edge loops with new faces between them.",
-            "Two matching edge loops",
-            "Coming soon",
-            EditOperationAvailability.Planned
+            "Connect two boundary edges with a flat or arched strip of quads.",
+            "Exactly two boundary edges on one object",
+            "Adjust segments and arch angle, then Apply or press Enter",
+            EditOperationAvailability.Available
         ),
         new(
             "DetachFace",

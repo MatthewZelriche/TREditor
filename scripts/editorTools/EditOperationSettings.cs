@@ -19,6 +19,10 @@ public sealed class EditOperationSettings
     public CollapseVerticesTarget TwoVertexCollapseTarget { get; private set; } =
         CollapseVerticesTarget.First;
 
+    public int BridgeSegments { get; private set; } = 4;
+
+    public float BridgeArchAngleDegrees { get; private set; } = 180f;
+
     public event Action Changed;
 
     public bool IsSelected(string operationId) => SelectedOperationId == operationId;
@@ -74,6 +78,26 @@ public sealed class EditOperationSettings
             return;
 
         TwoVertexCollapseTarget = target;
+        Changed?.Invoke();
+    }
+
+    public void SetBridgeSegments(int segments)
+    {
+        if (segments < 1 || BridgeSegments == segments)
+            return;
+
+        BridgeSegments = segments;
+        Changed?.Invoke();
+    }
+
+    public void SetBridgeArchAngleDegrees(float angle)
+    {
+        if (angle < 0f || angle > 180f || !float.IsFinite(angle) || BridgeArchAngleDegrees == angle)
+        {
+            return;
+        }
+
+        BridgeArchAngleDegrees = angle;
         Changed?.Invoke();
     }
 }

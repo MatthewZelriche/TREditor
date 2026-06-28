@@ -184,6 +184,66 @@ layout_mode = 2
 text = "Cancel"
 tooltip_text = "Cancel collapsing the vertices. Shortcut: Esc"
 
+[node name="BridgeEdgesOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SegmentsRow" type="HBoxContainer" parent="Margin/Scroll/Column/BridgeEdgesOptions"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SegmentsLabel" type="Label" parent="Margin/Scroll/Column/BridgeEdgesOptions/SegmentsRow"]
+layout_mode = 2
+text = "Segments"
+
+[node name="Segments" type="SpinBox" parent="Margin/Scroll/Column/BridgeEdgesOptions/SegmentsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 64.0
+step = 1.0
+value = 4.0
+tooltip_text = "Number of quads across the bridge."
+
+[node name="AngleRow" type="HBoxContainer" parent="Margin/Scroll/Column/BridgeEdgesOptions"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AngleLabel" type="Label" parent="Margin/Scroll/Column/BridgeEdgesOptions/AngleRow"]
+layout_mode = 2
+text = "Arch"
+
+[node name="Angle" type="HSlider" parent="Margin/Scroll/Column/BridgeEdgesOptions/AngleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 180.0
+step = 5.0
+value = 180.0
+tooltip_text = "Total circular sweep: 0° is flat and 180° is semicircular."
+
+[node name="AngleValue" type="Label" parent="Margin/Scroll/Column/BridgeEdgesOptions/AngleRow"]
+custom_minimum_size = Vector2(36, 0)
+layout_mode = 2
+text = "180°"
+horizontal_alignment = 2
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Scroll/Column/BridgeEdgesOptions"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="Apply" type="Button" parent="Margin/Scroll/Column/BridgeEdgesOptions/Actions"]
+layout_mode = 2
+text = "Apply"
+tooltip_text = "Commit the bridge. Shortcut: Enter"
+
+[node name="Cancel" type="Button" parent="Margin/Scroll/Column/BridgeEdgesOptions/Actions"]
+layout_mode = 2
+text = "Cancel"
+tooltip_text = "Cancel bridging the edges. Shortcut: Esc"
+
 [node name="FillHoleOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
 visible = false
 layout_mode = 2

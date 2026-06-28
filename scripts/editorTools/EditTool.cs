@@ -34,6 +34,7 @@ public sealed class EditTool : IEditorTool
             || _context.EditOperationSettings.IsSelected("BevelEdge")
             || _context.EditOperationSettings.IsSelected("BevelVertex")
             || _context.EditOperationSettings.IsSelected("CollapseVertices")
+            || _context.EditOperationSettings.IsSelected("BridgeEdges")
             || _context.EditOperationSettings.IsSelected("FillHole")
             || _context.EditOperationSettings.IsSelected("CollapseFace")
         )

@@ -27,4 +27,11 @@ public abstract record EditorPreviewRequest
         SelectionSnapshot Selection,
         CollapseVerticesTarget TwoVertexTarget
     ) : EditorPreviewRequest;
+
+    public sealed record BridgeEdges(
+        SelectionTarget First,
+        SelectionTarget Second,
+        int Segments,
+        float ArchAngleDegrees
+    ) : EditorPreviewRequest;
 }

@@ -67,6 +67,7 @@ public partial class EditorSession : Node3D
     // TODO: Feels like this shouldn't be such a globally available state.
     private bool _canCollapseFace;
     private bool _canCollapseVertices;
+    private bool _canBridgeEdges;
     private bool _canFillHole;
     private float _maximumInsetDepth;
     private float _maximumBevelWidth;
@@ -209,6 +210,11 @@ public partial class EditorSession : Node3D
                 Selection.Current,
                 EditOperationSettings.TwoVertexCollapseTarget
             ),
+            "BridgeEdges" => BridgeEdgesCommand.Create(
+                Selection.Current,
+                EditOperationSettings.BridgeSegments,
+                EditOperationSettings.BridgeArchAngleDegrees
+            ),
             "FillHole" when _canFillHole => FillHoleCommand.Create(Selection.Current),
             "CollapseFace" when _canCollapseFace => CollapseFaceCommand.Create(Selection.Current),
             _ => null,
@@ -255,6 +261,7 @@ public partial class EditorSession : Node3D
             "BevelEdge" => _maximumBevelWidth > 0f,
             "BevelVertex" => _maximumBevelWidth > 0f,
             "CollapseVertices" => _canCollapseVertices,
+            "BridgeEdges" => _canBridgeEdges,
             "FillHole" => _canFillHole,
             "CollapseFace" => _canCollapseFace,
             _ => false,
@@ -363,6 +370,7 @@ public partial class EditorSession : Node3D
         bool bevelEdgeSelected = EditOperationSettings.IsSelected("BevelEdge");
         bool bevelVertexSelected = EditOperationSettings.IsSelected("BevelVertex");
         bool collapseVerticesSelected = EditOperationSettings.IsSelected("CollapseVertices");
+        bool bridgeEdgesSelected = EditOperationSettings.IsSelected("BridgeEdges");
         bool fillHoleSelected = EditOperationSettings.IsSelected("FillHole");
         bool collapseFaceSelected = EditOperationSettings.IsSelected("CollapseFace");
         bool modalOperationSelected =
@@ -370,6 +378,7 @@ public partial class EditorSession : Node3D
             || bevelEdgeSelected
             || bevelVertexSelected
             || collapseVerticesSelected
+            || bridgeEdgesSelected
             || fillHoleSelected
             || collapseFaceSelected;
         _selectionTranslationGizmoController.SetExtrudeOperation(
@@ -473,6 +482,18 @@ public partial class EditorSession : Node3D
                 _canCollapseVertices = true;
         }
 
+        if (!bridgeEdgesSelected)
+            _canBridgeEdges = false;
+        else if (
+            !_canBridgeEdges
+            && BridgeEdgesCommand.CanCreate(Selection.Current)
+            && _sceneService.CanBridgeEdges(
+                Selection.Current.Targets[0],
+                Selection.Current.Targets[1]
+            )
+        )
+            _canBridgeEdges = true;
+
         if (_previewService == null)
             return;
 
@@ -536,6 +557,21 @@ public partial class EditorSession : Node3D
                 )
             );
         }
+        else if (
+            bridgeEdgesSelected
+            && BridgeEdgesCommand.CanCreate(Selection.Current)
+            && _canBridgeEdges
+        )
+        {
+            _previewService.Apply(
+                new EditorPreviewRequest.BridgeEdges(
+                    Selection.Current.Targets[0],
+                    Selection.Current.Targets[1],
+                    EditOperationSettings.BridgeSegments,
+                    EditOperationSettings.BridgeArchAngleDegrees
+                )
+            );
+        }
         else
         {
             _previewService.Apply(new EditorPreviewRequest.Clear());
@@ -552,6 +588,7 @@ public partial class EditorSession : Node3D
             _canFillHole = false;
             _canCollapseFace = false;
             _canCollapseVertices = false;
+            _canBridgeEdges = false;
             ApplyEditOperationSettings();
         }
     }
@@ -565,6 +602,7 @@ public partial class EditorSession : Node3D
         || EditOperationSettings.IsSelected("BevelEdge")
         || EditOperationSettings.IsSelected("BevelVertex")
         || EditOperationSettings.IsSelected("CollapseVertices")
+        || EditOperationSettings.IsSelected("BridgeEdges")
         || EditOperationSettings.IsSelected("FillHole")
         || EditOperationSettings.IsSelected("CollapseFace");
 }

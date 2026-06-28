@@ -31,6 +31,12 @@ public partial class EditPanel : PanelContainer
     private Label _collapseVerticesCentroidInfo;
     private Button _collapseVerticesApply;
     private Button _collapseVerticesCancel;
+    private Control _bridgeEdgesOptions;
+    private SpinBox _bridgeSegments;
+    private HSlider _bridgeArchAngle;
+    private Label _bridgeArchAngleValue;
+    private Button _bridgeEdgesApply;
+    private Button _bridgeEdgesCancel;
     private Control _fillHoleOptions;
     private Button _fillHoleApply;
     private Button _fillHoleCancel;
@@ -73,6 +79,22 @@ public partial class EditPanel : PanelContainer
         _collapseVerticesCancel = GetNode<Button>(
             "Margin/Scroll/Column/CollapseVerticesOptions/Actions/Cancel"
         );
+        _bridgeEdgesOptions = GetNode<Control>("Margin/Scroll/Column/BridgeEdgesOptions");
+        _bridgeSegments = GetNode<SpinBox>(
+            "Margin/Scroll/Column/BridgeEdgesOptions/SegmentsRow/Segments"
+        );
+        _bridgeArchAngle = GetNode<HSlider>(
+            "Margin/Scroll/Column/BridgeEdgesOptions/AngleRow/Angle"
+        );
+        _bridgeArchAngleValue = GetNode<Label>(
+            "Margin/Scroll/Column/BridgeEdgesOptions/AngleRow/AngleValue"
+        );
+        _bridgeEdgesApply = GetNode<Button>(
+            "Margin/Scroll/Column/BridgeEdgesOptions/Actions/Apply"
+        );
+        _bridgeEdgesCancel = GetNode<Button>(
+            "Margin/Scroll/Column/BridgeEdgesOptions/Actions/Cancel"
+        );
         _fillHoleOptions = GetNode<Control>("Margin/Scroll/Column/FillHoleOptions");
         _fillHoleApply = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Apply");
         _fillHoleCancel = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Cancel");
@@ -97,6 +119,10 @@ public partial class EditPanel : PanelContainer
         _collapseVerticesTarget.ItemSelected += OnCollapseVerticesTargetSelected;
         _collapseVerticesApply.Pressed += OnApplyPressed;
         _collapseVerticesCancel.Pressed += OnCancelPressed;
+        _bridgeSegments.ValueChanged += OnBridgeSegmentsChanged;
+        _bridgeArchAngle.ValueChanged += OnBridgeArchAngleChanged;
+        _bridgeEdgesApply.Pressed += OnApplyPressed;
+        _bridgeEdgesCancel.Pressed += OnCancelPressed;
         _fillHoleApply.Pressed += OnApplyPressed;
         _fillHoleCancel.Pressed += OnCancelPressed;
         _collapseFaceApply.Pressed += OnApplyPressed;
@@ -122,6 +148,10 @@ public partial class EditPanel : PanelContainer
         _collapseVerticesTarget.ItemSelected -= OnCollapseVerticesTargetSelected;
         _collapseVerticesApply.Pressed -= OnApplyPressed;
         _collapseVerticesCancel.Pressed -= OnCancelPressed;
+        _bridgeSegments.ValueChanged -= OnBridgeSegmentsChanged;
+        _bridgeArchAngle.ValueChanged -= OnBridgeArchAngleChanged;
+        _bridgeEdgesApply.Pressed -= OnApplyPressed;
+        _bridgeEdgesCancel.Pressed -= OnCancelPressed;
         _fillHoleApply.Pressed -= OnApplyPressed;
         _fillHoleCancel.Pressed -= OnCancelPressed;
         _collapseFaceApply.Pressed -= OnApplyPressed;
@@ -210,6 +240,7 @@ public partial class EditPanel : PanelContainer
         bool bevelVertexSelected = selectedId == "BevelVertex";
         bool bevelSelected = bevelEdgeSelected || bevelVertexSelected;
         bool collapseVerticesSelected = selectedId == "CollapseVertices";
+        bool bridgeEdgesSelected = selectedId == "BridgeEdges";
         bool fillHoleSelected = selectedId == "FillHole";
         bool collapseFaceSelected = selectedId == "CollapseFace";
         _optionsTitle.Text = selectedId switch
@@ -219,6 +250,7 @@ public partial class EditPanel : PanelContainer
             "BevelEdge" => "BEVEL EDGE OPTIONS",
             "BevelVertex" => "BEVEL VERTEX OPTIONS",
             "CollapseVertices" => "COLLAPSE VERTICES OPTIONS",
+            "BridgeEdges" => "BRIDGE EDGES OPTIONS",
             "FillHole" => "FILL HOLE OPTIONS",
             "CollapseFace" => "COLLAPSE FACE OPTIONS",
             _ => "OPTIONS",
@@ -232,12 +264,14 @@ public partial class EditPanel : PanelContainer
             && !insetSelected
             && !bevelSelected
             && !collapseVerticesSelected
+            && !bridgeEdgesSelected
             && !fillHoleSelected
             && !collapseFaceSelected;
         _extrudeAlongFaceNormal.GetParent<Control>().Visible = extrudeSelected;
         _insetOptions.Visible = insetSelected;
         _bevelOptions.Visible = bevelSelected;
         _collapseVerticesOptions.Visible = collapseVerticesSelected;
+        _bridgeEdgesOptions.Visible = bridgeEdgesSelected;
         _fillHoleOptions.Visible = fillHoleSelected;
         _collapseFaceOptions.Visible = collapseFaceSelected;
         _extrudeAlongFaceNormal.SetPressedNoSignal(
@@ -302,6 +336,12 @@ public partial class EditPanel : PanelContainer
             )
         );
         _collapseVerticesApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
+        int bridgeSegments = _session?.EditOperationSettings.BridgeSegments ?? 4;
+        float bridgeArchAngle = _session?.EditOperationSettings.BridgeArchAngleDegrees ?? 180f;
+        _bridgeSegments.SetValueNoSignal(bridgeSegments);
+        _bridgeArchAngle.SetValueNoSignal(bridgeArchAngle);
+        _bridgeArchAngleValue.Text = $"{bridgeArchAngle:0}°";
+        _bridgeEdgesApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
         _fillHoleApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
         _collapseFaceApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
     }
@@ -339,6 +379,16 @@ public partial class EditPanel : PanelContainer
             return;
 
         _session.EditOperationSettings.SetTwoVertexCollapseTarget((CollapseVerticesTarget)index);
+    }
+
+    private void OnBridgeSegmentsChanged(double segments)
+    {
+        _session?.EditOperationSettings.SetBridgeSegments((int)segments);
+    }
+
+    private void OnBridgeArchAngleChanged(double angle)
+    {
+        _session?.EditOperationSettings.SetBridgeArchAngleDegrees((float)angle);
     }
 
     private void OnInsetApplyPressed()

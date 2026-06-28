@@ -585,6 +585,43 @@ public sealed class EditorSceneService : IDisposable
         return change;
     }
 
+    public bool CanBridgeEdges(SelectionTarget first, SelectionTarget second) =>
+        first.Kind == ScenePickElementKind.Edge
+        && second.Kind == ScenePickElementKind.Edge
+        && first.ObjectId == second.ObjectId
+        && _meshNodes.TryGetValue(first.ObjectId, out TRMeshGD meshNode)
+        && BridgeEdgesChange.CanBridge(meshNode.SourceMesh, first.Edge, second.Edge);
+
+    public BridgeEdgesChange BridgeEdges(
+        SelectionTarget first,
+        SelectionTarget second,
+        int segments,
+        float archAngleDegrees
+    )
+    {
+        if (
+            first.Kind != ScenePickElementKind.Edge
+            || second.Kind != ScenePickElementKind.Edge
+            || first.ObjectId != second.ObjectId
+            || !_meshNodes.TryGetValue(first.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        BridgeEdgesChange change = BridgeEdgesChange.Bridge(
+            first.ObjectId,
+            meshNode.SourceMesh,
+            first.Edge,
+            second.Edge,
+            segments,
+            archAngleDegrees
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
     public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: true);
 
@@ -624,6 +661,12 @@ public sealed class EditorSceneService : IDisposable
 
     public void ApplyVertexCollapseAfter(VertexCollapseChange change) =>
         ApplyVertexCollapse(change, before: false);
+
+    public void ApplyBridgeEdgesBefore(BridgeEdgesChange change) =>
+        ApplyBridgeEdges(change, before: true);
+
+    public void ApplyBridgeEdgesAfter(BridgeEdgesChange change) =>
+        ApplyBridgeEdges(change, before: false);
 
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
     {
@@ -714,6 +757,19 @@ public sealed class EditorSceneService : IDisposable
     }
 
     private void ApplyVertexCollapse(VertexCollapseChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
+    }
+
+    private void ApplyBridgeEdges(BridgeEdgesChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
         if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))

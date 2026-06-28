@@ -12,6 +12,7 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition bevelEdge = EditOperationCatalog.Get("BevelEdge");
         EditOperationDefinition bevelVertex = EditOperationCatalog.Get("BevelVertex");
         EditOperationDefinition collapseVertices = EditOperationCatalog.Get("CollapseVertices");
+        EditOperationDefinition bridgeEdges = EditOperationCatalog.Get("BridgeEdges");
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
@@ -21,11 +22,11 @@ public sealed class EditOperationCatalogTests
         Assert.Equal(EditOperationAvailability.Available, bevelEdge.Availability);
         Assert.Equal(EditOperationAvailability.Available, bevelVertex.Availability);
         Assert.Equal(EditOperationAvailability.Available, collapseVertices.Availability);
+        Assert.Equal(EditOperationAvailability.Available, bridgeEdges.Availability);
         Assert.Equal(EditOperationAvailability.Available, delete.Availability);
     }
 
     [Theory]
-    [InlineData("BridgeEdges")]
     [InlineData("DetachFace")]
     public void Catalog_ContainsPlannedTodoOperations(string id)
     {
@@ -121,6 +122,21 @@ public sealed class EditOperationCatalogTests
         settings.SetTwoVertexCollapseTarget(CollapseVerticesTarget.Second);
 
         Assert.Equal(CollapseVerticesTarget.Second, settings.TwoVertexCollapseTarget);
+    }
+
+    [Fact]
+    public void EditOperationSettings_BridgeDefaultsAndCanChange()
+    {
+        EditOperationSettings settings = new();
+
+        Assert.Equal(4, settings.BridgeSegments);
+        Assert.Equal(180f, settings.BridgeArchAngleDegrees);
+
+        settings.SetBridgeSegments(8);
+        settings.SetBridgeArchAngleDegrees(90f);
+
+        Assert.Equal(8, settings.BridgeSegments);
+        Assert.Equal(90f, settings.BridgeArchAngleDegrees);
     }
 
     [Theory]
