@@ -22,4 +22,9 @@ public abstract record EditorPreviewRequest
     public sealed record FillHole(SelectionTarget Edge) : EditorPreviewRequest;
 
     public sealed record CollapseFace(SelectionTarget Face) : EditorPreviewRequest;
+
+    public sealed record CollapseVertices(
+        SelectionSnapshot Selection,
+        CollapseVerticesTarget TwoVertexTarget
+    ) : EditorPreviewRequest;
 }

@@ -6,6 +6,7 @@
 - [ ] **Sphere, Plane Primitive Creation** - Predicated on deciding a flow that doesn't involve footprint-plus-height workflow
 - [ ] **Remove Bad Faces**?
 - [ ] **Continue Core Suite of Mesh Ops**
+  - [x] **Collapse Vertices**
   - [x] **Collapse Face**
   - [x] **Inset Face**
   - [x] **Bevel Vertex**

@@ -66,10 +66,12 @@ public partial class EditorSession : Node3D
 
     // TODO: Feels like this shouldn't be such a globally available state.
     private bool _canCollapseFace;
+    private bool _canCollapseVertices;
     private bool _canFillHole;
     private float _maximumInsetDepth;
     private float _maximumBevelWidth;
     private string _maximumBevelOperationId;
+    private CollapseVerticesTarget? _validatedCollapseVerticesTarget;
 
     public override void _EnterTree()
     {
@@ -203,6 +205,10 @@ public partial class EditorSession : Node3D
             "InsetFace" => InsetFaceCommand.Create(Selection.Current, GetEffectiveInsetDepth()),
             "BevelEdge" => BevelEdgeCommand.Create(Selection.Current, GetEffectiveBevelWidth()),
             "BevelVertex" => BevelVertexCommand.Create(Selection.Current, GetEffectiveBevelWidth()),
+            "CollapseVertices" => CollapseVerticesCommand.Create(
+                Selection.Current,
+                EditOperationSettings.TwoVertexCollapseTarget
+            ),
             "FillHole" when _canFillHole => FillHoleCommand.Create(Selection.Current),
             "CollapseFace" when _canCollapseFace => CollapseFaceCommand.Create(Selection.Current),
             _ => null,
@@ -248,6 +254,7 @@ public partial class EditorSession : Node3D
             "InsetFace" => _maximumInsetDepth > 0f,
             "BevelEdge" => _maximumBevelWidth > 0f,
             "BevelVertex" => _maximumBevelWidth > 0f,
+            "CollapseVertices" => _canCollapseVertices,
             "FillHole" => _canFillHole,
             "CollapseFace" => _canCollapseFace,
             _ => false,
@@ -355,12 +362,14 @@ public partial class EditorSession : Node3D
         bool insetSelected = EditOperationSettings.IsSelected("InsetFace");
         bool bevelEdgeSelected = EditOperationSettings.IsSelected("BevelEdge");
         bool bevelVertexSelected = EditOperationSettings.IsSelected("BevelVertex");
+        bool collapseVerticesSelected = EditOperationSettings.IsSelected("CollapseVertices");
         bool fillHoleSelected = EditOperationSettings.IsSelected("FillHole");
         bool collapseFaceSelected = EditOperationSettings.IsSelected("CollapseFace");
         bool modalOperationSelected =
             insetSelected
             || bevelEdgeSelected
             || bevelVertexSelected
+            || collapseVerticesSelected
             || fillHoleSelected
             || collapseFaceSelected;
         _selectionTranslationGizmoController.SetExtrudeOperation(
@@ -437,6 +446,33 @@ public partial class EditorSession : Node3D
         )
             _canCollapseFace = true;
 
+        CollapseVerticesTarget collapseVerticesTarget =
+            EditOperationSettings.TwoVertexCollapseTarget;
+        if (!collapseVerticesSelected)
+        {
+            _canCollapseVertices = false;
+            _validatedCollapseVerticesTarget = null;
+        }
+        else
+        {
+            if (_validatedCollapseVerticesTarget != collapseVerticesTarget)
+            {
+                _previewService?.Apply(new EditorPreviewRequest.Clear());
+                _canCollapseVertices = false;
+                _validatedCollapseVerticesTarget = collapseVerticesTarget;
+            }
+
+            if (
+                !_canCollapseVertices
+                && CollapseVerticesCommand.CanCreate(Selection.Current)
+                && _sceneService.CanCollapseVertices(
+                    Selection.Current.Targets,
+                    collapseVerticesTarget
+                )
+            )
+                _canCollapseVertices = true;
+        }
+
         if (_previewService == null)
             return;
 
@@ -487,6 +523,19 @@ public partial class EditorSession : Node3D
                 new EditorPreviewRequest.CollapseFace(Selection.Current.Targets[0])
             );
         }
+        else if (
+            collapseVerticesSelected
+            && CollapseVerticesCommand.CanCreate(Selection.Current)
+            && _canCollapseVertices
+        )
+        {
+            _previewService.Apply(
+                new EditorPreviewRequest.CollapseVertices(
+                    Selection.Current,
+                    EditOperationSettings.TwoVertexCollapseTarget
+                )
+            );
+        }
         else
         {
             _previewService.Apply(new EditorPreviewRequest.Clear());
@@ -502,6 +551,7 @@ public partial class EditorSession : Node3D
             _maximumBevelWidth = 0f;
             _canFillHole = false;
             _canCollapseFace = false;
+            _canCollapseVertices = false;
             ApplyEditOperationSettings();
         }
     }
@@ -514,6 +564,7 @@ public partial class EditorSession : Node3D
         EditOperationSettings.IsSelected("InsetFace")
         || EditOperationSettings.IsSelected("BevelEdge")
         || EditOperationSettings.IsSelected("BevelVertex")
+        || EditOperationSettings.IsSelected("CollapseVertices")
         || EditOperationSettings.IsSelected("FillHole")
         || EditOperationSettings.IsSelected("CollapseFace");
 }

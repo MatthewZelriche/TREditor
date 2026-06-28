@@ -16,6 +16,7 @@ public sealed class EditorPreviewService : IDisposable
     private VertexBevelBatch[] _vertexBevelPreview;
     private FillHoleChange _fillHolePreview;
     private FaceCollapseChange _faceCollapsePreview;
+    private VertexCollapseChange _vertexCollapsePreview;
     private bool _disposed;
 
     public EditorPreviewService(
@@ -53,6 +54,7 @@ public sealed class EditorPreviewService : IDisposable
                 ClearVertexBevelPreview();
                 ClearFillHolePreview();
                 ClearFaceCollapsePreview();
+                ClearVertexCollapsePreview();
                 ShowPrimitivePreview(primitive.Settings, primitive.Bounds);
                 break;
             case EditorPreviewRequest.TranslateSelection translation:
@@ -76,6 +78,9 @@ public sealed class EditorPreviewService : IDisposable
             case EditorPreviewRequest.CollapseFace collapseFace:
                 ShowFaceCollapsePreview(collapseFace);
                 break;
+            case EditorPreviewRequest.CollapseVertices collapseVertices:
+                ShowVertexCollapsePreview(collapseVertices);
+                break;
         }
     }
 
@@ -89,6 +94,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview();
         ClearFillHolePreview();
         ClearFaceCollapsePreview();
+        ClearVertexCollapsePreview();
     }
 
     public void Dispose()
@@ -130,6 +136,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview(refresh: false);
         ClearFillHolePreview(refresh: false);
         ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
         ClearTranslationPreview(refresh: false);
 
         if (translation.Selection.IsEmpty || translation.Delta.IsZeroApprox())
@@ -152,6 +159,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview(refresh: false);
         ClearFillHolePreview(refresh: false);
         ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
 
         if (extrusion.Delta.IsZeroApprox())
@@ -174,6 +182,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview(refresh: false);
         ClearFillHolePreview(refresh: false);
         ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
 
         if (!(inset.Depth > 0f))
         {
@@ -195,6 +204,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview(refresh: false);
         ClearFillHolePreview(refresh: false);
         ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
 
         if (!(bevel.Width > 0f))
         {
@@ -216,6 +226,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview(refresh: false);
         ClearFillHolePreview(refresh: false);
         ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
 
         if (!(bevel.Width > 0f))
         {
@@ -237,6 +248,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview(refresh: false);
         ClearFillHolePreview(refresh: false);
         ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
 
         _fillHolePreview = _scene.FillHole(fillHole.Edge);
         _scenePreviewChanged();
@@ -252,8 +264,28 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexBevelPreview(refresh: false);
         ClearFillHolePreview(refresh: false);
         ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
 
         _faceCollapsePreview = _scene.CollapseFace(collapseFace.Face);
+        _scenePreviewChanged();
+    }
+
+    private void ShowVertexCollapsePreview(EditorPreviewRequest.CollapseVertices collapse)
+    {
+        _primitivePreview?.Clear();
+        ClearTranslationPreview(refresh: false);
+        ClearFaceExtrusionPreview(refresh: false);
+        ClearFaceInsetPreview(refresh: false);
+        ClearEdgeBevelPreview(refresh: false);
+        ClearVertexBevelPreview(refresh: false);
+        ClearFillHolePreview(refresh: false);
+        ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
+
+        _vertexCollapsePreview = _scene.CollapseVertices(
+            collapse.Selection.Targets,
+            collapse.TwoVertexTarget
+        );
         _scenePreviewChanged();
     }
 
@@ -346,6 +378,18 @@ public sealed class EditorPreviewService : IDisposable
         _scene.ApplyFaceCollapseBefore(_faceCollapsePreview);
         _faceCollapsePreview.Dispose();
         _faceCollapsePreview = null;
+        if (refresh)
+            _scenePreviewChanged();
+    }
+
+    private void ClearVertexCollapsePreview(bool refresh = true)
+    {
+        if (_vertexCollapsePreview == null)
+            return;
+
+        _scene.ApplyVertexCollapseBefore(_vertexCollapsePreview);
+        _vertexCollapsePreview.Dispose();
+        _vertexCollapsePreview = null;
         if (refresh)
             _scenePreviewChanged();
     }

@@ -11,6 +11,7 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition collapseFace = EditOperationCatalog.Get("CollapseFace");
         EditOperationDefinition bevelEdge = EditOperationCatalog.Get("BevelEdge");
         EditOperationDefinition bevelVertex = EditOperationCatalog.Get("BevelVertex");
+        EditOperationDefinition collapseVertices = EditOperationCatalog.Get("CollapseVertices");
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
@@ -19,6 +20,7 @@ public sealed class EditOperationCatalogTests
         Assert.Equal(EditOperationAvailability.Available, collapseFace.Availability);
         Assert.Equal(EditOperationAvailability.Available, bevelEdge.Availability);
         Assert.Equal(EditOperationAvailability.Available, bevelVertex.Availability);
+        Assert.Equal(EditOperationAvailability.Available, collapseVertices.Availability);
         Assert.Equal(EditOperationAvailability.Available, delete.Availability);
     }
 
@@ -32,7 +34,6 @@ public sealed class EditOperationCatalogTests
 
     [Theory]
     [InlineData("EdgeCut")]
-    [InlineData("Merge")]
     public void Catalog_IdentifiesOperationsWithExistingCoreSupport(string id)
     {
         Assert.Equal(
@@ -108,6 +109,18 @@ public sealed class EditOperationCatalogTests
         settings.SetBevelWidth(0.75f);
 
         Assert.Equal(0.75f, settings.BevelWidth);
+    }
+
+    [Fact]
+    public void EditOperationSettings_CollapseVerticesTargetDefaultsToFirstAndCanChange()
+    {
+        EditOperationSettings settings = new();
+
+        Assert.Equal(CollapseVerticesTarget.First, settings.TwoVertexCollapseTarget);
+
+        settings.SetTwoVertexCollapseTarget(CollapseVerticesTarget.Second);
+
+        Assert.Equal(CollapseVerticesTarget.Second, settings.TwoVertexCollapseTarget);
     }
 
     [Theory]

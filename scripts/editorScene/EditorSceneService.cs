@@ -517,6 +517,74 @@ public sealed class EditorSceneService : IDisposable
         return change;
     }
 
+    public bool CanCollapseVertices(
+        IReadOnlyList<SelectionTarget> targets,
+        CollapseVerticesTarget twoVertexTarget
+    )
+    {
+        if (
+            targets.Count < 2
+            || targets[0].Kind != ScenePickElementKind.Vertex
+            || !_meshNodes.TryGetValue(targets[0].ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return false;
+        }
+
+        List<VertexHandle> vertices = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind != ScenePickElementKind.Vertex
+                || target.ObjectId != targets[0].ObjectId
+            )
+            {
+                return false;
+            }
+            vertices.Add(target.Vertex);
+        }
+
+        return VertexCollapseChange.CanCollapse(meshNode.SourceMesh, vertices, twoVertexTarget);
+    }
+
+    public VertexCollapseChange CollapseVertices(
+        IReadOnlyList<SelectionTarget> targets,
+        CollapseVerticesTarget twoVertexTarget
+    )
+    {
+        if (
+            targets.Count < 2
+            || targets[0].Kind != ScenePickElementKind.Vertex
+            || !_meshNodes.TryGetValue(targets[0].ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        List<VertexHandle> vertices = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind != ScenePickElementKind.Vertex
+                || target.ObjectId != targets[0].ObjectId
+            )
+            {
+                return null;
+            }
+            vertices.Add(target.Vertex);
+        }
+
+        VertexCollapseChange change = VertexCollapseChange.Collapse(
+            targets[0].ObjectId,
+            meshNode.SourceMesh,
+            vertices,
+            twoVertexTarget
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
     public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: true);
 
@@ -550,6 +618,12 @@ public sealed class EditorSceneService : IDisposable
 
     public void ApplyFaceCollapseAfter(FaceCollapseChange change) =>
         ApplyFaceCollapse(change, before: false);
+
+    public void ApplyVertexCollapseBefore(VertexCollapseChange change) =>
+        ApplyVertexCollapse(change, before: true);
+
+    public void ApplyVertexCollapseAfter(VertexCollapseChange change) =>
+        ApplyVertexCollapse(change, before: false);
 
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
     {
@@ -627,6 +701,19 @@ public sealed class EditorSceneService : IDisposable
     }
 
     private void ApplyFaceCollapse(FaceCollapseChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
+    }
+
+    private void ApplyVertexCollapse(VertexCollapseChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
         if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))

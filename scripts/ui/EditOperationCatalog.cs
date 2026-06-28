@@ -46,12 +46,12 @@ public static class EditOperationCatalog
             EditOperationAvailability.CoreReady
         ),
         new(
-            "Merge",
-            "Merge",
-            "Combine nearby vertices or edges into one.",
-            "Vertices or edges that can be combined",
-            "Coming soon",
-            EditOperationAvailability.CoreReady
+            "CollapseVertices",
+            "Collapse Vertices",
+            "Merge connected vertices into one vertex.",
+            "Two or more connected vertices on one object",
+            "Choose a target for two vertices; larger selections use the centroid",
+            EditOperationAvailability.Available
         ),
         new(
             "CollapseFace",

@@ -25,6 +25,12 @@ public partial class EditPanel : PanelContainer
     private Label _bevelWidthValue;
     private Button _bevelApply;
     private Button _bevelCancel;
+    private Control _collapseVerticesOptions;
+    private Control _collapseVerticesTargetRow;
+    private OptionButton _collapseVerticesTarget;
+    private Label _collapseVerticesCentroidInfo;
+    private Button _collapseVerticesApply;
+    private Button _collapseVerticesCancel;
     private Control _fillHoleOptions;
     private Button _fillHoleApply;
     private Button _fillHoleCancel;
@@ -51,6 +57,22 @@ public partial class EditPanel : PanelContainer
         _bevelWidthValue = GetNode<Label>("Margin/Scroll/Column/BevelOptions/WidthRow/WidthValue");
         _bevelApply = GetNode<Button>("Margin/Scroll/Column/BevelOptions/Actions/Apply");
         _bevelCancel = GetNode<Button>("Margin/Scroll/Column/BevelOptions/Actions/Cancel");
+        _collapseVerticesOptions = GetNode<Control>("Margin/Scroll/Column/CollapseVerticesOptions");
+        _collapseVerticesTargetRow = GetNode<Control>(
+            "Margin/Scroll/Column/CollapseVerticesOptions/TargetRow"
+        );
+        _collapseVerticesTarget = GetNode<OptionButton>(
+            "Margin/Scroll/Column/CollapseVerticesOptions/TargetRow/Target"
+        );
+        _collapseVerticesCentroidInfo = GetNode<Label>(
+            "Margin/Scroll/Column/CollapseVerticesOptions/CentroidInfo"
+        );
+        _collapseVerticesApply = GetNode<Button>(
+            "Margin/Scroll/Column/CollapseVerticesOptions/Actions/Apply"
+        );
+        _collapseVerticesCancel = GetNode<Button>(
+            "Margin/Scroll/Column/CollapseVerticesOptions/Actions/Cancel"
+        );
         _fillHoleOptions = GetNode<Control>("Margin/Scroll/Column/FillHoleOptions");
         _fillHoleApply = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Apply");
         _fillHoleCancel = GetNode<Button>("Margin/Scroll/Column/FillHoleOptions/Actions/Cancel");
@@ -63,6 +85,8 @@ public partial class EditPanel : PanelContainer
         );
 
         BuildOperationButtons();
+        _collapseVerticesTarget.AddItem("First selected vertex");
+        _collapseVerticesTarget.AddItem("Second selected vertex");
         _extrudeAlongFaceNormal.Toggled += OnExtrudeAlongFaceNormalToggled;
         _insetDepth.ValueChanged += OnInsetDepthChanged;
         _insetApply.Pressed += OnInsetApplyPressed;
@@ -70,6 +94,9 @@ public partial class EditPanel : PanelContainer
         _bevelWidth.ValueChanged += OnBevelWidthChanged;
         _bevelApply.Pressed += OnApplyPressed;
         _bevelCancel.Pressed += OnCancelPressed;
+        _collapseVerticesTarget.ItemSelected += OnCollapseVerticesTargetSelected;
+        _collapseVerticesApply.Pressed += OnApplyPressed;
+        _collapseVerticesCancel.Pressed += OnCancelPressed;
         _fillHoleApply.Pressed += OnApplyPressed;
         _fillHoleCancel.Pressed += OnCancelPressed;
         _collapseFaceApply.Pressed += OnApplyPressed;
@@ -92,6 +119,9 @@ public partial class EditPanel : PanelContainer
         _bevelWidth.ValueChanged -= OnBevelWidthChanged;
         _bevelApply.Pressed -= OnApplyPressed;
         _bevelCancel.Pressed -= OnCancelPressed;
+        _collapseVerticesTarget.ItemSelected -= OnCollapseVerticesTargetSelected;
+        _collapseVerticesApply.Pressed -= OnApplyPressed;
+        _collapseVerticesCancel.Pressed -= OnCancelPressed;
         _fillHoleApply.Pressed -= OnApplyPressed;
         _fillHoleCancel.Pressed -= OnCancelPressed;
         _collapseFaceApply.Pressed -= OnApplyPressed;
@@ -179,6 +209,7 @@ public partial class EditPanel : PanelContainer
         bool bevelEdgeSelected = selectedId == "BevelEdge";
         bool bevelVertexSelected = selectedId == "BevelVertex";
         bool bevelSelected = bevelEdgeSelected || bevelVertexSelected;
+        bool collapseVerticesSelected = selectedId == "CollapseVertices";
         bool fillHoleSelected = selectedId == "FillHole";
         bool collapseFaceSelected = selectedId == "CollapseFace";
         _optionsTitle.Text = selectedId switch
@@ -187,6 +218,7 @@ public partial class EditPanel : PanelContainer
             "InsetFace" => "INSET FACE OPTIONS",
             "BevelEdge" => "BEVEL EDGE OPTIONS",
             "BevelVertex" => "BEVEL VERTEX OPTIONS",
+            "CollapseVertices" => "COLLAPSE VERTICES OPTIONS",
             "FillHole" => "FILL HOLE OPTIONS",
             "CollapseFace" => "COLLAPSE FACE OPTIONS",
             _ => "OPTIONS",
@@ -199,11 +231,13 @@ public partial class EditPanel : PanelContainer
             !extrudeSelected
             && !insetSelected
             && !bevelSelected
+            && !collapseVerticesSelected
             && !fillHoleSelected
             && !collapseFaceSelected;
         _extrudeAlongFaceNormal.GetParent<Control>().Visible = extrudeSelected;
         _insetOptions.Visible = insetSelected;
         _bevelOptions.Visible = bevelSelected;
+        _collapseVerticesOptions.Visible = collapseVerticesSelected;
         _fillHoleOptions.Visible = fillHoleSelected;
         _collapseFaceOptions.Visible = collapseFaceSelected;
         _extrudeAlongFaceNormal.SetPressedNoSignal(
@@ -257,6 +291,17 @@ public partial class EditPanel : PanelContainer
         _bevelWidth.SetValueNoSignal(bevelWidth);
         _bevelWidthValue.Text = FormatInsetDepth(bevelWidth);
         _bevelApply.Disabled = !canBevel;
+        int selectedVertexCount =
+            collapseVerticesSelected && _session != null ? _session.Selection.Current.Count : 0;
+        _collapseVerticesTargetRow.Visible = selectedVertexCount == 2;
+        _collapseVerticesCentroidInfo.Visible = selectedVertexCount > 2;
+        _collapseVerticesTarget.Select(
+            (int)(
+                _session?.EditOperationSettings.TwoVertexCollapseTarget
+                ?? CollapseVerticesTarget.First
+            )
+        );
+        _collapseVerticesApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
         _fillHoleApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
         _collapseFaceApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
     }
@@ -286,6 +331,14 @@ public partial class EditPanel : PanelContainer
             ? GridSnap.SnapDistance((float)width, _session.GridSnapSize, maximumWidth)
             : (float)width;
         _session.EditOperationSettings.SetBevelWidth(snappedWidth);
+    }
+
+    private void OnCollapseVerticesTargetSelected(long index)
+    {
+        if (_session == null || !System.Enum.IsDefined(typeof(CollapseVerticesTarget), (int)index))
+            return;
+
+        _session.EditOperationSettings.SetTwoVertexCollapseTarget((CollapseVerticesTarget)index);
     }
 
     private void OnInsetApplyPressed()

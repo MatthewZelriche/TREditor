@@ -145,6 +145,45 @@ layout_mode = 2
 text = "Cancel"
 tooltip_text = "Cancel the bevel. Shortcut: Esc"
 
+[node name="CollapseVerticesOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TargetRow" type="HBoxContainer" parent="Margin/Scroll/Column/CollapseVerticesOptions"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TargetLabel" type="Label" parent="Margin/Scroll/Column/CollapseVerticesOptions/TargetRow"]
+layout_mode = 2
+text = "Target"
+
+[node name="Target" type="OptionButton" parent="Margin/Scroll/Column/CollapseVerticesOptions/TargetRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Choose which selected vertex survives. Selection order determines first and second."
+
+[node name="CentroidInfo" type="Label" parent="Margin/Scroll/Column/CollapseVerticesOptions"]
+visible = false
+layout_mode = 2
+text = "Three or more vertices collapse at their centroid."
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Scroll/Column/CollapseVerticesOptions"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="Apply" type="Button" parent="Margin/Scroll/Column/CollapseVerticesOptions/Actions"]
+layout_mode = 2
+text = "Apply"
+tooltip_text = "Commit the collapse. Shortcut: Enter"
+
+[node name="Cancel" type="Button" parent="Margin/Scroll/Column/CollapseVerticesOptions/Actions"]
+layout_mode = 2
+text = "Cancel"
+tooltip_text = "Cancel collapsing the vertices. Shortcut: Esc"
+
 [node name="FillHoleOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
 visible = false
 layout_mode = 2

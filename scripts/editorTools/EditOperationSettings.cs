@@ -1,5 +1,11 @@
 using System;
 
+public enum CollapseVerticesTarget
+{
+    First,
+    Second,
+}
+
 public sealed class EditOperationSettings
 {
     public string SelectedOperationId { get; private set; }
@@ -9,6 +15,9 @@ public sealed class EditOperationSettings
     public float InsetDepth { get; private set; } = 0.25f;
 
     public float BevelWidth { get; private set; } = 0.25f;
+
+    public CollapseVerticesTarget TwoVertexCollapseTarget { get; private set; } =
+        CollapseVerticesTarget.First;
 
     public event Action Changed;
 
@@ -56,6 +65,15 @@ public sealed class EditOperationSettings
             return;
 
         BevelWidth = width;
+        Changed?.Invoke();
+    }
+
+    public void SetTwoVertexCollapseTarget(CollapseVerticesTarget target)
+    {
+        if (TwoVertexCollapseTarget == target)
+            return;
+
+        TwoVertexCollapseTarget = target;
         Changed?.Invoke();
     }
 }
