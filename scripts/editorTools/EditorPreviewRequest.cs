@@ -34,4 +34,6 @@ public abstract record EditorPreviewRequest
         int Segments,
         float ArchAngleDegrees
     ) : EditorPreviewRequest;
+
+    public sealed record DetachFaces(SelectionSnapshot Selection) : EditorPreviewRequest;
 }

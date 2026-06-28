@@ -43,6 +43,9 @@ public partial class EditPanel : PanelContainer
     private Control _collapseFaceOptions;
     private Button _collapseFaceApply;
     private Button _collapseFaceCancel;
+    private Control _detachFaceOptions;
+    private Button _detachFaceApply;
+    private Button _detachFaceCancel;
 
     public override void _Ready()
     {
@@ -105,6 +108,11 @@ public partial class EditPanel : PanelContainer
         _collapseFaceCancel = GetNode<Button>(
             "Margin/Scroll/Column/CollapseFaceOptions/Actions/Cancel"
         );
+        _detachFaceOptions = GetNode<Control>("Margin/Scroll/Column/DetachFaceOptions");
+        _detachFaceApply = GetNode<Button>("Margin/Scroll/Column/DetachFaceOptions/Actions/Apply");
+        _detachFaceCancel = GetNode<Button>(
+            "Margin/Scroll/Column/DetachFaceOptions/Actions/Cancel"
+        );
 
         BuildOperationButtons();
         _collapseVerticesTarget.AddItem("First selected vertex");
@@ -127,6 +135,8 @@ public partial class EditPanel : PanelContainer
         _fillHoleCancel.Pressed += OnCancelPressed;
         _collapseFaceApply.Pressed += OnApplyPressed;
         _collapseFaceCancel.Pressed += OnCancelPressed;
+        _detachFaceApply.Pressed += OnApplyPressed;
+        _detachFaceCancel.Pressed += OnCancelPressed;
         if (_session != null)
         {
             _session.EditOperationSettings.Changed += RefreshOperationSelection;
@@ -156,6 +166,8 @@ public partial class EditPanel : PanelContainer
         _fillHoleCancel.Pressed -= OnCancelPressed;
         _collapseFaceApply.Pressed -= OnApplyPressed;
         _collapseFaceCancel.Pressed -= OnCancelPressed;
+        _detachFaceApply.Pressed -= OnApplyPressed;
+        _detachFaceCancel.Pressed -= OnCancelPressed;
         if (_session != null)
         {
             _session.EditOperationSettings.Changed -= RefreshOperationSelection;
@@ -243,6 +255,7 @@ public partial class EditPanel : PanelContainer
         bool bridgeEdgesSelected = selectedId == "BridgeEdges";
         bool fillHoleSelected = selectedId == "FillHole";
         bool collapseFaceSelected = selectedId == "CollapseFace";
+        bool detachFaceSelected = selectedId == "DetachFace";
         _optionsTitle.Text = selectedId switch
         {
             "ExtrudeFace" => "EXTRUDE FACE OPTIONS",
@@ -253,6 +266,7 @@ public partial class EditPanel : PanelContainer
             "BridgeEdges" => "BRIDGE EDGES OPTIONS",
             "FillHole" => "FILL HOLE OPTIONS",
             "CollapseFace" => "COLLAPSE FACE OPTIONS",
+            "DetachFace" => "DETACH FACE OPTIONS",
             _ => "OPTIONS",
         };
         _noOptions.Text =
@@ -266,7 +280,8 @@ public partial class EditPanel : PanelContainer
             && !collapseVerticesSelected
             && !bridgeEdgesSelected
             && !fillHoleSelected
-            && !collapseFaceSelected;
+            && !collapseFaceSelected
+            && !detachFaceSelected;
         _extrudeAlongFaceNormal.GetParent<Control>().Visible = extrudeSelected;
         _insetOptions.Visible = insetSelected;
         _bevelOptions.Visible = bevelSelected;
@@ -274,6 +289,7 @@ public partial class EditPanel : PanelContainer
         _bridgeEdgesOptions.Visible = bridgeEdgesSelected;
         _fillHoleOptions.Visible = fillHoleSelected;
         _collapseFaceOptions.Visible = collapseFaceSelected;
+        _detachFaceOptions.Visible = detachFaceSelected;
         _extrudeAlongFaceNormal.SetPressedNoSignal(
             _session?.EditOperationSettings.ExtrudeAlongFaceNormal ?? true
         );
@@ -344,6 +360,7 @@ public partial class EditPanel : PanelContainer
         _bridgeEdgesApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
         _fillHoleApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
         _collapseFaceApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
+        _detachFaceApply.Disabled = !(_session?.CanApplySelectedEditOperation() ?? false);
     }
 
     private void OnExtrudeAlongFaceNormalToggled(bool enabled)

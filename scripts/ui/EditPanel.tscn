@@ -244,6 +244,25 @@ layout_mode = 2
 text = "Cancel"
 tooltip_text = "Cancel bridging the edges. Shortcut: Esc"
 
+[node name="DetachFaceOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
+visible = false
+layout_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Scroll/Column/DetachFaceOptions"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="Apply" type="Button" parent="Margin/Scroll/Column/DetachFaceOptions/Actions"]
+layout_mode = 2
+text = "Apply"
+tooltip_text = "Commit detaching the selected faces. Shortcut: Enter"
+
+[node name="Cancel" type="Button" parent="Margin/Scroll/Column/DetachFaceOptions/Actions"]
+layout_mode = 2
+text = "Cancel"
+tooltip_text = "Cancel detaching the selected faces. Shortcut: Esc"
+
 [node name="FillHoleOptions" type="VBoxContainer" parent="Margin/Scroll/Column"]
 visible = false
 layout_mode = 2

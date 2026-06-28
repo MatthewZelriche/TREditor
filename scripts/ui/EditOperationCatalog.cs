@@ -104,10 +104,10 @@ public static class EditOperationCatalog
         new(
             "DetachFace",
             "Detach Face",
-            "Split selected faces away from the rest of the mesh.",
+            "Split selected faces into a disconnected region within the same mesh.",
             "One or more faces",
-            "Coming soon",
-            EditOperationAvailability.Planned
+            "Preview, then Apply or press Enter",
+            EditOperationAvailability.Available
         ),
     ];
 

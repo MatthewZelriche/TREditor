@@ -13,7 +13,7 @@
   - [x] **Bevel Edge**
   - [x] **Fill Hole**
   - [x] **Bridge Edges**
-  - [ ] **Detach Face**
+  - [x] **Detach Face**
   - [ ] **Edge Cut (Vertex, Edge, Face)**
   - [ ] **Rotation Gizmo**
 - [ ] **Expand Edge Bevelling**

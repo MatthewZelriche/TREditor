@@ -622,6 +622,72 @@ public sealed class EditorSceneService : IDisposable
         return change;
     }
 
+    public bool CanDetachFaces(IReadOnlyList<SelectionTarget> targets)
+    {
+        if (targets.Count == 0)
+            return false;
+
+        Dictionary<EditorObjectId, List<FaceHandle>> facesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (
+                target.Kind != ScenePickElementKind.Face
+                || !_meshNodes.ContainsKey(target.ObjectId)
+            )
+            {
+                return false;
+            }
+            if (!facesByObject.TryGetValue(target.ObjectId, out List<FaceHandle> faces))
+            {
+                faces = [];
+                facesByObject[target.ObjectId] = faces;
+            }
+            faces.Add(target.Face);
+        }
+
+        foreach ((EditorObjectId objectId, List<FaceHandle> faces) in facesByObject)
+        {
+            if (!FaceDetachBatch.CanDetach(_meshNodes[objectId].SourceMesh, faces))
+                return false;
+        }
+        return true;
+    }
+
+    public FaceDetachBatch[] DetachFaces(IReadOnlyList<SelectionTarget> targets)
+    {
+        if (!CanDetachFaces(targets))
+            return [];
+
+        Dictionary<EditorObjectId, List<FaceHandle>> facesByObject = [];
+        foreach (SelectionTarget target in targets)
+        {
+            if (!facesByObject.TryGetValue(target.ObjectId, out List<FaceHandle> faces))
+            {
+                faces = [];
+                facesByObject[target.ObjectId] = faces;
+            }
+            faces.Add(target.Face);
+        }
+
+        List<FaceDetachBatch> batches = [];
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach ((EditorObjectId objectId, List<FaceHandle> faces) in facesByObject)
+        {
+            TRMeshGD meshNode = _meshNodes[objectId];
+            if (
+                FaceDetachBatch.Detach(objectId, meshNode.SourceMesh, faces)
+                is FaceDetachBatch batch
+            )
+            {
+                batches.Add(batch);
+                changedObjects.Add(objectId);
+            }
+        }
+
+        RebuildObjects(changedObjects);
+        return batches.ToArray();
+    }
+
     public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: true);
 
@@ -667,6 +733,12 @@ public sealed class EditorSceneService : IDisposable
 
     public void ApplyBridgeEdgesAfter(BridgeEdgesChange change) =>
         ApplyBridgeEdges(change, before: false);
+
+    public void ApplyFaceDetachBefore(IReadOnlyList<FaceDetachBatch> batches) =>
+        ApplyFaceDetach(batches, before: true);
+
+    public void ApplyFaceDetachAfter(IReadOnlyList<FaceDetachBatch> batches) =>
+        ApplyFaceDetach(batches, before: false);
 
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
     {
@@ -780,6 +852,24 @@ public sealed class EditorSceneService : IDisposable
         else
             change.ApplyAfter();
         meshNode.Rebuild();
+    }
+
+    private void ApplyFaceDetach(IReadOnlyList<FaceDetachBatch> batches, bool before)
+    {
+        HashSet<EditorObjectId> changedObjects = [];
+        foreach (FaceDetachBatch batch in batches)
+        {
+            if (!_meshNodes.ContainsKey(batch.ObjectId))
+                continue;
+
+            if (before)
+                batch.ApplyBefore();
+            else
+                batch.ApplyAfter();
+            changedObjects.Add(batch.ObjectId);
+        }
+
+        RebuildObjects(changedObjects);
     }
 
     public bool ApplyFaceTexture(EditorObjectId objectId, FaceTextureChange change, bool revert)

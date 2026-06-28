@@ -18,6 +18,7 @@ public sealed class EditorPreviewService : IDisposable
     private FaceCollapseChange _faceCollapsePreview;
     private VertexCollapseChange _vertexCollapsePreview;
     private BridgeEdgesChange _bridgeEdgesPreview;
+    private FaceDetachBatch[] _faceDetachPreview;
     private bool _disposed;
 
     public EditorPreviewService(
@@ -57,6 +58,7 @@ public sealed class EditorPreviewService : IDisposable
                 ClearFaceCollapsePreview();
                 ClearVertexCollapsePreview();
                 ClearBridgeEdgesPreview();
+                ClearFaceDetachPreview();
                 ShowPrimitivePreview(primitive.Settings, primitive.Bounds);
                 break;
             case EditorPreviewRequest.TranslateSelection translation:
@@ -86,6 +88,9 @@ public sealed class EditorPreviewService : IDisposable
             case EditorPreviewRequest.BridgeEdges bridgeEdges:
                 ShowBridgeEdgesPreview(bridgeEdges);
                 break;
+            case EditorPreviewRequest.DetachFaces detachFaces:
+                ShowFaceDetachPreview(detachFaces);
+                break;
         }
     }
 
@@ -101,6 +106,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview();
         ClearVertexCollapsePreview();
         ClearBridgeEdgesPreview();
+        ClearFaceDetachPreview();
     }
 
     public void Dispose()
@@ -144,6 +150,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
         ClearTranslationPreview(refresh: false);
 
         if (translation.Selection.IsEmpty || translation.Delta.IsZeroApprox())
@@ -168,6 +175,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
 
         if (extrusion.Delta.IsZeroApprox())
@@ -192,6 +200,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
 
         if (!(inset.Depth > 0f))
         {
@@ -215,6 +224,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
 
         if (!(bevel.Width > 0f))
         {
@@ -238,6 +248,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
 
         if (!(bevel.Width > 0f))
         {
@@ -261,6 +272,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
 
         _fillHolePreview = _scene.FillHole(fillHole.Edge);
         _scenePreviewChanged();
@@ -278,6 +290,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
 
         _faceCollapsePreview = _scene.CollapseFace(collapseFace.Face);
         _scenePreviewChanged();
@@ -295,6 +308,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
 
         _vertexCollapsePreview = _scene.CollapseVertices(
             collapse.Selection.Targets,
@@ -315,6 +329,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearFaceCollapsePreview(refresh: false);
         ClearVertexCollapsePreview(refresh: false);
         ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
 
         _bridgeEdgesPreview = _scene.BridgeEdges(
             bridge.First,
@@ -322,6 +337,24 @@ public sealed class EditorPreviewService : IDisposable
             bridge.Segments,
             bridge.ArchAngleDegrees
         );
+        _scenePreviewChanged();
+    }
+
+    private void ShowFaceDetachPreview(EditorPreviewRequest.DetachFaces detach)
+    {
+        _primitivePreview?.Clear();
+        ClearTranslationPreview(refresh: false);
+        ClearFaceExtrusionPreview(refresh: false);
+        ClearFaceInsetPreview(refresh: false);
+        ClearEdgeBevelPreview(refresh: false);
+        ClearVertexBevelPreview(refresh: false);
+        ClearFillHolePreview(refresh: false);
+        ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
+        ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
+
+        _faceDetachPreview = _scene.DetachFaces(detach.Selection.Targets);
         _scenePreviewChanged();
     }
 
@@ -438,6 +471,19 @@ public sealed class EditorPreviewService : IDisposable
         _scene.ApplyBridgeEdgesBefore(_bridgeEdgesPreview);
         _bridgeEdgesPreview.Dispose();
         _bridgeEdgesPreview = null;
+        if (refresh)
+            _scenePreviewChanged();
+    }
+
+    private void ClearFaceDetachPreview(bool refresh = true)
+    {
+        if (_faceDetachPreview == null)
+            return;
+
+        _scene.ApplyFaceDetachBefore(_faceDetachPreview);
+        foreach (FaceDetachBatch batch in _faceDetachPreview)
+            batch.Dispose();
+        _faceDetachPreview = null;
         if (refresh)
             _scenePreviewChanged();
     }

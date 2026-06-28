@@ -68,6 +68,7 @@ public partial class EditorSession : Node3D
     private bool _canCollapseFace;
     private bool _canCollapseVertices;
     private bool _canBridgeEdges;
+    private bool _canDetachFaces;
     private bool _canFillHole;
     private float _maximumInsetDepth;
     private float _maximumBevelWidth;
@@ -215,6 +216,7 @@ public partial class EditorSession : Node3D
                 EditOperationSettings.BridgeSegments,
                 EditOperationSettings.BridgeArchAngleDegrees
             ),
+            "DetachFace" => DetachFaceCommand.Create(Selection.Current),
             "FillHole" when _canFillHole => FillHoleCommand.Create(Selection.Current),
             "CollapseFace" when _canCollapseFace => CollapseFaceCommand.Create(Selection.Current),
             _ => null,
@@ -262,6 +264,7 @@ public partial class EditorSession : Node3D
             "BevelVertex" => _maximumBevelWidth > 0f,
             "CollapseVertices" => _canCollapseVertices,
             "BridgeEdges" => _canBridgeEdges,
+            "DetachFace" => _canDetachFaces,
             "FillHole" => _canFillHole,
             "CollapseFace" => _canCollapseFace,
             _ => false,
@@ -371,6 +374,7 @@ public partial class EditorSession : Node3D
         bool bevelVertexSelected = EditOperationSettings.IsSelected("BevelVertex");
         bool collapseVerticesSelected = EditOperationSettings.IsSelected("CollapseVertices");
         bool bridgeEdgesSelected = EditOperationSettings.IsSelected("BridgeEdges");
+        bool detachFacesSelected = EditOperationSettings.IsSelected("DetachFace");
         bool fillHoleSelected = EditOperationSettings.IsSelected("FillHole");
         bool collapseFaceSelected = EditOperationSettings.IsSelected("CollapseFace");
         bool modalOperationSelected =
@@ -379,6 +383,7 @@ public partial class EditorSession : Node3D
             || bevelVertexSelected
             || collapseVerticesSelected
             || bridgeEdgesSelected
+            || detachFacesSelected
             || fillHoleSelected
             || collapseFaceSelected;
         _selectionTranslationGizmoController.SetExtrudeOperation(
@@ -494,6 +499,15 @@ public partial class EditorSession : Node3D
         )
             _canBridgeEdges = true;
 
+        if (!detachFacesSelected)
+            _canDetachFaces = false;
+        else if (
+            !_canDetachFaces
+            && DetachFaceCommand.CanCreate(Selection.Current)
+            && _sceneService.CanDetachFaces(Selection.Current.Targets)
+        )
+            _canDetachFaces = true;
+
         if (_previewService == null)
             return;
 
@@ -572,6 +586,14 @@ public partial class EditorSession : Node3D
                 )
             );
         }
+        else if (
+            detachFacesSelected
+            && DetachFaceCommand.CanCreate(Selection.Current)
+            && _canDetachFaces
+        )
+        {
+            _previewService.Apply(new EditorPreviewRequest.DetachFaces(Selection.Current));
+        }
         else
         {
             _previewService.Apply(new EditorPreviewRequest.Clear());
@@ -589,6 +611,7 @@ public partial class EditorSession : Node3D
             _canCollapseFace = false;
             _canCollapseVertices = false;
             _canBridgeEdges = false;
+            _canDetachFaces = false;
             ApplyEditOperationSettings();
         }
     }
@@ -603,6 +626,7 @@ public partial class EditorSession : Node3D
         || EditOperationSettings.IsSelected("BevelVertex")
         || EditOperationSettings.IsSelected("CollapseVertices")
         || EditOperationSettings.IsSelected("BridgeEdges")
+        || EditOperationSettings.IsSelected("DetachFace")
         || EditOperationSettings.IsSelected("FillHole")
         || EditOperationSettings.IsSelected("CollapseFace");
 }
