@@ -9,7 +9,7 @@
 - [ ] **Shift Drag to Duplicate Objects**
 
 #### Core Ops
-  - [ ] **Extrude Edge**
+  - [x] **Extrude Edge**
   - [x] **Collapse Vertices**
   - [x] **Collapse Face**
   - [ ] **Collapse Edge**

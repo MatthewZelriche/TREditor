@@ -7,16 +7,18 @@ public sealed class SelectionTranslationGizmoController : IDisposable
 {
     private readonly EditorSceneService _scene;
     private readonly SelectionService _selection;
-    private readonly Func<bool> _isFaceExtrusionModifierPressed;
+    private readonly Func<bool> _isExtrusionModifierPressed;
     private readonly List<GizmoRegistration> _registrations = [];
 
     private bool _active;
     private bool _disposed;
     private bool _dragging;
+    private bool _extrudeEdgeDrag;
+    private bool _extrudeEdgeOperationSelected;
     private bool _extrudeFaceDrag;
     private bool _extrudeAlongFaceNormal;
-    private bool _extrudeOperationSelected;
-    private bool _faceExtrusionEnabled;
+    private bool _extrudeFaceOperationSelected;
+    private bool _extrusionEnabled;
     private bool _inputSuppressed;
     private GizmoRegistration _dragRegistration;
     private SelectionSnapshot _dragSelection = SelectionSnapshot.Empty;
@@ -27,7 +29,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
     public SelectionTranslationGizmoController(
         EditorSceneService scene,
         SelectionService selection,
-        Func<bool> isFaceExtrusionModifierPressed = null
+        Func<bool> isExtrusionModifierPressed = null
     )
     {
         ArgumentNullException.ThrowIfNull(scene);
@@ -35,8 +37,8 @@ public sealed class SelectionTranslationGizmoController : IDisposable
 
         _scene = scene;
         _selection = selection;
-        _isFaceExtrusionModifierPressed =
-            isFaceExtrusionModifierPressed ?? (() => Input.IsKeyPressed(Key.Shift));
+        _isExtrusionModifierPressed =
+            isExtrusionModifierPressed ?? (() => Input.IsKeyPressed(Key.Shift));
         _selection.SelectionChanged += OnSelectionChanged;
     }
 
@@ -59,15 +61,20 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         UpdateGizmos();
     }
 
-    public void SetFaceExtrusionEnabled(bool enabled)
+    public void SetExtrusionEnabled(bool enabled)
     {
-        _faceExtrusionEnabled = enabled;
+        _extrusionEnabled = enabled;
     }
 
-    public void SetExtrudeOperation(bool selected, bool alongFaceNormal)
+    public void SetFaceExtrudeOperation(bool selected, bool alongFaceNormal)
     {
-        _extrudeOperationSelected = selected;
+        _extrudeFaceOperationSelected = selected;
         _extrudeAlongFaceNormal = alongFaceNormal;
+    }
+
+    public void SetEdgeExtrudeOperation(bool selected)
+    {
+        _extrudeEdgeOperationSelected = selected;
     }
 
     public void SetInputSuppressed(bool suppressed)
@@ -174,15 +181,26 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         _dragRegistration = registration;
         _dragSelection = _selection.Current;
         _dragDelta = Vector3.Zero;
+        bool extrusionModifierPressed = _isExtrusionModifierPressed();
         _extrudeFaceDrag = ShouldExtrudeFace(
             _dragSelection,
-            _faceExtrusionEnabled,
-            _isFaceExtrusionModifierPressed(),
-            _extrudeOperationSelected
+            _extrusionEnabled,
+            extrusionModifierPressed,
+            _extrudeFaceOperationSelected
         );
+        _extrudeEdgeDrag =
+            !_extrudeFaceDrag
+            && ShouldExtrudeEdge(
+                _dragSelection,
+                _extrusionEnabled,
+                extrusionModifierPressed,
+                _extrudeEdgeOperationSelected,
+                ExtrudeEdgeCommand.CanCreate(_dragSelection)
+                    && _scene.CanExtrudeEdge(_dragSelection.Targets[0])
+            );
         _dragFaceNormal =
             _extrudeFaceDrag
-            && _extrudeOperationSelected
+            && _extrudeFaceOperationSelected
             && _extrudeAlongFaceNormal
             && _scene.TryGetFaceWorldNormal(_dragSelection.Targets[0], out Vector3 faceNormal)
                 ? faceNormal
@@ -202,7 +220,9 @@ public sealed class SelectionTranslationGizmoController : IDisposable
 
         Vector3 rawDelta = registration.Target.GlobalPosition - _dragCenter;
         _dragDelta = ConstrainExtrusionDelta(rawDelta, _dragFaceNormal);
-        PreviewSubmitted?.Invoke(CreateDragPreview(_dragSelection, _dragDelta, _extrudeFaceDrag));
+        PreviewSubmitted?.Invoke(
+            CreateDragPreview(_dragSelection, _dragDelta, _extrudeFaceDrag, _extrudeEdgeDrag)
+        );
         UpdateGizmoTargets(_dragCenter + _dragDelta, registration);
     }
 
@@ -216,12 +236,14 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         Vector3 finalDelta = _dragDelta;
         SelectionSnapshot finalSelection = _dragSelection;
         bool extrudeFace = _extrudeFaceDrag;
+        bool extrudeEdge = _extrudeEdgeDrag;
 
         ClearDragState();
         PreviewSubmitted?.Invoke(new EditorPreviewRequest.Clear());
 
-        EditorCommand command = extrudeFace
-            ? ExtrudeFaceCommand.CreateIfChanged(finalSelection, finalDelta)
+        EditorCommand command =
+            extrudeFace ? ExtrudeFaceCommand.CreateIfChanged(finalSelection, finalDelta)
+            : extrudeEdge ? ExtrudeEdgeCommand.CreateIfChanged(finalSelection, finalDelta)
             : TranslateSelectionCommand.CreateIfChanged(finalSelection, finalDelta);
         if (command != null)
         {
@@ -250,6 +272,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         _dragCenter = Vector3.Zero;
         _dragDelta = Vector3.Zero;
         _dragFaceNormal = Vector3.Zero;
+        _extrudeEdgeDrag = false;
         _extrudeFaceDrag = false;
     }
 
@@ -331,6 +354,18 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         && (modifierPressed || extrudeOperationSelected)
         && ExtrudeFaceCommand.CanCreate(selection);
 
+    internal static bool ShouldExtrudeEdge(
+        SelectionSnapshot selection,
+        bool extrusionEnabled,
+        bool modifierPressed,
+        bool extrudeOperationSelected,
+        bool canExtrudeEdge
+    ) =>
+        extrusionEnabled
+        && (modifierPressed || extrudeOperationSelected)
+        && canExtrudeEdge
+        && ExtrudeEdgeCommand.CanCreate(selection);
+
     internal static Vector3 ConstrainExtrusionDelta(Vector3 delta, Vector3 faceNormal) =>
         faceNormal.IsZeroApprox() ? delta : faceNormal * delta.Dot(faceNormal);
 
@@ -338,10 +373,17 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         SelectionSnapshot selection,
         Vector3 delta,
         bool extrudeFace
+    ) => CreateDragPreview(selection, delta, extrudeFace, extrudeEdge: false);
+
+    internal static EditorPreviewRequest CreateDragPreview(
+        SelectionSnapshot selection,
+        Vector3 delta,
+        bool extrudeFace,
+        bool extrudeEdge
     ) =>
-        extrudeFace
-            ? new EditorPreviewRequest.ExtrudeFace(selection.Targets[0], delta)
-            : new EditorPreviewRequest.TranslateSelection(selection, delta);
+        extrudeFace ? new EditorPreviewRequest.ExtrudeFace(selection.Targets[0], delta)
+        : extrudeEdge ? new EditorPreviewRequest.ExtrudeEdge(selection.Targets[0], delta)
+        : new EditorPreviewRequest.TranslateSelection(selection, delta);
 
     private void ThrowIfDisposed()
     {

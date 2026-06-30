@@ -11,6 +11,9 @@ public abstract record EditorPreviewRequest
     public sealed record ExtrudeFace(SelectionTarget Face, Godot.Vector3 Delta)
         : EditorPreviewRequest;
 
+    public sealed record ExtrudeEdge(SelectionTarget Edge, Godot.Vector3 Delta)
+        : EditorPreviewRequest;
+
     public sealed record InsetFace(SelectionTarget Face, float Depth) : EditorPreviewRequest;
 
     public sealed record BevelEdges(SelectionSnapshot Selection, float Width)

@@ -243,6 +243,34 @@ public sealed class EditorSceneService : IDisposable
         return change;
     }
 
+    public bool CanExtrudeEdge(SelectionTarget target) =>
+        target.Kind == ScenePickElementKind.Edge
+        && _meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        && EdgeExtrusionChange.CanExtrude(meshNode.SourceMesh, target.Edge);
+
+    public EdgeExtrusionChange ExtrudeEdge(SelectionTarget target, Vector3 worldDelta)
+    {
+        if (
+            target.Kind != ScenePickElementKind.Edge
+            || worldDelta.IsZeroApprox()
+            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        Vector3 localDelta = meshNode.GlobalTransform.Basis.Inverse() * worldDelta;
+        EdgeExtrusionChange change = EdgeExtrusionChange.Extrude(
+            target.ObjectId,
+            meshNode.SourceMesh,
+            target.Edge,
+            ToNumericVector3(localDelta)
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
     public FaceInsetChange InsetFace(SelectionTarget target, float depth)
     {
         if (
@@ -727,6 +755,12 @@ public sealed class EditorSceneService : IDisposable
     public void ApplyFaceExtrusionAfter(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: false);
 
+    public void ApplyEdgeExtrusionBefore(EdgeExtrusionChange change) =>
+        ApplyEdgeExtrusion(change, before: true);
+
+    public void ApplyEdgeExtrusionAfter(EdgeExtrusionChange change) =>
+        ApplyEdgeExtrusion(change, before: false);
+
     public void ApplyFaceInsetBefore(FaceInsetChange change) =>
         ApplyFaceInset(change, before: true);
 
@@ -778,6 +812,19 @@ public sealed class EditorSceneService : IDisposable
     public void ApplyEdgeCutAfter(EdgeCutChange change) => ApplyEdgeCut(change, before: false);
 
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
+    }
+
+    private void ApplyEdgeExtrusion(EdgeExtrusionChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
         if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))

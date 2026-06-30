@@ -18,7 +18,7 @@ public sealed class EditTool : IEditorTool
     {
         _context.ComponentSelectionHighlight.SetMode(ComponentHighlightMode.Edit);
         _context.ComponentSelectionHighlight.SetActive(true);
-        _context.SelectionTranslationGizmo.SetFaceExtrusionEnabled(true);
+        _context.SelectionTranslationGizmo.SetExtrusionEnabled(true);
         _context.SelectionTranslationGizmo.SetActive(true);
         _context.EditOperationSettings.Changed += OnEditOperationChanged;
         OnEditOperationChanged();
@@ -28,7 +28,7 @@ public sealed class EditTool : IEditorTool
     {
         _context.ComponentSelectionHighlight.SetActive(false);
         _context.SelectionTranslationGizmo.SetActive(false);
-        _context.SelectionTranslationGizmo.SetFaceExtrusionEnabled(false);
+        _context.SelectionTranslationGizmo.SetExtrusionEnabled(false);
         _context.EditOperationSettings.Changed -= OnEditOperationChanged;
         _edgeCutInput.Reset();
     }

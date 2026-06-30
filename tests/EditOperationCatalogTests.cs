@@ -6,6 +6,7 @@ public sealed class EditOperationCatalogTests
     public void Catalog_ContainsAvailableEditorOperations()
     {
         EditOperationDefinition extrude = EditOperationCatalog.Get("ExtrudeFace");
+        EditOperationDefinition extrudeEdge = EditOperationCatalog.Get("ExtrudeEdge");
         EditOperationDefinition edgeCut = EditOperationCatalog.Get("EdgeCut");
         EditOperationDefinition inset = EditOperationCatalog.Get("InsetFace");
         EditOperationDefinition fillHole = EditOperationCatalog.Get("FillHole");
@@ -18,6 +19,7 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
+        Assert.Equal(EditOperationAvailability.Available, extrudeEdge.Availability);
         Assert.Equal(EditOperationAvailability.Available, edgeCut.Availability);
         Assert.Equal(EditOperationAvailability.Available, inset.Availability);
         Assert.Equal(EditOperationAvailability.Available, fillHole.Availability);

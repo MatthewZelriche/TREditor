@@ -30,6 +30,14 @@ public static class EditOperationCatalog
             EditOperationAvailability.Available
         ),
         new(
+            "ExtrudeEdge",
+            "Extrude Edge",
+            "Extend an open edge with a new quad.",
+            "One boundary edge",
+            "Select this tool, or Shift + drag the move handle",
+            EditOperationAvailability.Available
+        ),
+        new(
             "DeleteSelection",
             "Delete Selection",
             "Remove the selected vertices, edges, or faces from the mesh.",

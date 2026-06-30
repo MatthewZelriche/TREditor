@@ -389,9 +389,12 @@ public partial class EditorSession : Node3D
             || detachFacesSelected
             || fillHoleSelected
             || collapseFaceSelected;
-        _selectionTranslationGizmoController.SetExtrudeOperation(
+        _selectionTranslationGizmoController.SetFaceExtrudeOperation(
             EditOperationSettings.IsSelected("ExtrudeFace"),
             EditOperationSettings.ExtrudeAlongFaceNormal
+        );
+        _selectionTranslationGizmoController.SetEdgeExtrudeOperation(
+            EditOperationSettings.IsSelected("ExtrudeEdge")
         );
         _selectionTranslationGizmoController.SetInputSuppressed(
             modalOperationSelected || edgeCutSelected

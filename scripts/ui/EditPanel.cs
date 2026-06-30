@@ -259,6 +259,7 @@ public partial class EditPanel : PanelContainer
         _optionsTitle.Text = selectedId switch
         {
             "ExtrudeFace" => "EXTRUDE FACE OPTIONS",
+            "ExtrudeEdge" => "EXTRUDE EDGE",
             "EdgeCut" => "EDGE CUT",
             "InsetFace" => "INSET FACE OPTIONS",
             "BevelEdge" => "BEVEL EDGE OPTIONS",

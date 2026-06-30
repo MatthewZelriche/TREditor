@@ -11,6 +11,7 @@ public sealed class EditorPreviewService : IDisposable
     private PrimitiveCreationPreview _primitivePreview;
     private EditorPreviewRequest.TranslateSelection _translationPreview;
     private FaceExtrusionChange _faceExtrusionPreview;
+    private EdgeExtrusionChange _edgeExtrusionPreview;
     private FaceInsetChange _faceInsetPreview;
     private EdgeBevelBatch[] _edgeBevelPreview;
     private VertexBevelBatch[] _vertexBevelPreview;
@@ -54,6 +55,7 @@ public sealed class EditorPreviewService : IDisposable
             case EditorPreviewRequest.Primitive primitive:
                 ClearTranslationPreview();
                 ClearFaceExtrusionPreview();
+                ClearEdgeExtrusionPreview();
                 ClearFaceInsetPreview();
                 ClearEdgeBevelPreview();
                 ClearVertexBevelPreview();
@@ -69,6 +71,9 @@ public sealed class EditorPreviewService : IDisposable
                 break;
             case EditorPreviewRequest.ExtrudeFace extrusion:
                 ShowFaceExtrusionPreview(extrusion);
+                break;
+            case EditorPreviewRequest.ExtrudeEdge extrusion:
+                ShowEdgeExtrusionPreview(extrusion);
                 break;
             case EditorPreviewRequest.InsetFace inset:
                 ShowFaceInsetPreview(inset);
@@ -105,6 +110,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview();
         ClearFaceExtrusionPreview();
+        ClearEdgeExtrusionPreview();
         ClearFaceInsetPreview();
         ClearEdgeBevelPreview();
         ClearVertexBevelPreview();
@@ -168,6 +174,7 @@ public sealed class EditorPreviewService : IDisposable
     {
         _primitivePreview?.Clear();
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -193,6 +200,7 @@ public sealed class EditorPreviewService : IDisposable
     {
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -213,11 +221,37 @@ public sealed class EditorPreviewService : IDisposable
         _scenePreviewChanged();
     }
 
+    private void ShowEdgeExtrusionPreview(EditorPreviewRequest.ExtrudeEdge extrusion)
+    {
+        _primitivePreview?.Clear();
+        ClearTranslationPreview(refresh: false);
+        ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
+        ClearFaceInsetPreview(refresh: false);
+        ClearEdgeBevelPreview(refresh: false);
+        ClearVertexBevelPreview(refresh: false);
+        ClearFillHolePreview(refresh: false);
+        ClearFaceCollapsePreview(refresh: false);
+        ClearVertexCollapsePreview(refresh: false);
+        ClearBridgeEdgesPreview(refresh: false);
+        ClearFaceDetachPreview(refresh: false);
+
+        if (extrusion.Delta.IsZeroApprox())
+        {
+            _scenePreviewChanged();
+            return;
+        }
+
+        _edgeExtrusionPreview = _scene.ExtrudeEdge(extrusion.Edge, extrusion.Delta);
+        _scenePreviewChanged();
+    }
+
     private void ShowFaceInsetPreview(EditorPreviewRequest.InsetFace inset)
     {
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -242,6 +276,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -266,6 +301,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -290,6 +326,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -308,6 +345,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -326,6 +364,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -347,6 +386,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -370,6 +410,7 @@ public sealed class EditorPreviewService : IDisposable
         _primitivePreview?.Clear();
         ClearTranslationPreview(refresh: false);
         ClearFaceExtrusionPreview(refresh: false);
+        ClearEdgeExtrusionPreview(refresh: false);
         ClearFaceInsetPreview(refresh: false);
         ClearEdgeBevelPreview(refresh: false);
         ClearVertexBevelPreview(refresh: false);
@@ -412,6 +453,18 @@ public sealed class EditorPreviewService : IDisposable
         {
             _scenePreviewChanged();
         }
+    }
+
+    private void ClearEdgeExtrusionPreview(bool refresh = true)
+    {
+        if (_edgeExtrusionPreview == null)
+            return;
+
+        _scene.ApplyEdgeExtrusionBefore(_edgeExtrusionPreview);
+        _edgeExtrusionPreview.Dispose();
+        _edgeExtrusionPreview = null;
+        if (refresh)
+            _scenePreviewChanged();
     }
 
     private void ClearFaceInsetPreview(bool refresh = true)
