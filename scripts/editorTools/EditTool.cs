@@ -6,10 +6,12 @@ public sealed class EditTool : IEditorTool
     private const bool XRayModeEnabled = true;
 
     private readonly EditorToolContext _context;
+    private readonly EdgeCutToolInput _edgeCutInput;
 
     public EditTool(EditorToolContext context)
     {
         _context = context;
+        _edgeCutInput = new EdgeCutToolInput(context);
     }
 
     public void Enter()
@@ -18,6 +20,8 @@ public sealed class EditTool : IEditorTool
         _context.ComponentSelectionHighlight.SetActive(true);
         _context.SelectionTranslationGizmo.SetFaceExtrusionEnabled(true);
         _context.SelectionTranslationGizmo.SetActive(true);
+        _context.EditOperationSettings.Changed += OnEditOperationChanged;
+        OnEditOperationChanged();
     }
 
     public void Exit()
@@ -25,10 +29,15 @@ public sealed class EditTool : IEditorTool
         _context.ComponentSelectionHighlight.SetActive(false);
         _context.SelectionTranslationGizmo.SetActive(false);
         _context.SelectionTranslationGizmo.SetFaceExtrusionEnabled(false);
+        _context.EditOperationSettings.Changed -= OnEditOperationChanged;
+        _edgeCutInput.Reset();
     }
 
     public EditorToolResult HandleMouseButton(ViewportMouseButtonEvent input)
     {
+        if (_context.EditOperationSettings.IsSelected("EdgeCut"))
+            return _edgeCutInput.HandleMouseButton(input);
+
         if (
             _context.EditOperationSettings.IsSelected("InsetFace")
             || _context.EditOperationSettings.IsSelected("BevelEdge")
@@ -52,14 +61,22 @@ public sealed class EditTool : IEditorTool
 
     public EditorToolResult HandleMouseMotion(ViewportMouseMotionEvent input)
     {
+        if (_context.EditOperationSettings.IsSelected("EdgeCut"))
+            return _edgeCutInput.HandleMouseMotion(input);
+
         UpdateHover(input.RayOrigin, input.RayDirection);
         return EditorToolResult.Continue;
     }
 
-    public EditorToolResult HandleKey(Key key) =>
-        key == Key.Delete
+    public EditorToolResult HandleKey(Key key)
+    {
+        if (_context.EditOperationSettings.IsSelected("EdgeCut"))
+            return _edgeCutInput.HandleKey(key);
+
+        return key == Key.Delete
             ? EditorToolResult.ContinueWithCommand(CreateDeleteCommand())
             : EditorToolResult.Continue;
+    }
 
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 
@@ -89,5 +106,22 @@ public sealed class EditTool : IEditorTool
         }
 
         _context.ComponentSelectionHighlight.SetPointerState(rayOrigin, hover);
+    }
+
+    private void OnEditOperationChanged()
+    {
+        bool edgeCutSelected = _context.EditOperationSettings.IsSelected("EdgeCut");
+        _context.ComponentSelectionHighlight.SetMode(
+            edgeCutSelected
+                ? ComponentHighlightMode.EditComponents(
+                    ComponentHighlightKinds.Edges | ComponentHighlightKinds.Faces
+                )
+                : ComponentHighlightMode.Edit
+        );
+        if (!edgeCutSelected)
+        {
+            _edgeCutInput.Reset();
+            _context.ReportStatus("");
+        }
     }
 }

@@ -36,4 +36,11 @@ public abstract record EditorPreviewRequest
     ) : EditorPreviewRequest;
 
     public sealed record DetachFaces(SelectionSnapshot Selection) : EditorPreviewRequest;
+
+    public sealed record EdgeCut(
+        Godot.Transform3D MeshTransform,
+        Godot.Vector3 Start,
+        Godot.Vector3 End,
+        bool HasValidTarget
+    ) : EditorPreviewRequest;
 }

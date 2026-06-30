@@ -13,7 +13,8 @@ public sealed class EditorToolContext
         TextureAssetCatalog textureCatalog,
         TextureMaterialLibrary textureMaterials,
         Action<string> reportStatus,
-        Func<float> getGridSnapSize
+        Func<float> getGridSnapSize,
+        Func<EditorObjectId, TRMeshGD> getMeshNode
     )
     {
         ArgumentNullException.ThrowIfNull(scenePicking);
@@ -26,6 +27,7 @@ public sealed class EditorToolContext
         ArgumentNullException.ThrowIfNull(textureMaterials);
         ArgumentNullException.ThrowIfNull(reportStatus);
         ArgumentNullException.ThrowIfNull(getGridSnapSize);
+        ArgumentNullException.ThrowIfNull(getMeshNode);
 
         ScenePicking = scenePicking;
         Selection = selection;
@@ -37,6 +39,7 @@ public sealed class EditorToolContext
         TextureMaterials = textureMaterials;
         ReportStatus = reportStatus;
         GetGridSnapSize = getGridSnapSize;
+        GetMeshNode = getMeshNode;
     }
 
     public ScenePickingService ScenePicking { get; }
@@ -49,4 +52,5 @@ public sealed class EditorToolContext
     public TextureMaterialLibrary TextureMaterials { get; }
     public Action<string> ReportStatus { get; }
     public Func<float> GetGridSnapSize { get; }
+    public Func<EditorObjectId, TRMeshGD> GetMeshNode { get; }
 }

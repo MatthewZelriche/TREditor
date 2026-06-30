@@ -6,6 +6,7 @@ public sealed class EditOperationCatalogTests
     public void Catalog_ContainsAvailableEditorOperations()
     {
         EditOperationDefinition extrude = EditOperationCatalog.Get("ExtrudeFace");
+        EditOperationDefinition edgeCut = EditOperationCatalog.Get("EdgeCut");
         EditOperationDefinition inset = EditOperationCatalog.Get("InsetFace");
         EditOperationDefinition fillHole = EditOperationCatalog.Get("FillHole");
         EditOperationDefinition collapseFace = EditOperationCatalog.Get("CollapseFace");
@@ -17,6 +18,7 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
         Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
+        Assert.Equal(EditOperationAvailability.Available, edgeCut.Availability);
         Assert.Equal(EditOperationAvailability.Available, inset.Availability);
         Assert.Equal(EditOperationAvailability.Available, fillHole.Availability);
         Assert.Equal(EditOperationAvailability.Available, collapseFace.Availability);
@@ -26,16 +28,6 @@ public sealed class EditOperationCatalogTests
         Assert.Equal(EditOperationAvailability.Available, bridgeEdges.Availability);
         Assert.Equal(EditOperationAvailability.Available, detachFace.Availability);
         Assert.Equal(EditOperationAvailability.Available, delete.Availability);
-    }
-
-    [Theory]
-    [InlineData("EdgeCut")]
-    public void Catalog_IdentifiesOperationsWithExistingCoreSupport(string id)
-    {
-        Assert.Equal(
-            EditOperationAvailability.CoreReady,
-            EditOperationCatalog.Get(id).Availability
-        );
     }
 
     [Fact]

@@ -102,6 +102,9 @@ public sealed class EditorSceneService : IDisposable
 
     public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> EnumerateMeshObjects() => _meshNodes;
 
+    public bool TryGetMeshNode(EditorObjectId objectId, out TRMeshGD meshNode) =>
+        _meshNodes.TryGetValue(objectId, out meshNode);
+
     public bool TryGetSelectionCenter(SelectionSnapshot selection, out Vector3 center)
     {
         center = Vector3.Zero;
@@ -688,6 +691,36 @@ public sealed class EditorSceneService : IDisposable
         return batches.ToArray();
     }
 
+    public EdgeCutChange CutFace(
+        SelectionTarget face,
+        HalfEdgeHandle firstEdge,
+        float firstParameter,
+        HalfEdgeHandle secondEdge,
+        float secondParameter
+    )
+    {
+        if (
+            face.Kind != ScenePickElementKind.Face
+            || !_meshNodes.TryGetValue(face.ObjectId, out TRMeshGD meshNode)
+        )
+        {
+            return null;
+        }
+
+        EdgeCutChange change = EdgeCutChange.Cut(
+            face.ObjectId,
+            meshNode.SourceMesh,
+            face.Face,
+            firstEdge,
+            firstParameter,
+            secondEdge,
+            secondParameter
+        );
+        if (change != null)
+            meshNode.Rebuild();
+        return change;
+    }
+
     public void ApplyFaceExtrusionBefore(FaceExtrusionChange change) =>
         ApplyFaceExtrusion(change, before: true);
 
@@ -739,6 +772,10 @@ public sealed class EditorSceneService : IDisposable
 
     public void ApplyFaceDetachAfter(IReadOnlyList<FaceDetachBatch> batches) =>
         ApplyFaceDetach(batches, before: false);
+
+    public void ApplyEdgeCutBefore(EdgeCutChange change) => ApplyEdgeCut(change, before: true);
+
+    public void ApplyEdgeCutAfter(EdgeCutChange change) => ApplyEdgeCut(change, before: false);
 
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
     {
@@ -870,6 +907,19 @@ public sealed class EditorSceneService : IDisposable
         }
 
         RebuildObjects(changedObjects);
+    }
+
+    private void ApplyEdgeCut(EdgeCutChange change, bool before)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            return;
+
+        if (before)
+            change.ApplyBefore();
+        else
+            change.ApplyAfter();
+        meshNode.Rebuild();
     }
 
     public bool ApplyFaceTexture(EditorObjectId objectId, FaceTextureChange change, bool revert)

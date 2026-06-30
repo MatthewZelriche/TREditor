@@ -40,10 +40,10 @@ public static class EditOperationCatalog
         new(
             "EdgeCut",
             "Edge Cut",
-            "Add a new edge across a face.",
-            "A vertex, edge, or face",
-            "Coming soon",
-            EditOperationAvailability.CoreReady
+            "Split a face by connecting two points on its boundary.",
+            "Exactly one face",
+            "Click two valid edges or vertices; Esc cancels the first point",
+            EditOperationAvailability.Available
         ),
         new(
             "CollapseVertices",

@@ -19,6 +19,7 @@ public sealed class EditorPreviewService : IDisposable
     private VertexCollapseChange _vertexCollapsePreview;
     private BridgeEdgesChange _bridgeEdgesPreview;
     private FaceDetachBatch[] _faceDetachPreview;
+    private EdgeCutPreview _edgeCutPreview;
     private bool _disposed;
 
     public EditorPreviewService(
@@ -42,6 +43,8 @@ public sealed class EditorPreviewService : IDisposable
         {
             return;
         }
+        if (request is not EditorPreviewRequest.EdgeCut)
+            _edgeCutPreview?.Clear();
 
         switch (request)
         {
@@ -91,6 +94,9 @@ public sealed class EditorPreviewService : IDisposable
             case EditorPreviewRequest.DetachFaces detachFaces:
                 ShowFaceDetachPreview(detachFaces);
                 break;
+            case EditorPreviewRequest.EdgeCut edgeCut:
+                ShowEdgeCutPreview(edgeCut);
+                break;
         }
     }
 
@@ -107,6 +113,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearVertexCollapsePreview();
         ClearBridgeEdgesPreview();
         ClearFaceDetachPreview();
+        _edgeCutPreview?.Clear();
     }
 
     public void Dispose()
@@ -120,6 +127,8 @@ public sealed class EditorPreviewService : IDisposable
         Clear();
         _primitivePreview?.QueueFree();
         _primitivePreview = null;
+        _edgeCutPreview?.QueueFree();
+        _edgeCutPreview = null;
     }
 
     private void ShowPrimitivePreview(PrimitiveCreationSettings settings, PrimitiveBounds bounds)
@@ -137,6 +146,22 @@ public sealed class EditorPreviewService : IDisposable
 
         _primitivePreview = new PrimitiveCreationPreview { Name = "PrimitiveCreationPreview" };
         _previewParent.AddChild(_primitivePreview);
+    }
+
+    private void ShowEdgeCutPreview(EditorPreviewRequest.EdgeCut edgeCut)
+    {
+        Clear();
+        if (_edgeCutPreview == null)
+        {
+            _edgeCutPreview = new EdgeCutPreview { Name = "EdgeCutPreview" };
+            _previewParent.AddChild(_edgeCutPreview);
+        }
+        _edgeCutPreview.UpdatePreview(
+            edgeCut.MeshTransform,
+            edgeCut.Start,
+            edgeCut.End,
+            edgeCut.HasValidTarget
+        );
     }
 
     private void ShowTranslationPreview(EditorPreviewRequest.TranslateSelection translation)

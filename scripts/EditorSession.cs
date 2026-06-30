@@ -335,7 +335,9 @@ public partial class EditorSession : Node3D
             TextureCatalog,
             TextureMaterials,
             ReportStatus,
-            () => GridSnapSize
+            () => GridSnapSize,
+            objectId =>
+                _sceneService.TryGetMeshNode(objectId, out TRMeshGD meshNode) ? meshNode : null
         );
         _previewService = new EditorPreviewService(
             this,
@@ -372,6 +374,7 @@ public partial class EditorSession : Node3D
         bool insetSelected = EditOperationSettings.IsSelected("InsetFace");
         bool bevelEdgeSelected = EditOperationSettings.IsSelected("BevelEdge");
         bool bevelVertexSelected = EditOperationSettings.IsSelected("BevelVertex");
+        bool edgeCutSelected = EditOperationSettings.IsSelected("EdgeCut");
         bool collapseVerticesSelected = EditOperationSettings.IsSelected("CollapseVertices");
         bool bridgeEdgesSelected = EditOperationSettings.IsSelected("BridgeEdges");
         bool detachFacesSelected = EditOperationSettings.IsSelected("DetachFace");
@@ -390,7 +393,9 @@ public partial class EditorSession : Node3D
             EditOperationSettings.IsSelected("ExtrudeFace"),
             EditOperationSettings.ExtrudeAlongFaceNormal
         );
-        _selectionTranslationGizmoController.SetInputSuppressed(modalOperationSelected);
+        _selectionTranslationGizmoController.SetInputSuppressed(
+            modalOperationSelected || edgeCutSelected
+        );
 
         string bevelOperationId =
             bevelEdgeSelected ? "BevelEdge"

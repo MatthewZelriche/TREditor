@@ -259,6 +259,7 @@ public partial class EditPanel : PanelContainer
         _optionsTitle.Text = selectedId switch
         {
             "ExtrudeFace" => "EXTRUDE FACE OPTIONS",
+            "EdgeCut" => "EDGE CUT",
             "InsetFace" => "INSET FACE OPTIONS",
             "BevelEdge" => "BEVEL EDGE OPTIONS",
             "BevelVertex" => "BEVEL VERTEX OPTIONS",
@@ -269,10 +270,12 @@ public partial class EditPanel : PanelContainer
             "DetachFace" => "DETACH FACE OPTIONS",
             _ => "OPTIONS",
         };
-        _noOptions.Text =
-            selectedId == null
-                ? "Select an operation to view its settings."
-                : "This operation has no settings.";
+        _noOptions.Text = selectedId switch
+        {
+            null => "Select an operation to view its settings.",
+            "EdgeCut" => "Click two edges or vertices on the selected face.",
+            _ => "This operation has no settings.",
+        };
         _noOptions.Visible =
             !extrudeSelected
             && !insetSelected
