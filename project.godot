@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+Keybindings="*res://scripts/input/KeybindingService.cs"
 ViewportInputEvents="*res://scripts/input/ViewportInputEvents.cs"
 
 [dotnet]

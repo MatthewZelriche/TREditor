@@ -95,9 +95,9 @@ public sealed class PrimitiveCreationTool : IEditorTool
         return EditorToolResult.Continue;
     }
 
-    public EditorToolResult HandleKey(Key key)
+    public EditorToolResult HandleAction(EditorInputAction action)
     {
-        if (key != Key.Escape || _state == CreationState.WaitingForFootprint)
+        if (action != EditorInputAction.Cancel || _state == CreationState.WaitingForFootprint)
         {
             return EditorToolResult.Continue;
         }

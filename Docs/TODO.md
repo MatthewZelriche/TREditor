@@ -33,7 +33,7 @@
 
 #### UI
 - [ ] **2D Orthographic Views**
-- [ ] **Keybindings Menu**
+- [x] **Keybindings Menu**
 - [ ] **Wireframe Overlay**
 
 #### Controls

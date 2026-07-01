@@ -28,6 +28,9 @@ public partial class EditorToolBar : PanelContainer
         }
 
         _session.PersistentToolChanged += SelectTool;
+        if (KeybindingService.Instance != null)
+            KeybindingService.Instance.BindingChanged += OnBindingChanged;
+        RefreshShortcutTooltips();
         SelectTool(_session.ActivePersistentTool);
     }
 
@@ -89,5 +92,35 @@ public partial class EditorToolBar : PanelContainer
     {
         if (_session != null)
             _session.PersistentToolChanged -= SelectTool;
+        if (KeybindingService.Instance != null)
+            KeybindingService.Instance.BindingChanged -= OnBindingChanged;
+    }
+
+    private void OnBindingChanged(string actionId)
+    {
+        if (
+            actionId
+            is KeybindingActions.ToolSelect
+                or KeybindingActions.ToolEdit
+                or KeybindingActions.ToolCreate
+                or KeybindingActions.ToolTexture
+        )
+        {
+            RefreshShortcutTooltips();
+        }
+    }
+
+    private void RefreshShortcutTooltips()
+    {
+        _selectButton.TooltipText = GetToolTooltip("Select Tool", KeybindingActions.ToolSelect);
+        _editButton.TooltipText = GetToolTooltip("Edit Tool", KeybindingActions.ToolEdit);
+        _createButton.TooltipText = GetToolTooltip("Create Tool", KeybindingActions.ToolCreate);
+        _textureButton.TooltipText = GetToolTooltip("Texture Tool", KeybindingActions.ToolTexture);
+    }
+
+    private static string GetToolTooltip(string name, string actionId)
+    {
+        string binding = KeybindingService.Instance?.GetBindingDisplayText(actionId) ?? "Unbound";
+        return $"{name} — {binding}";
     }
 }

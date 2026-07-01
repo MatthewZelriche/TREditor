@@ -74,12 +74,12 @@ public sealed class EditorToolManager : IDisposable
 
     public bool CancelTemporaryTool() => CancelTemporaryTool(restorePersistentTool: true);
 
-    public bool HandleKey(Key key)
+    public bool HandleAction(EditorInputAction action)
     {
         ThrowIfDisposed();
 
         IEditorTool tool = ActiveTool;
-        EditorToolResult result = tool.HandleKey(key);
+        EditorToolResult result = tool.HandleAction(action);
         ProcessToolResult(tool, result);
         return result.Command != null
             || result.Preview != null

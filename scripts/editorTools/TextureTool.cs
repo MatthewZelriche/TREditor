@@ -61,7 +61,7 @@ public sealed class TextureTool : IEditorTool
         return EditorToolResult.Continue;
     }
 
-    public EditorToolResult HandleKey(Key key) => EditorToolResult.Continue;
+    public EditorToolResult HandleAction(EditorInputAction action) => EditorToolResult.Continue;
 
     public EditorToolResult Cancel() => EditorToolResult.Cancelled();
 

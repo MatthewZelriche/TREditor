@@ -27,8 +27,8 @@ public sealed class SelectTool : IEditorTool
     public EditorToolResult HandleMouseMotion(ViewportMouseMotionEvent input) =>
         EditorToolResult.Continue;
 
-    public EditorToolResult HandleKey(Key key) =>
-        key == Key.Delete
+    public EditorToolResult HandleAction(EditorInputAction action) =>
+        action == EditorInputAction.DeleteSelection
             ? EditorToolResult.ContinueWithCommand(
                 DeleteMeshCommand.CreateIfAny(_context.Selection.Current)
             )

@@ -67,22 +67,22 @@ public partial class ViewCamera : Camera3D
 
         Vector3 move = Vector3.Zero;
 
-        if (Input.IsKeyPressed(Key.W))
+        if (Input.IsActionPressed(KeybindingActions.CameraForward, exactMatch: true))
         {
             move -= GetForwardVector();
         }
 
-        if (Input.IsKeyPressed(Key.S))
+        if (Input.IsActionPressed(KeybindingActions.CameraBack, exactMatch: true))
         {
             move += GetForwardVector();
         }
 
-        if (Input.IsKeyPressed(Key.A))
+        if (Input.IsActionPressed(KeybindingActions.CameraLeft, exactMatch: true))
         {
             move -= GetRightVector();
         }
 
-        if (Input.IsKeyPressed(Key.D))
+        if (Input.IsActionPressed(KeybindingActions.CameraRight, exactMatch: true))
         {
             move += GetRightVector();
         }
@@ -111,19 +111,19 @@ public partial class ViewCamera : Camera3D
             // Intentionally zero out roll.
             Rotation = new Vector3(Mathf.DegToRad(pitch), Mathf.DegToRad(yaw), 0);
         }
-        // TODO: Decouple so that the button or key press can be selected in keybinds.
-        else if (@event is InputEventMouseButton mouseButton)
+        else if (KeybindingService.IsActionPressed(@event, KeybindingActions.CameraLook))
         {
-            if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
-            {
-                isGrabbed = true;
-                Input.MouseMode = Input.MouseModeEnum.Captured;
-            }
-            else if (mouseButton.ButtonIndex == MouseButton.Right && !mouseButton.Pressed)
-            {
-                isGrabbed = false;
-                Input.MouseMode = Input.MouseModeEnum.Visible;
-            }
+            isGrabbed = true;
+            Input.MouseMode = Input.MouseModeEnum.Captured;
+            GetViewport().SetInputAsHandled();
+        }
+        else if (
+            isGrabbed && KeybindingService.IsActionReleased(@event, KeybindingActions.CameraLook)
+        )
+        {
+            isGrabbed = false;
+            Input.MouseMode = Input.MouseModeEnum.Visible;
+            GetViewport().SetInputAsHandled();
         }
     }
 }

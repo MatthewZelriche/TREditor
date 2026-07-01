@@ -46,8 +46,11 @@ public sealed class EdgeCutToolInput
         if (_pending == null)
         {
             _pending = new PendingCut(face, cutPoint);
+            string cancelBinding =
+                KeybindingService.Instance?.GetBindingDisplayText(KeybindingActions.Cancel)
+                ?? "The cancel binding";
             _context.ReportStatus(
-                "Choose a second edge or vertex on the selected face. Esc cancels."
+                $"Choose a second edge or vertex on the selected face. {cancelBinding} cancels."
             );
             return EditorToolResult.ContinueWithPreview(CreatePreview(cutPoint, cutPoint, false));
         }
@@ -128,9 +131,9 @@ public sealed class EdgeCutToolInput
         );
     }
 
-    public EditorToolResult HandleKey(Key key)
+    public EditorToolResult HandleAction(EditorInputAction action)
     {
-        if (key != Key.Escape || _pending == null)
+        if (action != EditorInputAction.Cancel || _pending == null)
             return EditorToolResult.Continue;
 
         Reset();

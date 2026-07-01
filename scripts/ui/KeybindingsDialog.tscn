@@ -1,0 +1,78 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/KeybindingsDialog.cs" id="1_dialog"]
+
+[node name="KeybindingsDialog" type="Window"]
+title = "Keybindings"
+initial_position = 1
+size = Vector2i(760, 640)
+script = ExtResource("1_dialog")
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="Content" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Instructions" type="Label" parent="Margin/Content"]
+layout_mode = 2
+text = "Click a binding, then press a key or mouse button. Modifier chords are supported; left mouse and the wheel remain reserved for viewport gestures."
+autowrap_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="Margin/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Categories" type="VBoxContainer" parent="Margin/Content/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Footer" type="HBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RestoreDefaults" type="Button" parent="Margin/Content/Footer"]
+layout_mode = 2
+text = "Restore All Defaults"
+
+[node name="Spacer" type="Control" parent="Margin/Content/Footer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CancelCapture" type="Button" parent="Margin/Content/Footer"]
+visible = false
+layout_mode = 2
+text = "Cancel Capture"
+
+[node name="Close" type="Button" parent="Margin/Content/Footer"]
+layout_mode = 2
+text = "Close"
+
+[node name="ReplaceConfirmation" type="ConfirmationDialog" parent="."]
+title = "Replace Keybinding?"
+initial_position = 1
+ok_button_text = "Replace"
+dialog_text = "Move this binding?"
+
+[node name="RestoreConfirmation" type="ConfirmationDialog" parent="."]
+title = "Restore Default Keybindings?"
+initial_position = 1
+ok_button_text = "Restore Defaults"
+dialog_text = "Restore every keybinding to its default value?"
+
+[node name="ErrorDialog" type="AcceptDialog" parent="."]
+title = "Keybinding Error"
+initial_position = 1
+dialog_text = "Unable to save the keybinding."

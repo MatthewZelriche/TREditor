@@ -1,4 +1,5 @@
 using Godot;
+using Godot.Collections;
 
 public partial class EditorMenuBar : MenuBar
 {
@@ -10,20 +11,24 @@ public partial class EditorMenuBar : MenuBar
     private const int FileSaveId = 2;
     private const int FileQuitId = 3;
 
+    private const int KeybindingsMenuId = 1;
     private const int ThirdPartyLicensesMenuId = 0;
 
     private EditorSession _session;
     private PopupMenu _editMenu;
     private PopupMenu _fileMenu;
+    private PopupMenu _settingsMenu;
     private PopupMenu _aboutMenu;
     private FileDialog _fileDialog;
     private LicensesDialog _licensesDialog;
+    private KeybindingsDialog _keybindingsDialog;
 
     public override void _Ready()
     {
         _session = GetNodeOrNull<EditorSession>("%WORLD_ROOT");
         _editMenu = GetNodeOrNull<PopupMenu>("Edit");
         _fileMenu = GetNodeOrNull<PopupMenu>("File");
+        _settingsMenu = GetNodeOrNull<PopupMenu>("Settings");
 
         if (_session == null)
         {
@@ -33,7 +38,9 @@ public partial class EditorMenuBar : MenuBar
 
         WireEditMenu();
         WireFileMenu();
+        WireSettingsMenu();
         WireAboutMenu();
+        WireKeybindingShortcuts();
     }
 
     private void WireEditMenu()
@@ -73,6 +80,29 @@ public partial class EditorMenuBar : MenuBar
         _aboutMenu.IdPressed += OnAboutMenuIdPressed;
     }
 
+    private void WireSettingsMenu()
+    {
+        if (_settingsMenu == null)
+        {
+            GD.PushWarning("EditorMenuBar could not find the Settings menu.");
+            return;
+        }
+
+        _settingsMenu.IdPressed += OnSettingsMenuIdPressed;
+    }
+
+    private void WireKeybindingShortcuts()
+    {
+        if (KeybindingService.Instance == null)
+        {
+            GD.PushWarning("EditorMenuBar could not find the KeybindingService.");
+            return;
+        }
+
+        KeybindingService.Instance.BindingChanged += OnBindingChanged;
+        RefreshMenuShortcuts();
+    }
+
     private void OnAboutMenuIdPressed(long id)
     {
         if (id == ThirdPartyLicensesMenuId)
@@ -89,6 +119,24 @@ public partial class EditorMenuBar : MenuBar
         }
 
         _licensesDialog.PopupCentered();
+    }
+
+    private void OnSettingsMenuIdPressed(long id)
+    {
+        if (id == KeybindingsMenuId)
+            ShowKeybindingsDialog();
+    }
+
+    private void ShowKeybindingsDialog()
+    {
+        if (_keybindingsDialog == null)
+        {
+            PackedScene scene = GD.Load<PackedScene>("res://scripts/ui/KeybindingsDialog.tscn");
+            _keybindingsDialog = scene.Instantiate<KeybindingsDialog>();
+            AddChild(_keybindingsDialog);
+        }
+
+        _keybindingsDialog.PopupCentered();
     }
 
     private void OnEditMenuIdPressed(long id)
@@ -181,5 +229,72 @@ public partial class EditorMenuBar : MenuBar
         {
             _editMenu.SetItemDisabled(index, disabled);
         }
+    }
+
+    private void OnBindingChanged(string actionId)
+    {
+        if (
+            actionId
+            is KeybindingActions.FileNew
+                or KeybindingActions.FileOpen
+                or KeybindingActions.FileSave
+                or KeybindingActions.FileQuit
+                or KeybindingActions.EditUndo
+                or KeybindingActions.EditRedo
+        )
+        {
+            RefreshMenuShortcuts();
+        }
+    }
+
+    private void RefreshMenuShortcuts()
+    {
+        SetMenuShortcut(_fileMenu, FileNewId, KeybindingActions.FileNew);
+        SetMenuShortcut(_fileMenu, FileOpenId, KeybindingActions.FileOpen);
+        SetMenuShortcut(_fileMenu, FileSaveId, KeybindingActions.FileSave);
+        SetMenuShortcut(_fileMenu, FileQuitId, KeybindingActions.FileQuit);
+        SetMenuShortcut(_editMenu, UndoMenuId, KeybindingActions.EditUndo);
+        SetMenuShortcut(_editMenu, RedoMenuId, KeybindingActions.EditRedo);
+    }
+
+    private static void SetMenuShortcut(PopupMenu menu, int itemId, string actionId)
+    {
+        if (menu == null || KeybindingService.Instance == null)
+            return;
+
+        int index = menu.GetItemIndex(itemId);
+        if (index < 0)
+            return;
+
+        Shortcut shortcut = new();
+        InputBinding binding = KeybindingService.Instance.GetBinding(actionId);
+        if (binding != null)
+        {
+            Array events = new();
+            foreach (InputEvent input in binding.ToInputEvents())
+                events.Add(input);
+            shortcut.Events = events;
+        }
+
+        menu.SetItemShortcut(index, shortcut, true);
+    }
+
+    public override void _ExitTree()
+    {
+        if (_editMenu != null)
+        {
+            _editMenu.IdPressed -= OnEditMenuIdPressed;
+            _editMenu.AboutToPopup -= UpdateEditMenuState;
+        }
+        if (_fileMenu != null)
+            _fileMenu.IdPressed -= OnFileMenuIdPressed;
+        if (_settingsMenu != null)
+            _settingsMenu.IdPressed -= OnSettingsMenuIdPressed;
+        if (_aboutMenu != null)
+            _aboutMenu.IdPressed -= OnAboutMenuIdPressed;
+        if (_session?.Commands != null)
+            _session.Commands.CommandHistoryChanged -= UpdateEditMenuState;
+        if (KeybindingService.Instance != null)
+            KeybindingService.Instance.BindingChanged -= OnBindingChanged;
     }
 }

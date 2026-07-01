@@ -68,12 +68,12 @@ public sealed class EditTool : IEditorTool
         return EditorToolResult.Continue;
     }
 
-    public EditorToolResult HandleKey(Key key)
+    public EditorToolResult HandleAction(EditorInputAction action)
     {
         if (_context.EditOperationSettings.IsSelected("EdgeCut"))
-            return _edgeCutInput.HandleKey(key);
+            return _edgeCutInput.HandleAction(action);
 
-        return key == Key.Delete
+        return action == EditorInputAction.DeleteSelection
             ? EditorToolResult.ContinueWithCommand(CreateDeleteCommand())
             : EditorToolResult.Continue;
     }

@@ -114,6 +114,9 @@ public partial class EditPanel : PanelContainer
             "Margin/Scroll/Column/DetachFaceOptions/Actions/Cancel"
         );
 
+        if (KeybindingService.Instance != null)
+            KeybindingService.Instance.BindingChanged += OnKeybindingChanged;
+        RefreshShortcutTooltips();
         BuildOperationButtons();
         _collapseVerticesTarget.AddItem("First selected vertex");
         _collapseVerticesTarget.AddItem("Second selected vertex");
@@ -174,6 +177,8 @@ public partial class EditPanel : PanelContainer
             _session.GridSnapSizeChanged -= RefreshOperationSelection;
             _session.Selection.SelectionChanged -= RefreshOperationSelection;
         }
+        if (KeybindingService.Instance != null)
+            KeybindingService.Instance.BindingChanged -= OnKeybindingChanged;
     }
 
     private void BuildOperationButtons()
@@ -430,6 +435,37 @@ public partial class EditPanel : PanelContainer
     private void OnCancelPressed()
     {
         _session?.CancelSelectedEditOperation();
+    }
+
+    private void OnKeybindingChanged(string actionId)
+    {
+        if (actionId is KeybindingActions.Confirm or KeybindingActions.Cancel)
+            RefreshShortcutTooltips();
+    }
+
+    private void RefreshShortcutTooltips()
+    {
+        string confirm =
+            KeybindingService.Instance?.GetBindingDisplayText(KeybindingActions.Confirm)
+            ?? "Unbound";
+        string cancel =
+            KeybindingService.Instance?.GetBindingDisplayText(KeybindingActions.Cancel)
+            ?? "Unbound";
+
+        _insetApply.TooltipText = $"Commit the inset. Shortcut: {confirm}";
+        _insetCancel.TooltipText = $"Cancel the inset. Shortcut: {cancel}";
+        _bevelApply.TooltipText = $"Commit the bevel. Shortcut: {confirm}";
+        _bevelCancel.TooltipText = $"Cancel the bevel. Shortcut: {cancel}";
+        _collapseVerticesApply.TooltipText = $"Commit the collapse. Shortcut: {confirm}";
+        _collapseVerticesCancel.TooltipText = $"Cancel collapsing the vertices. Shortcut: {cancel}";
+        _bridgeEdgesApply.TooltipText = $"Commit the bridge. Shortcut: {confirm}";
+        _bridgeEdgesCancel.TooltipText = $"Cancel bridging the edges. Shortcut: {cancel}";
+        _detachFaceApply.TooltipText = $"Commit detaching the selected faces. Shortcut: {confirm}";
+        _detachFaceCancel.TooltipText = $"Cancel detaching the selected faces. Shortcut: {cancel}";
+        _fillHoleApply.TooltipText = $"Commit the filled face. Shortcut: {confirm}";
+        _fillHoleCancel.TooltipText = $"Cancel filling the hole. Shortcut: {cancel}";
+        _collapseFaceApply.TooltipText = $"Commit the collapsed face. Shortcut: {confirm}";
+        _collapseFaceCancel.TooltipText = $"Cancel collapsing the face. Shortcut: {cancel}";
     }
 
     internal static string BuildTooltip(EditOperationDefinition operation) =>

@@ -121,31 +121,44 @@ public partial class EditorSession : Node3D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key)
-        {
+        if (!@event.IsPressed() || @event.IsEcho())
             return;
-        }
 
-        if (IsModalEditOperationSelected())
+        if (
+            IsModalEditOperationSelected()
+            && KeybindingService.IsActionPressed(@event, KeybindingActions.Confirm)
+        )
         {
-            bool operationHandled = key.Keycode switch
-            {
-                Key.Enter or Key.KpEnter => ApplySelectedEditOperation(),
-                Key.Escape => CancelSelectedEditOperation(),
-                _ => false,
-            };
-            if (operationHandled)
+            if (ApplySelectedEditOperation())
             {
                 GetViewport().SetInputAsHandled();
                 return;
             }
         }
 
-        bool handled =
-            key.Keycode == Key.Escape
-                ? _toolManager?.CancelTemporaryTool() == true
-                    || _toolManager?.HandleKey(key.Keycode) == true
-                : _toolManager?.HandleKey(key.Keycode) == true;
+        if (TryGetPersistentToolAction(@event, out EditorToolId toolId))
+        {
+            ActivatePersistentTool(toolId);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        bool handled = false;
+        if (KeybindingService.IsActionPressed(@event, KeybindingActions.Cancel))
+        {
+            handled = IsModalEditOperationSelected()
+                ? CancelSelectedEditOperation()
+                : _toolManager?.CancelTemporaryTool() == true
+                    || _toolManager?.HandleAction(EditorInputAction.Cancel) == true;
+        }
+        else if (KeybindingService.IsActionPressed(@event, KeybindingActions.DeleteSelection))
+        {
+            handled = _toolManager?.HandleAction(EditorInputAction.DeleteSelection) == true;
+        }
+        else if (KeybindingService.IsActionPressed(@event, KeybindingActions.Confirm))
+        {
+            handled = _toolManager?.HandleAction(EditorInputAction.Confirm) == true;
+        }
 
         if (handled)
         {
@@ -627,6 +640,36 @@ public partial class EditorSession : Node3D
     private float GetEffectiveInsetDepth() => GetSnappedInsetDepth();
 
     private float GetEffectiveBevelWidth() => GetSnappedBevelWidth();
+
+    private static bool TryGetPersistentToolAction(InputEvent input, out EditorToolId toolId)
+    {
+        if (KeybindingService.IsActionPressed(input, KeybindingActions.ToolSelect))
+        {
+            toolId = EditorToolId.Select;
+            return true;
+        }
+
+        if (KeybindingService.IsActionPressed(input, KeybindingActions.ToolEdit))
+        {
+            toolId = EditorToolId.Edit;
+            return true;
+        }
+
+        if (KeybindingService.IsActionPressed(input, KeybindingActions.ToolCreate))
+        {
+            toolId = EditorToolId.Create;
+            return true;
+        }
+
+        if (KeybindingService.IsActionPressed(input, KeybindingActions.ToolTexture))
+        {
+            toolId = EditorToolId.Texture;
+            return true;
+        }
+
+        toolId = default;
+        return false;
+    }
 
     private bool IsModalEditOperationSelected() =>
         EditOperationSettings.IsSelected("InsetFace")
