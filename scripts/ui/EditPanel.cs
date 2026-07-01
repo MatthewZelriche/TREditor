@@ -226,8 +226,6 @@ public partial class EditPanel : PanelContainer
             VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        if (operation.Availability != EditOperationAvailability.Available)
-            name.Modulate = new Color(0.72f, 0.72f, 0.72f);
         content.AddChild(name);
 
         return button;

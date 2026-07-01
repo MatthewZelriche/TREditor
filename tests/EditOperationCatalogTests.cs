@@ -18,18 +18,18 @@ public sealed class EditOperationCatalogTests
         EditOperationDefinition detachFace = EditOperationCatalog.Get("DetachFace");
         EditOperationDefinition delete = EditOperationCatalog.Get("DeleteSelection");
 
-        Assert.Equal(EditOperationAvailability.Available, extrude.Availability);
-        Assert.Equal(EditOperationAvailability.Available, extrudeEdge.Availability);
-        Assert.Equal(EditOperationAvailability.Available, edgeCut.Availability);
-        Assert.Equal(EditOperationAvailability.Available, inset.Availability);
-        Assert.Equal(EditOperationAvailability.Available, fillHole.Availability);
-        Assert.Equal(EditOperationAvailability.Available, collapseFace.Availability);
-        Assert.Equal(EditOperationAvailability.Available, bevelEdge.Availability);
-        Assert.Equal(EditOperationAvailability.Available, bevelVertex.Availability);
-        Assert.Equal(EditOperationAvailability.Available, collapseVertices.Availability);
-        Assert.Equal(EditOperationAvailability.Available, bridgeEdges.Availability);
-        Assert.Equal(EditOperationAvailability.Available, detachFace.Availability);
-        Assert.Equal(EditOperationAvailability.Available, delete.Availability);
+        Assert.Equal("Extrude Face", extrude.DisplayName);
+        Assert.Equal("Extrude Edge", extrudeEdge.DisplayName);
+        Assert.Equal("Edge Cut", edgeCut.DisplayName);
+        Assert.Equal("Inset Face", inset.DisplayName);
+        Assert.Equal("Fill Hole", fillHole.DisplayName);
+        Assert.Equal("Collapse Face", collapseFace.DisplayName);
+        Assert.Equal("Bevel Edge", bevelEdge.DisplayName);
+        Assert.Equal("Bevel Vertex", bevelVertex.DisplayName);
+        Assert.Equal("Collapse Vertices", collapseVertices.DisplayName);
+        Assert.Equal("Bridge Edges", bridgeEdges.DisplayName);
+        Assert.Equal("Detach Face", detachFace.DisplayName);
+        Assert.Equal("Delete Selection", delete.DisplayName);
     }
 
     [Fact]

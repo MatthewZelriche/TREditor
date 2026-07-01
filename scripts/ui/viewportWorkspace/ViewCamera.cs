@@ -48,11 +48,6 @@ public partial class ViewCamera : Camera3D
         return GlobalTransform.Basis.Z;
     }
 
-    public Vector3 GetHorzForwardVector()
-    {
-        return new Vector3(Mathf.Sin(Mathf.DegToRad(yaw)), 0.0f, Mathf.Cos(Mathf.DegToRad(yaw)));
-    }
-
     public Vector3 GetRightVector()
     {
         return GlobalTransform.Basis.X;

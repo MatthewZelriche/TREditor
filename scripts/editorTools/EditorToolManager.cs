@@ -6,7 +6,6 @@ public sealed class EditorToolManager : IDisposable
     private readonly EditorToolContext _context;
     private readonly Func<PrimitiveCreationSettings> _getPrimitiveCreationSettings;
     private IEditorTool _persistentTool;
-    private IEditorTool _temporaryTool;
     private EditorToolId _persistentToolId;
     private bool _persistentToolEntered;
     private bool _subscribedToViewportInput;
@@ -29,7 +28,6 @@ public sealed class EditorToolManager : IDisposable
         EnterPersistentTool();
     }
 
-    public bool HasTemporaryTool => _temporaryTool != null;
     public EditorToolId PersistentToolId => _persistentToolId;
 
     public event Action<EditorCommand> CommandSubmitted;
@@ -40,47 +38,25 @@ public sealed class EditorToolManager : IDisposable
     {
         ThrowIfDisposed();
 
-        if (_temporaryTool == null && _persistentToolId == toolId)
+        if (_persistentToolId == toolId)
         {
             return;
         }
 
-        CancelTemporaryTool(restorePersistentTool: false);
-
-        if (_persistentToolId != toolId)
-        {
-            ExitPersistentTool();
-            ClearPreview();
-            _persistentTool = CreatePersistentTool(toolId);
-            _persistentToolId = toolId;
-            PersistentToolChanged?.Invoke(toolId);
-        }
-
-        EnterPersistentTool();
-    }
-
-    public void StartTemporaryTool(IEditorTool tool)
-    {
-        ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(tool);
-
-        CancelTemporaryTool(restorePersistentTool: false);
         ExitPersistentTool();
         ClearPreview();
-
-        _temporaryTool = tool;
-        _temporaryTool.Enter();
+        _persistentTool = CreatePersistentTool(toolId);
+        _persistentToolId = toolId;
+        PersistentToolChanged?.Invoke(toolId);
+        EnterPersistentTool();
     }
-
-    public bool CancelTemporaryTool() => CancelTemporaryTool(restorePersistentTool: true);
 
     public bool HandleAction(EditorInputAction action)
     {
         ThrowIfDisposed();
 
-        IEditorTool tool = ActiveTool;
-        EditorToolResult result = tool.HandleAction(action);
-        ProcessToolResult(tool, result);
+        EditorToolResult result = _persistentTool.HandleAction(action);
+        ProcessToolResult(result);
         return result.Command != null
             || result.Preview != null
             || result.Status != EditorToolStatus.Continue;
@@ -95,65 +71,23 @@ public sealed class EditorToolManager : IDisposable
 
         _disposed = true;
         UnsubscribeFromViewportInput();
-        CancelTemporaryTool(restorePersistentTool: false);
         ExitPersistentTool();
     }
 
     private void OnViewportMouseButton(ViewportMouseButtonEvent input)
     {
-        IEditorTool tool = ActiveTool;
-        ProcessToolResult(tool, tool.HandleMouseButton(input));
+        ProcessToolResult(_persistentTool.HandleMouseButton(input));
     }
 
     private void OnViewportMouseMotion(ViewportMouseMotionEvent input)
     {
-        IEditorTool tool = ActiveTool;
-        ProcessToolResult(tool, tool.HandleMouseMotion(input));
+        ProcessToolResult(_persistentTool.HandleMouseMotion(input));
     }
 
-    private IEditorTool ActiveTool => _temporaryTool ?? _persistentTool;
-
-    private void ProcessToolResult(IEditorTool tool, EditorToolResult result)
+    private void ProcessToolResult(EditorToolResult result)
     {
         SubmitCommand(result.Command);
         SubmitPreview(result.Preview);
-
-        if (result.Status == EditorToolStatus.Continue || tool != _temporaryTool)
-        {
-            return;
-        }
-
-        _temporaryTool = null;
-        tool.Exit();
-        ClearPreview();
-        EnterPersistentTool();
-    }
-
-    private bool CancelTemporaryTool(bool restorePersistentTool)
-    {
-        if (_temporaryTool == null)
-        {
-            if (restorePersistentTool)
-            {
-                EnterPersistentTool();
-            }
-
-            return false;
-        }
-
-        IEditorTool tool = _temporaryTool;
-        _temporaryTool = null;
-        EditorToolResult result = tool.Cancel();
-        SubmitCommand(result.Command);
-        tool.Exit();
-        ClearPreview();
-
-        if (restorePersistentTool)
-        {
-            EnterPersistentTool();
-        }
-
-        return true;
     }
 
     private void SubmitCommand(EditorCommand command)
@@ -183,7 +117,7 @@ public sealed class EditorToolManager : IDisposable
 
     private void EnterPersistentTool()
     {
-        if (_persistentToolEntered || _temporaryTool != null)
+        if (_persistentToolEntered)
         {
             return;
         }

@@ -148,8 +148,7 @@ public partial class EditorSession : Node3D
         {
             handled = IsModalEditOperationSelected()
                 ? CancelSelectedEditOperation()
-                : _toolManager?.CancelTemporaryTool() == true
-                    || _toolManager?.HandleAction(EditorInputAction.Cancel) == true;
+                : _toolManager?.HandleAction(EditorInputAction.Cancel) == true;
         }
         else if (KeybindingService.IsActionPressed(@event, KeybindingActions.DeleteSelection))
         {

@@ -235,12 +235,6 @@ public partial class TilingContainer : Container
         return child != null && _root != null && _root.FindLeaf(child) != null;
     }
 
-    public Rect2 GetPaneRect(Control child)
-    {
-        LeafNode leaf = child != null && _root != null ? _root.FindLeaf(child) : null;
-        return leaf?.Rect ?? new Rect2();
-    }
-
     public Godot.Collections.Array<Control> GetPanes()
     {
         Godot.Collections.Array<Control> panes = [];

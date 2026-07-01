@@ -6,9 +6,6 @@ using Godot;
 
 public sealed class ThirdPartyLicenseEntry
 {
-    [JsonPropertyName("id")]
-    public string Id { get; init; } = "";
-
     [JsonPropertyName("displayName")]
     public string DisplayName { get; init; } = "";
 
@@ -33,9 +30,6 @@ public sealed class ThirdPartyLicenseEntry
 
 public sealed class ThirdPartyLicenseReport
 {
-    [JsonPropertyName("generatedAt")]
-    public string GeneratedAt { get; init; } = "";
-
     [JsonPropertyName("entries")]
     public List<ThirdPartyLicenseEntry> Entries { get; init; } = [];
 }

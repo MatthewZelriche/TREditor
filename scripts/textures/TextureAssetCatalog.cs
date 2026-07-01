@@ -103,11 +103,6 @@ public sealed class TextureAssetCatalog
         return true;
     }
 
-    public void ClearActiveAsset()
-    {
-        ActiveAssetId = null;
-    }
-
     public int ProcessPreviewQueue(int maximumCount = DefaultPreviewsPerFrame) =>
         _previews.Process(maximumCount);
 

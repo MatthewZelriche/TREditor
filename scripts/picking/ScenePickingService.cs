@@ -92,28 +92,6 @@ public sealed class ScenePickingService
     }
 
     /// <summary>
-    /// Fuzzy-picks the nearest <see cref="TRMeshGD"/> whose collider overlaps the pick capsule.
-    /// </summary>
-    public bool TryPickObject(
-        Vector3 rayOrigin,
-        Vector3 rayDirection,
-        out ScenePickHit hit,
-        float maxDistance = DefaultMaxDistance,
-        uint collisionMask = uint.MaxValue
-    )
-    {
-        return TryPickScene(
-            rayOrigin,
-            rayDirection,
-            out hit,
-            ScenePickElementFilter.Object,
-            false,
-            maxDistance,
-            collisionMask
-        );
-    }
-
-    /// <summary>
     /// Fuzzy-picks candidate meshes, then resolves the requested mesh object or component.
     /// </summary>
     public bool TryPickScene(

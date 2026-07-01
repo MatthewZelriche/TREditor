@@ -14,6 +14,5 @@ public sealed class ThirdPartyLicenseEntry
 
 public sealed class ThirdPartyLicenseReport
 {
-    public required string GeneratedAt { get; init; }
     public required List<ThirdPartyLicenseEntry> Entries { get; init; }
 }

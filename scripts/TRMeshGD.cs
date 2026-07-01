@@ -71,11 +71,6 @@ public partial class TRMeshGD : Node3D
     /// </summary>
     public void RebuildRender() => Rebuild(RebuildTarget.Render);
 
-    /// <summary>
-    /// Rebuilds only collision geometry.
-    /// </summary>
-    public void RebuildCollision() => Rebuild(RebuildTarget.Collision);
-
     private void Rebuild(RebuildTarget targets)
     {
         EnsureChildren();

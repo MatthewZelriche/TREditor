@@ -90,11 +90,7 @@ public static class LicenseCollectorService
         {
             Succeeded = true,
             Errors = [],
-            Report = new ThirdPartyLicenseReport
-            {
-                GeneratedAt = DateTimeOffset.UtcNow.ToString("O"),
-                Entries = entries,
-            },
+            Report = new ThirdPartyLicenseReport { Entries = entries },
         };
     }
 
