@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-public sealed partial class DeleteFaceCommand : EditorCommand
+public sealed class DeleteFaceCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionSnapshot _selectionAfterDelete;
@@ -30,24 +30,25 @@ public sealed partial class DeleteFaceCommand : EditorCommand
     public static IEnumerable<SelectionTarget> GetSelectedFaces(SelectionSnapshot selection) =>
         selection.Targets.Where(target => target.Kind == ScenePickElementKind.Face).Distinct();
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         _changes ??= context.Scene.CaptureFaceDeletions(_faceTargets);
         if (_changes.Length == 0)
-            return;
+            return false;
 
         // Remove stale face selections before rebuilding overlays against the changed topology.
-        context.Selection.Apply(_selectionAfterDelete);
+        context.ApplySelection(_selectionAfterDelete);
         context.Scene.DeleteFaces(_changes);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_changes == null || _changes.Length == 0)
             return;
 
         context.Scene.RestoreFaces(_changes);
-        context.Selection.Apply(BuildRestoredSelection());
+        context.ApplySelection(BuildRestoredSelection());
     }
 
     private SelectionSnapshot BuildRestoredSelection()

@@ -22,6 +22,18 @@ public class SetSelectionCommandTests
         );
     }
 
-    // Non-null paths construct EditorCommand (GodotObject) and require the Godot runtime.
-    // Command creation with a changed snapshot is covered once IEditorCommandContext lands.
+    [Fact]
+    public void CreateIfChanged_ChangedSnapshotCreatesNonDocumentCommand()
+    {
+        SelectionSnapshot snapshot = SelectionSnapshot.From([Target]);
+
+        SetSelectionCommand command = SetSelectionCommand.CreateIfChanged(
+            SelectionSnapshot.Empty,
+            snapshot
+        );
+
+        Assert.NotNull(command);
+        Assert.False(command.AffectsDocument);
+        Assert.Equal(EditorCommandState.New, command.State);
+    }
 }

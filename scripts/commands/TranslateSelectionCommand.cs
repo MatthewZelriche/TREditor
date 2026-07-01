@@ -1,6 +1,6 @@
 using Godot;
 
-public sealed partial class TranslateSelectionCommand : EditorCommand
+public sealed class TranslateSelectionCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selection;
     private readonly Vector3 _delta;
@@ -18,12 +18,12 @@ public sealed partial class TranslateSelectionCommand : EditorCommand
         Vector3 delta
     ) => selection.IsEmpty || delta.IsZeroApprox() ? null : new(selection, delta);
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
-        context.Scene.TranslateSelection(_selection, _delta);
+        return context.Scene.TranslateSelection(_selection, _delta);
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         context.Scene.TranslateSelection(_selection, -_delta);
     }

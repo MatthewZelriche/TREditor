@@ -2,7 +2,7 @@
 
 using System.Linq;
 
-public sealed partial class CollapseVerticesCommand : EditorCommand
+public sealed class CollapseVerticesCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget[] _vertexTargets;
@@ -36,13 +36,13 @@ public sealed partial class CollapseVerticesCommand : EditorCommand
             ? new CollapseVerticesCommand(selection, selection.Targets.ToArray(), twoVertexTarget)
             : null;
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_change == null)
         {
             _change = context.Scene.CollapseVertices(_vertexTargets, _twoVertexTarget);
             if (_change == null)
-                return;
+                return false;
 
             _selectionAfter = SelectionSnapshot.From(
                 [SelectionTarget.ForVertex(_change.ObjectId, _change.Survivor)]
@@ -53,19 +53,23 @@ public sealed partial class CollapseVerticesCommand : EditorCommand
             context.Scene.ApplyVertexCollapseAfter(_change);
         }
 
-        context.Selection.Apply(_selectionAfter);
+        context.ApplySelection(_selectionAfter);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_change == null)
             return;
 
         context.Scene.ApplyVertexCollapseBefore(_change);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         _change?.Dispose();
     }

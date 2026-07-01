@@ -1,6 +1,6 @@
 #nullable enable
 
-public sealed partial class InsetFaceCommand : EditorCommand
+public sealed class InsetFaceCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget _faceTarget;
@@ -25,13 +25,13 @@ public sealed partial class InsetFaceCommand : EditorCommand
             ? new InsetFaceCommand(selection, selection.Targets[0], depth)
             : null;
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_change == null)
         {
             _change = context.Scene.InsetFace(_faceTarget, _depth);
             if (_change == null)
-                return;
+                return false;
 
             _selectionAfter = SelectionSnapshot.From(
                 [SelectionTarget.ForFace(_change.ObjectId, _change.CapFace)]
@@ -42,19 +42,23 @@ public sealed partial class InsetFaceCommand : EditorCommand
             context.Scene.ApplyFaceInsetAfter(_change);
         }
 
-        context.Selection.Apply(_selectionAfter);
+        context.ApplySelection(_selectionAfter);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_change == null)
             return;
 
         context.Scene.ApplyFaceInsetBefore(_change);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         _change?.Dispose();
     }

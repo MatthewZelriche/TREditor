@@ -8,7 +8,7 @@ using NumericVector3 = System.Numerics.Vector3;
 // a proper editor document/model layer, where commands would mutate model state and the
 // Godot scene would become a synchronized view of that model.
 // TODO: This class is getting huge
-public sealed class EditorSceneService : IDisposable
+public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
 {
     private readonly Node3D _worldRoot;
     private readonly TextureMaterialLibrary _textureMaterials;
@@ -25,44 +25,38 @@ public sealed class EditorSceneService : IDisposable
         _textureMaterials = textureMaterials;
     }
 
-    public void CreateMeshObject(EditorObjectId objectId, SpatialMesh mesh, string displayName)
+    public bool CreateMeshObject(EditorObjectId objectId, SpatialMesh mesh, string displayName)
     {
         ArgumentNullException.ThrowIfNull(mesh);
 
-        if (_meshNodes.TryGetValue(objectId, out TRMeshGD existingNode))
-        {
-            existingNode.ObjectId = objectId;
-            if (existingNode.GetParent() == null)
-            {
-                _worldRoot.AddChild(existingNode);
-            }
-
-            return;
-        }
+        if (_meshNodes.ContainsKey(objectId))
+            return false;
 
         TRMeshGD meshNode = new() { Name = displayName, ObjectId = objectId };
         meshNode.SetTextureMaterialLibrary(_textureMaterials);
         meshNode.TakeMesh(mesh);
         _meshNodes.Add(objectId, meshNode);
         _worldRoot.AddChild(meshNode);
+        return true;
     }
 
     /// <summary>
     /// Creates a mesh object and restores its local transform. Used when rebuilding a loaded
     /// document, where each object's placement is persisted alongside its geometry.
     /// </summary>
-    public void CreateMeshObject(
+    public bool CreateMeshObject(
         EditorObjectId objectId,
         SpatialMesh mesh,
         string displayName,
         Transform3D transform
     )
     {
-        CreateMeshObject(objectId, mesh, displayName);
+        if (!CreateMeshObject(objectId, mesh, displayName))
+            return false;
+
         if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
-        {
             meshNode.Transform = transform;
-        }
+        return true;
     }
 
     /// <summary>
@@ -81,23 +75,37 @@ public sealed class EditorSceneService : IDisposable
         _meshNodes.Clear();
     }
 
-    public void RemoveMeshObject(EditorObjectId objectId)
+    public bool RemoveMeshObject(EditorObjectId objectId)
     {
         if (!_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
-        {
-            return;
-        }
+            return false;
 
         Node parent = meshNode.GetParent();
         parent?.RemoveChild(meshNode);
+        return true;
     }
 
-    public void RestoreMeshObject(EditorObjectId objectId)
+    public bool RestoreMeshObject(EditorObjectId objectId)
     {
         if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode) && meshNode.GetParent() == null)
         {
             _worldRoot.AddChild(meshNode);
+            return true;
         }
+
+        return false;
+    }
+
+    /// <summary>Permanently frees a mesh object that no longer participates in history.</summary>
+    public bool DestroyMeshObject(EditorObjectId objectId)
+    {
+        if (!_meshNodes.Remove(objectId, out TRMeshGD meshNode))
+            return false;
+
+        Node parent = meshNode.GetParent();
+        parent?.RemoveChild(meshNode);
+        meshNode.Free();
+        return true;
     }
 
     public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> EnumerateMeshObjects() => _meshNodes;
@@ -152,15 +160,14 @@ public sealed class EditorSceneService : IDisposable
         return !normal.IsZeroApprox();
     }
 
-    public void TranslateSelection(SelectionSnapshot selection, Vector3 worldDelta)
+    public bool TranslateSelection(SelectionSnapshot selection, Vector3 worldDelta)
     {
         if (selection.IsEmpty || worldDelta.IsZeroApprox())
-        {
-            return;
-        }
+            return false;
 
         HashSet<EditorObjectId> translatedObjects = [];
         Dictionary<EditorObjectId, HashSet<VertexHandle>> componentVertices = [];
+        bool changed = false;
 
         foreach (SelectionTarget target in selection.Targets)
         {
@@ -170,6 +177,7 @@ public sealed class EditorSceneService : IDisposable
                 {
                     meshNode.GlobalPosition += worldDelta;
                     translatedObjects.Add(target.ObjectId);
+                    changed = true;
                 }
 
                 continue;
@@ -217,7 +225,10 @@ public sealed class EditorSceneService : IDisposable
 
             FaceUvProjector.ReprojectInitializedFacesAroundVertices(mesh, vertices);
             meshNode.Rebuild();
+            changed = true;
         }
+
+        return changed;
     }
 
     public FaceExtrusionChange ExtrudeFace(SelectionTarget target, Vector3 worldDelta)

@@ -9,14 +9,13 @@ public sealed partial class SelectionService : GodotObject
 
     public bool Contains(SelectionTarget target) => Current.Contains(target);
 
-    public void Apply(SelectionSnapshot selection)
+    public bool Apply(SelectionSnapshot selection)
     {
         if (Current == selection)
-        {
-            return;
-        }
+            return false;
 
         Current = selection;
         EmitSignal(SignalName.SelectionChanged);
+        return true;
     }
 }

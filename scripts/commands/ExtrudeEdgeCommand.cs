@@ -2,7 +2,7 @@
 
 using Godot;
 
-public sealed partial class ExtrudeEdgeCommand : EditorCommand
+public sealed class ExtrudeEdgeCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget _edgeTarget;
@@ -34,13 +34,13 @@ public sealed partial class ExtrudeEdgeCommand : EditorCommand
             ? null
             : new ExtrudeEdgeCommand(selection, selection.Targets[0], worldDelta);
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_change == null)
         {
             _change = context.Scene.ExtrudeEdge(_edgeTarget, _worldDelta);
             if (_change == null)
-                return;
+                return false;
 
             _selectionAfter = SelectionSnapshot.From(
                 [SelectionTarget.ForEdge(_change.ObjectId, _change.OuterEdge)]
@@ -51,19 +51,23 @@ public sealed partial class ExtrudeEdgeCommand : EditorCommand
             context.Scene.ApplyEdgeExtrusionAfter(_change);
         }
 
-        context.Selection.Apply(_selectionAfter);
+        context.ApplySelection(_selectionAfter);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_change == null)
             return;
 
         context.Scene.ApplyEdgeExtrusionBefore(_change);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         _change?.Dispose();
     }

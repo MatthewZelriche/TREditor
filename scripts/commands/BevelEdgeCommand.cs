@@ -2,7 +2,7 @@
 
 using System.Linq;
 
-public sealed partial class BevelEdgeCommand : EditorCommand
+public sealed class BevelEdgeCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget[] _edgeTargets;
@@ -32,13 +32,13 @@ public sealed partial class BevelEdgeCommand : EditorCommand
             ? new BevelEdgeCommand(selection, selection.Targets.ToArray(), width)
             : null;
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_batches == null)
         {
             _batches = context.Scene.BevelEdges(_edgeTargets, _width);
             if (_batches.Length == 0)
-                return;
+                return false;
 
             _selectionAfter = SelectionSnapshot.From(
                 _batches.SelectMany(batch =>
@@ -51,19 +51,23 @@ public sealed partial class BevelEdgeCommand : EditorCommand
             context.Scene.ApplyEdgeBevelAfter(_batches);
         }
 
-        context.Selection.Apply(_selectionAfter);
+        context.ApplySelection(_selectionAfter);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_batches == null || _batches.Length == 0)
             return;
 
         context.Scene.ApplyEdgeBevelBefore(_batches);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         if (_batches == null)
             return;

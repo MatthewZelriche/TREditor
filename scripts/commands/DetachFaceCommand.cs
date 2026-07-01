@@ -2,7 +2,7 @@
 
 using System.Linq;
 
-public sealed partial class DetachFaceCommand : EditorCommand
+public sealed class DetachFaceCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget[] _faceTargets;
@@ -24,13 +24,13 @@ public sealed partial class DetachFaceCommand : EditorCommand
     public static DetachFaceCommand? Create(SelectionSnapshot selection) =>
         CanCreate(selection) ? new DetachFaceCommand(selection, selection.Targets.ToArray()) : null;
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_batches == null)
         {
             _batches = context.Scene.DetachFaces(_faceTargets);
             if (_batches.Length == 0)
-                return;
+                return false;
 
             _selectionAfter = SelectionSnapshot.From(
                 _batches.SelectMany(batch =>
@@ -45,19 +45,23 @@ public sealed partial class DetachFaceCommand : EditorCommand
             context.Scene.ApplyFaceDetachAfter(_batches);
         }
 
-        context.Selection.Apply(_selectionAfter);
+        context.ApplySelection(_selectionAfter);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_batches == null || _batches.Length == 0)
             return;
 
         context.Scene.ApplyFaceDetachBefore(_batches);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         if (_batches == null)
             return;

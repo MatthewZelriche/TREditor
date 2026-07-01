@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-public sealed partial class DeleteVertexCommand : EditorCommand
+public sealed class DeleteVertexCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget[] _vertexTargets;
@@ -27,11 +27,14 @@ public sealed partial class DeleteVertexCommand : EditorCommand
     public static IEnumerable<SelectionTarget> GetSelectedVertices(SelectionSnapshot selection) =>
         selection.Targets.Where(target => target.Kind == ScenePickElementKind.Vertex).Distinct();
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_batches == null)
         {
             _batches = context.Scene.DeleteVertices(_vertexTargets);
+            if (_batches.Length == 0)
+                return false;
+
             _selectionAfterDelete = BuildSelectionAfterDelete();
         }
         else
@@ -39,19 +42,23 @@ public sealed partial class DeleteVertexCommand : EditorCommand
             context.Scene.ApplyVertexDeletionAfter(_batches);
         }
 
-        context.Selection.Apply(_selectionAfterDelete);
+        context.ApplySelection(_selectionAfterDelete);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_batches == null || _batches.Length == 0)
             return;
 
         context.Scene.ApplyVertexDeletionBefore(_batches);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         if (_batches == null)
             return;

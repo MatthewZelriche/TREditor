@@ -2,7 +2,7 @@
 
 using System.Linq;
 
-public sealed partial class BridgeEdgesCommand : EditorCommand
+public sealed class BridgeEdgesCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget _first;
@@ -41,13 +41,13 @@ public sealed partial class BridgeEdgesCommand : EditorCommand
             ? new BridgeEdgesCommand(selection, segments, archAngleDegrees)
             : null;
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_change == null)
         {
             _change = context.Scene.BridgeEdges(_first, _second, _segments, _archAngleDegrees);
             if (_change == null)
-                return;
+                return false;
 
             _selectionAfter = SelectionSnapshot.From(
                 _change.Faces.Select(face => SelectionTarget.ForFace(_change.ObjectId, face))
@@ -58,19 +58,23 @@ public sealed partial class BridgeEdgesCommand : EditorCommand
             context.Scene.ApplyBridgeEdgesAfter(_change);
         }
 
-        context.Selection.Apply(_selectionAfter);
+        context.ApplySelection(_selectionAfter);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_change == null)
             return;
 
         context.Scene.ApplyBridgeEdgesBefore(_change);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         _change?.Dispose();
     }

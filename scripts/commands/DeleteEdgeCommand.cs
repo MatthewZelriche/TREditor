@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-public sealed partial class DeleteEdgeCommand : EditorCommand
+public sealed class DeleteEdgeCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget[] _edgeTargets;
@@ -27,11 +27,14 @@ public sealed partial class DeleteEdgeCommand : EditorCommand
     public static IEnumerable<SelectionTarget> GetSelectedEdges(SelectionSnapshot selection) =>
         selection.Targets.Where(target => target.Kind == ScenePickElementKind.Edge).Distinct();
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_batches == null)
         {
             _batches = context.Scene.DeleteEdges(_edgeTargets);
+            if (_batches.Length == 0)
+                return false;
+
             _selectionAfterDelete = BuildSelectionAfterDelete();
         }
         else
@@ -40,19 +43,23 @@ public sealed partial class DeleteEdgeCommand : EditorCommand
             context.Scene.ApplyEdgeDeletionAfter(_batches);
         }
 
-        context.Selection.Apply(_selectionAfterDelete);
+        context.ApplySelection(_selectionAfterDelete);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_batches == null || _batches.Length == 0)
             return;
 
         context.Scene.ApplyEdgeDeletionBefore(_batches);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources()
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
     {
         if (_batches == null)
             return;

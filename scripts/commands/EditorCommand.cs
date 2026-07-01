@@ -1,55 +1,100 @@
-using Godot;
+using System;
 
-public abstract partial class EditorCommand : GodotObject
+public enum EditorCommandState
+{
+    New,
+    Applied,
+    Undone,
+    Disposed,
+}
+
+public abstract class EditorCommand : IDisposable
 {
     private EditorCommandContext _context;
-    private bool _resourcesReleased;
 
     public abstract string Name { get; }
 
-    public void SetContext(EditorCommandContext context)
-    {
-        _context = context;
-    }
+    public virtual bool AffectsDocument => true;
 
-    public void ExecuteDo()
-    {
-        Do(GetContext());
-    }
-
-    public void ExecuteUndo()
-    {
-        Undo(GetContext());
-    }
-
-    public abstract void Do(EditorCommandContext context);
-
-    public abstract void Undo(EditorCommandContext context);
+    public EditorCommandState State { get; private set; } = EditorCommandState.New;
 
     /// <summary>
-    /// Permanently release resources retained solely for future undo/redo. This method is
-    /// idempotent because history shutdown and future history eviction may overlap.
+    /// Attempts the first application before history accepts ownership of the command. Unlike
+    /// redo, this attempt may validly fail or do nothing, in which case the command is disposed
+    /// without changing history; success binds the context and transitions it to
+    /// <see cref="EditorCommandState.Applied"/>.
     /// </summary>
-    public void ReleaseResources()
+    internal bool ExecuteInitial(EditorCommandContext context)
     {
-        if (_resourcesReleased)
-            return;
+        ArgumentNullException.ThrowIfNull(context);
+        EnsureState(EditorCommandState.New);
+        _context = context;
 
-        _resourcesReleased = true;
-        OnReleaseResources();
-    }
-
-    protected virtual void OnReleaseResources() { }
-
-    private EditorCommandContext GetContext()
-    {
-        if (_context == null)
+        bool applied;
+        try
         {
-            throw new System.InvalidOperationException(
-                $"{nameof(EditorCommand)} must be assigned a context before execution."
-            );
+            applied = Do(context);
+        }
+        catch
+        {
+            Dispose();
+            throw;
         }
 
-        return _context;
+        if (!applied)
+        {
+            Dispose();
+            return false;
+        }
+
+        State = EditorCommandState.Applied;
+        return true;
+    }
+
+    internal void ExecuteUndo()
+    {
+        EnsureState(EditorCommandState.Applied);
+        Undo(_context);
+        State = EditorCommandState.Undone;
+    }
+
+    internal void ExecuteRedo()
+    {
+        EnsureState(EditorCommandState.Undone);
+        if (!Do(_context))
+            throw new InvalidOperationException($"Redo failed for command '{Name}'.");
+
+        State = EditorCommandState.Applied;
+    }
+
+    public void Dispose()
+    {
+        if (State == EditorCommandState.Disposed)
+            return;
+
+        EditorCommandState discardedState = State;
+        State = EditorCommandState.Disposed;
+        OnDispose(_context, discardedState);
+    }
+
+    protected abstract bool Do(EditorCommandContext context);
+
+    protected abstract void Undo(EditorCommandContext context);
+
+    /// <summary>
+    /// Releases resources retained for history. <paramref name="discardedState"/> identifies
+    /// which side of the command is currently active.
+    /// </summary>
+    protected virtual void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    ) { }
+
+    private void EnsureState(EditorCommandState expected)
+    {
+        if (State != expected)
+            throw new InvalidOperationException(
+                $"Command '{Name}' is {State}; expected {expected}."
+            );
     }
 }

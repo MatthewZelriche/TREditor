@@ -3,71 +3,81 @@ using System.Collections.Generic;
 
 public sealed class CommandService : IDisposable
 {
-    private readonly ICommandHistory _history;
-    private readonly List<EditorCommand> _commands = [];
+    public const int HistoryCapacity = 128;
+
+    private readonly List<EditorCommand> _undo = [];
+    private readonly List<EditorCommand> _redo = [];
     private readonly EditorCommandContext _context;
     private bool _disposed;
 
     public CommandService(EditorCommandContext context)
-        : this(context, new GodotCommandHistory()) { }
-
-    internal CommandService(EditorCommandContext context, ICommandHistory history)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(history);
 
         _context = context;
-        _history = history;
     }
 
     public event Action CommandHistoryChanged;
 
-    public bool CanUndo => _history.CanUndo;
-    public bool CanRedo => _history.CanRedo;
+    public bool CanUndo => _undo.Count > 0;
+    public bool CanRedo => _redo.Count > 0;
 
     public void Execute(EditorCommand command)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(command);
 
-        _commands.Add(command);
-        command.SetContext(_context);
-        _history.Execute(command);
+        if (!command.ExecuteInitial(_context))
+            return;
+
+        DisposeCommands(_redo);
+        _redo.Clear();
+        _undo.Add(command);
+        if (_undo.Count > HistoryCapacity)
+        {
+            _undo[0].Dispose();
+            _undo.RemoveAt(0);
+        }
+
         EmitCommandHistoryChanged();
     }
 
     public void Undo()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!CanUndo)
-        {
             return;
-        }
 
-        _history.Undo();
+        EditorCommand command = _undo[^1];
+        command.ExecuteUndo();
+        _undo.RemoveAt(_undo.Count - 1);
+        _redo.Add(command);
         EmitCommandHistoryChanged();
     }
 
     public void Redo()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!CanRedo)
-        {
             return;
-        }
 
-        _history.Redo();
+        EditorCommand command = _redo[^1];
+        command.ExecuteRedo();
+        _redo.RemoveAt(_redo.Count - 1);
+        _undo.Add(command);
         EmitCommandHistoryChanged();
     }
 
-    /// <summary>
-    /// Clear undo/redo and release every command-owned resource. Future bounded-history eviction
-    /// or redo-branch pruning must call <see cref="EditorCommand.ReleaseResources"/> for each
-    /// discarded command.
-    /// </summary>
     public void ClearHistory()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _history.Clear();
-        ReleaseCommands();
+        if (_undo.Count == 0 && _redo.Count == 0)
+            return;
+
+        DisposeCommands(_undo);
+        DisposeCommands(_redo);
+        _undo.Clear();
+        _redo.Clear();
         EmitCommandHistoryChanged();
     }
 
@@ -76,17 +86,17 @@ public sealed class CommandService : IDisposable
         if (_disposed)
             return;
 
-        _history.Clear();
-        ReleaseCommands();
-        _history.Dispose();
+        DisposeCommands(_undo);
+        DisposeCommands(_redo);
+        _undo.Clear();
+        _redo.Clear();
         _disposed = true;
     }
 
-    private void ReleaseCommands()
+    private static void DisposeCommands(IEnumerable<EditorCommand> commands)
     {
-        foreach (EditorCommand command in _commands)
-            command.ReleaseResources();
-        _commands.Clear();
+        foreach (EditorCommand command in commands)
+            command.Dispose();
     }
 
     private void EmitCommandHistoryChanged()

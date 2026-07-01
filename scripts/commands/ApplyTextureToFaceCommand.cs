@@ -2,7 +2,7 @@
 
 using TREditorSharp;
 
-public sealed partial class ApplyTextureToFaceCommand : EditorCommand
+public sealed class ApplyTextureToFaceCommand : EditorCommand
 {
     private readonly EditorObjectId _objectId;
     private readonly FaceTextureChange _change;
@@ -27,12 +27,10 @@ public sealed partial class ApplyTextureToFaceCommand : EditorCommand
         return change == null ? null : new ApplyTextureToFaceCommand(objectId, change);
     }
 
-    public override void Do(EditorCommandContext context)
-    {
+    protected override bool Do(EditorCommandContext context) =>
         context.Scene.ApplyFaceTexture(_objectId, _change, revert: false);
-    }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         context.Scene.ApplyFaceTexture(_objectId, _change, revert: true);
     }

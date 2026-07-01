@@ -1,6 +1,6 @@
 #nullable enable
 
-public sealed partial class EdgeCutCommand : EditorCommand
+public sealed class EdgeCutCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selectionBefore;
     private readonly SelectionTarget _face;
@@ -54,7 +54,7 @@ public sealed partial class EdgeCutCommand : EditorCommand
         );
     }
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         if (_change == null)
         {
@@ -66,7 +66,7 @@ public sealed partial class EdgeCutCommand : EditorCommand
                 _secondParameter
             );
             if (_change == null)
-                return;
+                return false;
 
             _selectionAfter = SelectionSnapshot.From(
                 [SelectionTarget.ForEdge(_face.ObjectId, _change.CutEdge)]
@@ -77,17 +77,21 @@ public sealed partial class EdgeCutCommand : EditorCommand
             context.Scene.ApplyEdgeCutAfter(_change);
         }
 
-        context.Selection.Apply(_selectionAfter);
+        context.ApplySelection(_selectionAfter);
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         if (_change == null)
             return;
 
         context.Scene.ApplyEdgeCutBefore(_change);
-        context.Selection.Apply(_selectionBefore);
+        context.ApplySelection(_selectionBefore);
     }
 
-    protected override void OnReleaseResources() => _change?.Dispose();
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    ) => _change?.Dispose();
 }

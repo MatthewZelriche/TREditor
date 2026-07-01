@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
 
-public sealed partial class DeleteMeshCommand : EditorCommand
+public sealed class DeleteMeshCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selection;
     private readonly EditorObjectId[] _objectIds;
+    private EditorObjectId[] _removedObjectIds;
 
     public override string Name => _objectIds.Length == 1 ? "Delete Mesh" : "Delete Meshes";
 
@@ -26,23 +27,55 @@ public sealed partial class DeleteMeshCommand : EditorCommand
             .Select(target => target.ObjectId)
             .Distinct();
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
-        context.Selection.Apply(SelectionSnapshot.Empty);
+        context.ApplySelection(SelectionSnapshot.Empty);
 
-        foreach (EditorObjectId objectId in _objectIds)
+        if (_removedObjectIds == null)
         {
-            context.Scene.RemoveMeshObject(objectId);
+            List<EditorObjectId> removed = [];
+            foreach (EditorObjectId objectId in _objectIds)
+            {
+                if (context.Objects.RemoveMeshObject(objectId))
+                    removed.Add(objectId);
+            }
+
+            if (removed.Count == 0)
+            {
+                context.ApplySelection(_selection);
+                return false;
+            }
+
+            _removedObjectIds = removed.ToArray();
         }
+        else
+        {
+            foreach (EditorObjectId objectId in _removedObjectIds)
+                context.Objects.RemoveMeshObject(objectId);
+        }
+
+        return true;
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
-        foreach (EditorObjectId objectId in _objectIds)
+        foreach (EditorObjectId objectId in _removedObjectIds)
         {
-            context.Scene.RestoreMeshObject(objectId);
+            context.Objects.RestoreMeshObject(objectId);
         }
 
-        context.Selection.Apply(_selection);
+        context.ApplySelection(_selection);
+    }
+
+    protected override void OnDispose(
+        EditorCommandContext context,
+        EditorCommandState discardedState
+    )
+    {
+        if (discardedState != EditorCommandState.Applied || _removedObjectIds == null)
+            return;
+
+        foreach (EditorObjectId objectId in _removedObjectIds)
+            context.Objects.DestroyMeshObject(objectId);
     }
 }

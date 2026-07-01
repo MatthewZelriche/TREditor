@@ -1,11 +1,13 @@
 using System;
 
-public sealed partial class SetSelectionCommand : EditorCommand
+public sealed class SetSelectionCommand : EditorCommand
 {
     private readonly SelectionSnapshot _before;
     private readonly SelectionSnapshot _after;
 
     public override string Name { get; }
+
+    public override bool AffectsDocument => false;
 
     public SetSelectionCommand(SelectionSnapshot before, SelectionSnapshot after)
     {
@@ -22,17 +24,17 @@ public sealed partial class SetSelectionCommand : EditorCommand
         return before == after ? null : new SetSelectionCommand(before, after);
     }
 
-    public override void Do(EditorCommandContext context)
+    protected override bool Do(EditorCommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        context.Selection.Apply(_after);
+        return context.ApplySelection(_after);
     }
 
-    public override void Undo(EditorCommandContext context)
+    protected override void Undo(EditorCommandContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        context.Selection.Apply(_before);
+        context.ApplySelection(_before);
     }
 }
