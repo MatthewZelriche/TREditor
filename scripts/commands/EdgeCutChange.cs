@@ -67,7 +67,7 @@ public sealed class EdgeCutChange : IDisposable
 
         return first.ExistingVertex.IsNull
             || second.ExistingVertex.IsNull
-            || !AreVerticesConnected(mesh, first.ExistingVertex, second.ExistingVertex);
+            || mesh.FindHalfEdge(first.ExistingVertex, second.ExistingVertex).IsNull;
     }
 
     public static EdgeCutChange? Cut(
@@ -134,7 +134,7 @@ public sealed class EdgeCutChange : IDisposable
                 mesh.SetFaceUvsInitialized(splitFace, hadInitializedUvs);
             }
 
-            cutEdge = FindDirectedEdge(mesh, firstVertex, secondVertex);
+            cutEdge = mesh.FindHalfEdge(firstVertex, secondVertex);
             patch = edit.Commit();
         }
 
@@ -244,48 +244,6 @@ public sealed class EdgeCutChange : IDisposable
     {
         HalfEdge edge = mesh.GetHalfEdge(faceEdge);
         return edge.Origin == vertex || mesh.GetHalfEdge(edge.Next).Origin == vertex;
-    }
-
-    private static bool AreVerticesConnected(
-        SpatialMesh mesh,
-        VertexHandle first,
-        VertexHandle second
-    )
-    {
-        foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
-        {
-            HalfEdge data = mesh.GetHalfEdge(edge);
-            if (
-                data.Origin == first
-                && mesh.IsHalfEdgeAlive(data.Twin)
-                && mesh.GetHalfEdge(data.Twin).Origin == second
-            )
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static HalfEdgeHandle FindDirectedEdge(
-        SpatialMesh mesh,
-        VertexHandle origin,
-        VertexHandle destination
-    )
-    {
-        foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
-        {
-            HalfEdge data = mesh.GetHalfEdge(edge);
-            if (
-                data.Origin == origin
-                && mesh.IsHalfEdgeAlive(data.Twin)
-                && mesh.GetHalfEdge(data.Twin).Origin == destination
-            )
-            {
-                return edge;
-            }
-        }
-        return HalfEdgeHandle.Null;
     }
 
     private readonly record struct CutLocation(

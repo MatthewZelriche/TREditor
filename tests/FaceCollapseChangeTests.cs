@@ -50,7 +50,7 @@ public sealed class FaceCollapseChangeTests
         for (int i = 0; i < surroundingFaces.Count; i++)
         {
             mesh.SetFaceMaterialSlot(surroundingFaces[i], i + 1);
-            InitializeProjectedUvs(mesh, surroundingFaces[i]);
+            Assert.True(FaceUvProjector.TryProjectAndApply(mesh, surroundingFaces[i]));
         }
         Vector3 centroid = mesh.ComputeFaceCentroid(sourceFace);
 
@@ -121,15 +121,6 @@ public sealed class FaceCollapseChangeTests
         }
 
         throw new InvalidOperationException("Expected face was not found.");
-    }
-
-    private static void InitializeProjectedUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        Assert.True(FaceUvProjector.TryProject(mesh, face, projected));
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 
     private static void AssertProjectedUvs(SpatialMesh mesh, FaceHandle face)

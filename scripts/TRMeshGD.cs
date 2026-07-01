@@ -102,21 +102,23 @@ public partial class TRMeshGD : Node3D
                 )
                 : null;
 
-            for (int i = 0; i < _rebuildScratchFaceCorners.Count; i += 3)
+            if (rebuildRender)
             {
-                FaceCornerHandle a = _rebuildScratchFaceCorners[i];
-                FaceCornerHandle b = _rebuildScratchFaceCorners[i + 1];
-                FaceCornerHandle c = _rebuildScratchFaceCorners[i + 2];
+                // TRMesh stores outward faces CCW; Godot expects the opposite winding.
+                MeshRenderDataBuilder.AppendTriangulation(
+                    SourceMesh,
+                    renderSurface,
+                    _rebuildScratchFaceCorners
+                );
+            }
 
-                if (rebuildRender)
+            if (rebuildCollision)
+            {
+                for (int i = 0; i < _rebuildScratchFaceCorners.Count; i += 3)
                 {
-                    // TRMesh stores outward faces CCW; Godot expects the opposite winding for
-                    // rendering.
-                    MeshRenderDataBuilder.AppendTriangle(SourceMesh, renderSurface, a, c, b);
-                }
-
-                if (rebuildCollision)
-                {
+                    FaceCornerHandle a = _rebuildScratchFaceCorners[i];
+                    FaceCornerHandle b = _rebuildScratchFaceCorners[i + 1];
+                    FaceCornerHandle c = _rebuildScratchFaceCorners[i + 2];
                     MeshCollider.AppendRebuildTriangle(
                         SourceMesh,
                         _rebuildScratchColliderFaces,

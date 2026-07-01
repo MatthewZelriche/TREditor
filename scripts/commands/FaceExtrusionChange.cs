@@ -96,24 +96,7 @@ public sealed class FaceExtrusionChange : IDisposable
     {
         List<ProjectedFaceCornerUv> projected = [];
         foreach (FaceHandle face in result.SideFaces)
-            InitializeFaceUvs(mesh, face, projected);
-        InitializeFaceUvs(mesh, result.CapFace, projected);
-    }
-
-    private static void InitializeFaceUvs(
-        SpatialMesh mesh,
-        FaceHandle face,
-        List<ProjectedFaceCornerUv> projected
-    )
-    {
-        projected.Clear();
-        if (!FaceUvProjector.TryProject(mesh, face, projected))
-            return;
-
-        foreach (ProjectedFaceCornerUv corner in projected)
-        {
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        }
-        mesh.SetFaceUvsInitialized(face, true);
+            FaceUvProjector.TryProjectAndApply(mesh, face, projected);
+        FaceUvProjector.TryProjectAndApply(mesh, result.CapFace, projected);
     }
 }

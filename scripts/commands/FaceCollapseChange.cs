@@ -83,7 +83,7 @@ public sealed class FaceCollapseChange : IDisposable
         survivor = vertices[0];
         for (int i = 1; i < vertices.Count; i++)
         {
-            HalfEdgeHandle edge = FindDirectedEdge(mesh, survivor, vertices[i]);
+            HalfEdgeHandle edge = mesh.FindHalfEdge(survivor, vertices[i]);
             if (
                 edge.IsNull
                 || !mesh.TryCollapseEdge(edge, out VertexHandle collapsedSurvivor, 0f)
@@ -99,27 +99,5 @@ public sealed class FaceCollapseChange : IDisposable
         mesh.SetVertexPosition(survivor, centroid);
         FaceUvProjector.ReprojectInitializedFacesAroundVertices(mesh, [survivor]);
         return edit;
-    }
-
-    private static HalfEdgeHandle FindDirectedEdge(
-        SpatialMesh mesh,
-        VertexHandle origin,
-        VertexHandle destination
-    )
-    {
-        foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
-        {
-            HalfEdge halfEdge = mesh.GetHalfEdge(edge);
-            if (
-                halfEdge.Origin == origin
-                && mesh.IsHalfEdgeAlive(halfEdge.Twin)
-                && mesh.GetHalfEdge(halfEdge.Twin).Origin == destination
-            )
-            {
-                return edge;
-            }
-        }
-
-        return HalfEdgeHandle.Null;
     }
 }

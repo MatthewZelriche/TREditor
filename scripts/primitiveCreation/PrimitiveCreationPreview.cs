@@ -78,23 +78,18 @@ public partial class PrimitiveCreationPreview : Node3D
         using SpatialMesh mesh = PrimitiveMeshFactory.Build(settings, bounds);
         foreach (var face in mesh.EnumerateLiveFaces())
         {
-            _faceTriangulation.Clear();
-
-            if (!mesh.TriangulateFace(face, _faceTriangulation))
+            if (
+                !MeshRenderDataBuilder.TryAppendFace(
+                    mesh,
+                    _faceRenderData,
+                    face,
+                    _faceTriangulation
+                )
+            )
             {
                 GD.PushWarning(
                     $"PrimitiveCreationPreview skipped face {face}: triangulation failed."
                 );
-                continue;
-            }
-
-            for (int i = 0; i < _faceTriangulation.Count; i += 3)
-            {
-                FaceCornerHandle a = _faceTriangulation[i];
-                FaceCornerHandle b = _faceTriangulation[i + 1];
-                FaceCornerHandle c = _faceTriangulation[i + 2];
-
-                MeshRenderDataBuilder.AppendTriangle(mesh, _faceRenderData, a, c, b);
             }
         }
 
@@ -187,44 +182,15 @@ public partial class PrimitiveCreationPreview : Node3D
 
     private void AddTube(Vector3 start, Vector3 end)
     {
-        Vector3 axis = end - start;
-        if (axis.IsZeroApprox())
-        {
-            return;
-        }
-
-        axis = axis.Normalized();
-        Vector3 reference = Mathf.Abs(axis.Dot(Vector3.Up)) > 0.95f ? Vector3.Right : Vector3.Up;
-        Vector3 sideA = axis.Cross(reference).Normalized();
-        Vector3 sideB = axis.Cross(sideA).Normalized();
-        int firstIndex = _wireVertices.Count;
-
-        for (int i = 0; i < WireSegments; i++)
-        {
-            float angle = Mathf.Tau * i / WireSegments;
-            Vector3 normal = sideA * Mathf.Cos(angle) + sideB * Mathf.Sin(angle);
-
-            _wireVertices.Add(start + normal * WireRadius);
-            _wireNormals.Add(normal);
-            _wireVertices.Add(end + normal * WireRadius);
-            _wireNormals.Add(normal);
-        }
-
-        for (int i = 0; i < WireSegments; i++)
-        {
-            int next = (i + 1) % WireSegments;
-            int a = firstIndex + i * 2;
-            int b = firstIndex + next * 2;
-            int c = firstIndex + next * 2 + 1;
-            int d = firstIndex + i * 2 + 1;
-
-            _wireIndices.Add(a);
-            _wireIndices.Add(b);
-            _wireIndices.Add(c);
-            _wireIndices.Add(a);
-            _wireIndices.Add(c);
-            _wireIndices.Add(d);
-        }
+        TubeMeshBuilder.Append(
+            start,
+            end,
+            WireRadius,
+            WireSegments,
+            _wireVertices,
+            _wireNormals,
+            _wireIndices
+        );
     }
 
     private static Vector3 GetCylinderRingPoint(

@@ -63,7 +63,7 @@ public sealed class EdgeExtrusionChangeTests
             out HalfEdgeHandle sourceEdge
         );
         mesh.SetFaceMaterialSlot(sourceFace, 9);
-        InitializeProjectedUvs(mesh, sourceFace);
+        Assert.True(FaceUvProjector.TryProjectAndApply(mesh, sourceFace));
 
         using EdgeExtrusionChange change = AssertExtruded(mesh, sourceEdge, Vector3.UnitZ);
 
@@ -127,15 +127,6 @@ public sealed class EdgeExtrusionChangeTests
             }
         }
         return mesh;
-    }
-
-    private static void InitializeProjectedUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        Assert.True(FaceUvProjector.TryProject(mesh, face, projected));
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 
     private static int CountFaces(SpatialMesh mesh)

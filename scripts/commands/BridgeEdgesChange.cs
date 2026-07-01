@@ -64,7 +64,7 @@ public sealed class BridgeEdgesChange : IDisposable
             if (result.SourceHadInitializedUvs)
             {
                 foreach (FaceHandle face in result.Faces)
-                    InitializeFaceUvs(mesh, face);
+                    FaceUvProjector.TryProjectAndApply(mesh, face);
             }
             patch = edit.Commit();
         }
@@ -83,16 +83,5 @@ public sealed class BridgeEdgesChange : IDisposable
 
         _disposed = true;
         _patch.Dispose();
-    }
-
-    private static void InitializeFaceUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        if (!FaceUvProjector.TryProject(mesh, face, projected))
-            return;
-
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 }

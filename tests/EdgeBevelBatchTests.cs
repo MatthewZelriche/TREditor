@@ -73,7 +73,7 @@ public sealed class EdgeBevelBatchTests
         using SpatialMesh mesh = BuildBox();
         HalfEdgeHandle edge = FindEdge(mesh, new(1, -1, 1), new(1, 1, 1));
         FaceHandle sourceFace = mesh.GetHalfEdge(edge).Face;
-        InitializeFaceUvs(mesh, sourceFace);
+        Assert.True(FaceUvProjector.TryProjectAndApply(mesh, sourceFace));
 
         using EdgeBevelBatch batch = AssertBevel(mesh, [edge], 0.25f);
 
@@ -105,14 +105,5 @@ public sealed class EdgeBevelBatchTests
         }
 
         throw new InvalidOperationException("Expected edge was not found.");
-    }
-
-    private static void InitializeFaceUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        Assert.True(FaceUvProjector.TryProject(mesh, face, projected));
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 }

@@ -83,35 +83,7 @@ public sealed partial class EdgeCutPreview : Node3D
 
     private void AddTube(Vector3 start, Vector3 end)
     {
-        Vector3 direction = end - start;
-        if (direction.IsZeroApprox())
-            return;
-
-        Vector3 axis = direction.Normalized();
-        Vector3 reference = Mathf.Abs(axis.Dot(Vector3.Up)) > 0.95f ? Vector3.Right : Vector3.Up;
-        Vector3 sideA = axis.Cross(reference).Normalized();
-        Vector3 sideB = axis.Cross(sideA).Normalized();
-        int firstIndex = _vertices.Count;
-
-        for (int index = 0; index < LineSegments; index++)
-        {
-            float angle = Mathf.Tau * index / LineSegments;
-            Vector3 normal = sideA * Mathf.Cos(angle) + sideB * Mathf.Sin(angle);
-            _vertices.Add(start + normal * LineRadius);
-            _normals.Add(normal);
-            _vertices.Add(end + normal * LineRadius);
-            _normals.Add(normal);
-        }
-
-        for (int index = 0; index < LineSegments; index++)
-        {
-            int next = (index + 1) % LineSegments;
-            int a = firstIndex + index * 2;
-            int b = firstIndex + next * 2;
-            int c = firstIndex + next * 2 + 1;
-            int d = firstIndex + index * 2 + 1;
-            AddQuad(a, b, c, d);
-        }
+        TubeMeshBuilder.Append(start, end, LineRadius, LineSegments, _vertices, _normals, _indices);
     }
 
     private void AddOctahedron(Vector3 center, float radius)
@@ -140,12 +112,6 @@ public sealed partial class EdgeCutPreview : Node3D
         AddTriangle(firstIndex + 5, firstIndex + 3, firstIndex + 2);
         AddTriangle(firstIndex + 5, firstIndex + 4, firstIndex + 3);
         AddTriangle(firstIndex + 5, firstIndex + 1, firstIndex + 4);
-    }
-
-    private void AddQuad(int a, int b, int c, int d)
-    {
-        AddTriangle(a, b, c);
-        AddTriangle(a, c, d);
     }
 
     private void AddTriangle(int a, int b, int c)

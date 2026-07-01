@@ -28,10 +28,9 @@ public static class InvalidFaceEdgeCollector
 
             foreach (HalfEdgeHandle edge in mesh.HalfEdgesAroundFace(face))
             {
-                HalfEdgeHandle twin = mesh.GetHalfEdge(edge).Twin;
-                int canonicalIndex = Math.Min(edge.Index, twin.Index);
-                if (seenEdgeIndices.Add(canonicalIndex))
-                    output.Add(edge.Index <= twin.Index ? edge : twin);
+                HalfEdgeHandle canonical = mesh.GetCanonicalEdge(edge);
+                if (seenEdgeIndices.Add(canonical.Index))
+                    output.Add(canonical);
             }
         }
 

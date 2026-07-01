@@ -138,14 +138,8 @@ public sealed partial class ComponentSelectionOverlay : Node3D
     {
         if (kinds.Includes(ScenePickElementKind.Edge))
         {
-            foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
+            foreach (HalfEdgeHandle edge in mesh.EnumerateLiveEdges())
             {
-                HalfEdge halfEdge = mesh.GetHalfEdge(edge);
-                if (halfEdge.Twin.IsNull || edge.Index > halfEdge.Twin.Index)
-                {
-                    continue;
-                }
-
                 AddEdge(mesh, edge, localCameraOrigin, active: false);
             }
         }
@@ -236,7 +230,7 @@ public sealed partial class ComponentSelectionOverlay : Node3D
             return;
         }
 
-        HalfEdgeHandle canonical = edge.Index <= halfEdge.Twin.Index ? edge : halfEdge.Twin;
+        HalfEdgeHandle canonical = mesh.GetCanonicalEdge(edge);
         if (_invalidEdgeIndicesByCanonicalHandle.Contains(canonical.Index))
         {
             return;
@@ -274,13 +268,15 @@ public sealed partial class ComponentSelectionOverlay : Node3D
                 localCameraOrigin,
                 ActiveEdgeScale * 1.25f
             );
-            AddTube(
+            TubeMeshBuilder.Append(
                 start,
                 end,
                 Mathf.Max(radius, MinEdgeRadius),
+                EdgeSegments,
                 _invalidEdgeVertices,
                 _invalidEdgeNormals,
-                _invalidEdgeIndices
+                _invalidEdgeIndices,
+                reverseWinding: true
             );
         }
     }
@@ -328,65 +324,19 @@ public sealed partial class ComponentSelectionOverlay : Node3D
 
     private void AddTube(Vector3 start, Vector3 end, float radius, bool active)
     {
-        Vector3 axis = end - start;
-        if (axis.IsZeroApprox())
-        {
-            return;
-        }
-
         List<Vector3> vertices = active ? _activeEdgeVertices : _defaultEdgeVertices;
         List<Vector3> normals = active ? _activeEdgeNormals : _defaultEdgeNormals;
         List<int> indices = active ? _activeEdgeIndices : _defaultEdgeIndices;
-        AddTube(start, end, radius, vertices, normals, indices);
-    }
-
-    private static void AddTube(
-        Vector3 start,
-        Vector3 end,
-        float radius,
-        List<Vector3> vertices,
-        List<Vector3> normals,
-        List<int> indices
-    )
-    {
-        Vector3 axis = end - start;
-        if (axis.IsZeroApprox())
-        {
-            return;
-        }
-
-        axis = axis.Normalized();
-        Vector3 reference = Mathf.Abs(axis.Dot(Vector3.Up)) > 0.95f ? Vector3.Right : Vector3.Up;
-        Vector3 sideA = axis.Cross(reference).Normalized();
-        Vector3 sideB = axis.Cross(sideA).Normalized();
-        int firstIndex = vertices.Count;
-
-        for (int i = 0; i < EdgeSegments; i++)
-        {
-            float angle = Mathf.Tau * i / EdgeSegments;
-            Vector3 normal = sideA * Mathf.Cos(angle) + sideB * Mathf.Sin(angle);
-
-            vertices.Add(start + normal * radius);
-            normals.Add(normal);
-            vertices.Add(end + normal * radius);
-            normals.Add(normal);
-        }
-
-        for (int i = 0; i < EdgeSegments; i++)
-        {
-            int next = (i + 1) % EdgeSegments;
-            int a = firstIndex + i * 2;
-            int b = firstIndex + next * 2;
-            int c = firstIndex + next * 2 + 1;
-            int d = firstIndex + i * 2 + 1;
-
-            indices.Add(a);
-            indices.Add(c);
-            indices.Add(b);
-            indices.Add(a);
-            indices.Add(d);
-            indices.Add(c);
-        }
+        TubeMeshBuilder.Append(
+            start,
+            end,
+            radius,
+            EdgeSegments,
+            vertices,
+            normals,
+            indices,
+            reverseWinding: true
+        );
     }
 
     private void AddOctahedron(Vector3 center, float radius, bool active)

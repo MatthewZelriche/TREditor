@@ -97,44 +97,35 @@ public static class MeshComponentPicker
         Vector3 bestPosition = default;
         float radiusSquared = radius * radius;
 
-        foreach (HalfEdgeHandle edge in mesh.EnumerateLiveHalfEdges())
+        foreach (HalfEdgeHandle edge in mesh.EnumerateLiveEdges())
         {
             HalfEdge halfEdge = mesh.GetHalfEdge(edge);
-            if (halfEdge.Twin.IsNull || edge.Index > halfEdge.Twin.Index)
-            {
-                continue;
-            }
-
             HalfEdge twin = mesh.GetHalfEdge(halfEdge.Twin);
             Vector3 a = ToGodotVector3(mesh.GetVertexPosition(halfEdge.Origin));
             Vector3 b = ToGodotVector3(mesh.GetVertexPosition(twin.Origin));
 
-            ClosestRaySegment(
+            RaySegmentClosestPoints closest = RaySegmentGeometry.FindClosestPoints(
                 rayOrigin,
                 rayDirection,
                 a,
-                b,
-                out float rayDistance,
-                out _,
-                out Vector3 rayPoint,
-                out Vector3 edgePoint
+                b
             );
 
-            if (rayDistance < 0.0f || rayDistance > maxDistance)
+            if (closest.RayDistance < 0.0f || closest.RayDistance > maxDistance)
             {
                 continue;
             }
 
-            if ((rayPoint - edgePoint).LengthSquared() > radiusSquared)
+            if ((closest.RayPoint - closest.SegmentPoint).LengthSquared() > radiusSquared)
             {
                 continue;
             }
 
-            if (rayDistance < bestDistance)
+            if (closest.RayDistance < bestDistance)
             {
-                bestDistance = rayDistance;
+                bestDistance = closest.RayDistance;
                 bestEdge = edge;
-                bestPosition = rayPoint;
+                bestPosition = closest.RayPoint;
             }
         }
 
@@ -190,59 +181,6 @@ public static class MeshComponentPicker
                 bestDistance
             )
             : ScenePickHit.None;
-    }
-
-    private static void ClosestRaySegment(
-        Vector3 rayOrigin,
-        Vector3 rayDirection,
-        Vector3 segmentA,
-        Vector3 segmentB,
-        out float rayDistance,
-        out float segmentT,
-        out Vector3 rayPoint,
-        out Vector3 segmentPoint
-    )
-    {
-        Vector3 segmentDirection = segmentB - segmentA;
-        Vector3 w0 = rayOrigin - segmentA;
-        float b = rayDirection.Dot(segmentDirection);
-        float c = segmentDirection.Dot(segmentDirection);
-        float d = rayDirection.Dot(w0);
-        float e = segmentDirection.Dot(w0);
-        float denominator = c - b * b;
-
-        if (c <= Epsilon)
-        {
-            rayDistance = Mathf.Max(0.0f, -d);
-            segmentT = 0.0f;
-        }
-        else if (denominator > Epsilon)
-        {
-            rayDistance = (b * e - c * d) / denominator;
-            segmentT = (e - b * d) / denominator;
-            if (rayDistance < 0.0f)
-            {
-                rayDistance = 0.0f;
-                segmentT = e / c;
-            }
-
-            segmentT = Mathf.Clamp(segmentT, 0.0f, 1.0f);
-            Vector3 pointOnSegment = segmentA + segmentDirection * segmentT;
-            rayDistance = Mathf.Max(0.0f, (pointOnSegment - rayOrigin).Dot(rayDirection));
-            segmentT = Mathf.Clamp(
-                (rayOrigin + rayDirection * rayDistance - segmentA).Dot(segmentDirection) / c,
-                0.0f,
-                1.0f
-            );
-        }
-        else
-        {
-            rayDistance = Mathf.Max(0.0f, -d);
-            segmentT = Mathf.Clamp(e / c, 0.0f, 1.0f);
-        }
-
-        rayPoint = rayOrigin + rayDirection * rayDistance;
-        segmentPoint = segmentA + segmentDirection * segmentT;
     }
 
     private static bool TryRayTriangle(

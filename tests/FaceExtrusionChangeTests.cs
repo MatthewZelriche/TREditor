@@ -61,7 +61,7 @@ public sealed class FaceExtrusionChangeTests
     {
         using SpatialMesh mesh = BuildQuad(out FaceHandle sourceFace, out _);
         mesh.SetFaceMaterialSlot(sourceFace, 7);
-        InitializeProjectedUvs(mesh, sourceFace);
+        Assert.True(FaceUvProjector.TryProjectAndApply(mesh, sourceFace));
         Vector2[] sourceUvs = CaptureUvs(mesh, sourceFace);
 
         using FaceExtrusionChange change = AssertExtruded(mesh, sourceFace, new Vector3(0, 0, 2));
@@ -145,15 +145,6 @@ public sealed class FaceExtrusionChangeTests
         foreach (VertexHandle _ in mesh.EnumerateLiveVertices())
             count++;
         return count;
-    }
-
-    private static void InitializeProjectedUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        Assert.True(FaceUvProjector.TryProject(mesh, face, projected));
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 
     private static void AssertProjectedUvs(SpatialMesh mesh, FaceHandle face)

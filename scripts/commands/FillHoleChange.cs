@@ -37,7 +37,7 @@ public sealed class FillHoleChange : IDisposable
             if (!mesh.TryFillHole(edge, out face))
                 return null;
 
-            InitializeFaceUvs(mesh, face);
+            FaceUvProjector.TryProjectAndApply(mesh, face);
             patch = edit.Commit();
         }
 
@@ -55,16 +55,5 @@ public sealed class FillHoleChange : IDisposable
 
         _disposed = true;
         _patch.Dispose();
-    }
-
-    private static void InitializeFaceUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        if (!FaceUvProjector.TryProject(mesh, face, projected))
-            return;
-
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 }

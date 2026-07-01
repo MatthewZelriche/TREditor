@@ -35,7 +35,7 @@ public sealed class BridgeEdgesChangeTests
     {
         using SpatialMesh mesh = BuildWalls(out HalfEdgeHandle first, out HalfEdgeHandle second);
         FaceHandle sourceFace = GetLiveFace(mesh, first);
-        InitializeFaceUvs(mesh, sourceFace);
+        Assert.True(FaceUvProjector.TryProjectAndApply(mesh, sourceFace));
 
         using BridgeEdgesChange change = AssertBridge(mesh, first, second, 2, 90f);
 
@@ -105,14 +105,5 @@ public sealed class BridgeEdgesChangeTests
     {
         HalfEdge data = mesh.GetHalfEdge(edge);
         return mesh.IsFaceAlive(data.Face) ? data.Face : mesh.GetHalfEdge(data.Twin).Face;
-    }
-
-    private static void InitializeFaceUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        Assert.True(FaceUvProjector.TryProject(mesh, face, projected));
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 }

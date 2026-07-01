@@ -239,29 +239,25 @@ public sealed class EdgeCutToolInput
             HalfEdge data = mesh.GetHalfEdge(edge);
             Vector3 a = ToGodot(mesh.GetVertexPosition(data.Origin));
             Vector3 b = ToGodot(mesh.GetVertexPosition(mesh.GetHalfEdge(data.Twin).Origin));
-            ClosestRaySegment(
+            RaySegmentClosestPoints closest = RaySegmentGeometry.FindClosestPoints(
                 localOrigin,
                 localDirection,
                 a,
-                b,
-                out float rayDistance,
-                out float parameter,
-                out Vector3 rayPoint,
-                out Vector3 edgePoint
+                b
             );
             if (
-                rayDistance < 0f
-                || (rayPoint - edgePoint).LengthSquared() > radiusSquared
-                || rayDistance >= bestRayDistance
+                closest.RayDistance < 0f
+                || (closest.RayPoint - closest.SegmentPoint).LengthSquared() > radiusSquared
+                || closest.RayDistance >= bestRayDistance
             )
             {
                 continue;
             }
 
-            bestRayDistance = rayDistance;
+            bestRayDistance = closest.RayDistance;
             bestEdge = edge;
-            bestParameter = parameter;
-            bestPosition = edgePoint;
+            bestParameter = closest.SegmentParameter;
+            bestPosition = closest.SegmentPoint;
         }
 
         if (bestEdge.IsNull)
@@ -341,62 +337,6 @@ public sealed class EdgeCutToolInput
             second.Edge,
             second.Parameter
         );
-
-    private static void ClosestRaySegment(
-        Vector3 rayOrigin,
-        Vector3 rayDirection,
-        Vector3 segmentA,
-        Vector3 segmentB,
-        out float rayDistance,
-        out float segmentParameter,
-        out Vector3 rayPoint,
-        out Vector3 segmentPoint
-    )
-    {
-        Vector3 segmentDirection = segmentB - segmentA;
-        Vector3 offset = rayOrigin - segmentA;
-        float raySegmentDot = rayDirection.Dot(segmentDirection);
-        float segmentLengthSquared = segmentDirection.LengthSquared();
-        float rayOffsetDot = rayDirection.Dot(offset);
-        float segmentOffsetDot = segmentDirection.Dot(offset);
-        float denominator = segmentLengthSquared - raySegmentDot * raySegmentDot;
-
-        if (segmentLengthSquared <= Mathf.Epsilon)
-        {
-            rayDistance = Mathf.Max(0f, -rayOffsetDot);
-            segmentParameter = 0f;
-        }
-        else if (denominator > Mathf.Epsilon)
-        {
-            rayDistance =
-                (raySegmentDot * segmentOffsetDot - segmentLengthSquared * rayOffsetDot)
-                / denominator;
-            segmentParameter = (segmentOffsetDot - raySegmentDot * rayOffsetDot) / denominator;
-            if (rayDistance < 0f)
-            {
-                rayDistance = 0f;
-                segmentParameter = segmentOffsetDot / segmentLengthSquared;
-            }
-
-            segmentParameter = Mathf.Clamp(segmentParameter, 0f, 1f);
-            segmentPoint = segmentA + segmentDirection * segmentParameter;
-            rayDistance = Mathf.Max(0f, (segmentPoint - rayOrigin).Dot(rayDirection));
-            segmentParameter = Mathf.Clamp(
-                (rayOrigin + rayDirection * rayDistance - segmentA).Dot(segmentDirection)
-                    / segmentLengthSquared,
-                0f,
-                1f
-            );
-        }
-        else
-        {
-            rayDistance = Mathf.Max(0f, -rayOffsetDot);
-            segmentParameter = Mathf.Clamp(segmentOffsetDot / segmentLengthSquared, 0f, 1f);
-        }
-
-        rayPoint = rayOrigin + rayDirection * rayDistance;
-        segmentPoint = segmentA + segmentDirection * segmentParameter;
-    }
 
     private static Vector3 ToGodot(NumericsVector3 value) => new(value.X, value.Y, value.Z);
 

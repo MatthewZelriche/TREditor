@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using TREditorSharp;
 using NumericsVector2 = System.Numerics.Vector2;
@@ -9,6 +10,57 @@ using NumericsVector3 = System.Numerics.Vector3;
 /// </summary>
 public static class MeshRenderDataBuilder
 {
+    /// <summary>
+    /// Triangulates one polygon face and appends its render triangles.
+    /// </summary>
+    public static bool TryAppendFace(
+        SpatialMesh sourceMesh,
+        MeshRenderData output,
+        FaceHandle face,
+        List<FaceCornerHandle> triangulationScratch,
+        bool reverseWinding = true
+    )
+    {
+        ArgumentNullException.ThrowIfNull(sourceMesh);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(triangulationScratch);
+
+        triangulationScratch.Clear();
+        if (!sourceMesh.TriangulateFace(face, triangulationScratch))
+            return false;
+
+        AppendTriangulation(sourceMesh, output, triangulationScratch, reverseWinding);
+        return true;
+    }
+
+    /// <summary>
+    /// Appends an existing face-corner triangulation to render data.
+    /// </summary>
+    public static void AppendTriangulation(
+        SpatialMesh sourceMesh,
+        MeshRenderData output,
+        IReadOnlyList<FaceCornerHandle> triangulation,
+        bool reverseWinding = true
+    )
+    {
+        ArgumentNullException.ThrowIfNull(sourceMesh);
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(triangulation);
+        if (triangulation.Count % 3 != 0)
+            throw new ArgumentException(
+                "A face triangulation must contain complete corner triplets.",
+                nameof(triangulation)
+            );
+
+        for (int index = 0; index < triangulation.Count; index += 3)
+        {
+            FaceCornerHandle a = triangulation[index];
+            FaceCornerHandle b = triangulation[index + 1];
+            FaceCornerHandle c = triangulation[index + 2];
+            AppendTriangle(sourceMesh, output, a, reverseWinding ? c : b, reverseWinding ? b : c);
+        }
+    }
+
     /// <summary>
     /// Returns the render surface belonging to <paramref name="face"/>'s material slot. Call this
     /// once per polygon face, then append every generated triangle into the returned surface.

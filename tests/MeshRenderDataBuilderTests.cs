@@ -137,6 +137,22 @@ public sealed class MeshRenderDataBuilderTests
         Assert.Equal(6, surface.Data.Vertices.Count);
     }
 
+    [Fact]
+    public void TryAppendFace_ReversesSourceWindingByDefault()
+    {
+        using SpatialMesh mesh = BuildTriangle();
+        FaceHandle face = GetOnlyFace(mesh);
+        List<FaceCornerHandle> corners = GetCorners(mesh, face);
+        MeshRenderData data = new();
+        List<FaceCornerHandle> scratch = [];
+
+        Assert.True(MeshRenderDataBuilder.TryAppendFace(mesh, data, face, scratch));
+
+        Assert.Equal(GetCornerPosition(mesh, corners[0]), data.Vertices[0]);
+        Assert.Equal(GetCornerPosition(mesh, corners[2]), data.Vertices[1]);
+        Assert.Equal(GetCornerPosition(mesh, corners[1]), data.Vertices[2]);
+    }
+
     private static SpatialMesh BuildTriangle()
     {
         SpatialMesh mesh = new();
@@ -215,18 +231,8 @@ public sealed class MeshRenderDataBuilderTests
     private static void AppendFace(SpatialMesh mesh, MeshRenderSurfaceSet surfaces, FaceHandle face)
     {
         List<FaceCornerHandle> triangles = [];
-        Assert.True(mesh.TriangulateFace(face, triangles));
         MeshRenderData surface = MeshRenderDataBuilder.GetFaceSurface(mesh, surfaces, face);
-        for (int i = 0; i < triangles.Count; i += 3)
-        {
-            MeshRenderDataBuilder.AppendTriangle(
-                mesh,
-                surface,
-                triangles[i],
-                triangles[i + 2],
-                triangles[i + 1]
-            );
-        }
+        Assert.True(MeshRenderDataBuilder.TryAppendFace(mesh, surface, face, triangles));
     }
 
     private static GodotVector3 GetCornerPosition(SpatialMesh mesh, FaceCornerHandle corner)

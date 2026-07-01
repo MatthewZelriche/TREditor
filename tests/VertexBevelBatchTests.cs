@@ -74,7 +74,7 @@ public sealed class VertexBevelBatchTests
         using SpatialMesh mesh = BuildBox();
         VertexHandle vertex = FindVertex(mesh, new(1, 1, 1));
         foreach (HalfEdgeHandle edge in mesh.HalfEdgesAroundVertex(vertex))
-            InitializeFaceUvs(mesh, mesh.GetHalfEdge(edge).Face);
+            Assert.True(FaceUvProjector.TryProjectAndApply(mesh, mesh.GetHalfEdge(edge).Face));
 
         using VertexBevelBatch batch = AssertBevel(mesh, [vertex], 0.25f);
 
@@ -104,14 +104,5 @@ public sealed class VertexBevelBatchTests
         }
 
         throw new InvalidOperationException("Expected vertex was not found.");
-    }
-
-    private static void InitializeFaceUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        Assert.True(FaceUvProjector.TryProject(mesh, face, projected));
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
     }
 }

@@ -146,21 +146,10 @@ public sealed class EdgeBevelBatch : IDisposable
         foreach (SpatialMesh.FaceReplacement replacement in result.RebuiltFaces)
         {
             if (replacement.SourceHadInitializedUvs)
-                InitializeFaceUvs(mesh, replacement.ReplacementFace);
+                FaceUvProjector.TryProjectAndApply(mesh, replacement.ReplacementFace);
         }
 
         if (result.BevelFaceSourceHadInitializedUvs)
-            InitializeFaceUvs(mesh, result.BevelFace);
-    }
-
-    private static void InitializeFaceUvs(SpatialMesh mesh, FaceHandle face)
-    {
-        List<ProjectedFaceCornerUv> projected = [];
-        if (!FaceUvProjector.TryProject(mesh, face, projected))
-            return;
-
-        foreach (ProjectedFaceCornerUv corner in projected)
-            mesh.SetFaceCornerUv(corner.Corner, corner.Uv);
-        mesh.SetFaceUvsInitialized(face, true);
+            FaceUvProjector.TryProjectAndApply(mesh, result.BevelFace);
     }
 }
