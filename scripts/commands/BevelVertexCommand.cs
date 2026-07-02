@@ -36,7 +36,7 @@ public sealed class BevelVertexCommand : EditorCommand
     {
         if (_batches == null)
         {
-            _batches = context.Scene.BevelVertices(_vertexTargets, _width);
+            _batches = context.Operations.BevelVertices(_vertexTargets, _width);
             if (_batches.Length == 0)
                 return false;
 
@@ -48,7 +48,7 @@ public sealed class BevelVertexCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyVertexBevelAfter(_batches);
+            context.Operations.ApplyVertexBevelAfter(_batches);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -60,7 +60,7 @@ public sealed class BevelVertexCommand : EditorCommand
         if (_batches == null || _batches.Length == 0)
             return;
 
-        context.Scene.ApplyVertexBevelBefore(_batches);
+        context.Operations.ApplyVertexBevelBefore(_batches);
         context.ApplySelection(_selectionBefore);
     }
 

@@ -28,7 +28,7 @@ public sealed class DetachFaceCommand : EditorCommand
     {
         if (_batches == null)
         {
-            _batches = context.Scene.DetachFaces(_faceTargets);
+            _batches = context.Operations.DetachFaces(_faceTargets);
             if (_batches.Length == 0)
                 return false;
 
@@ -42,7 +42,7 @@ public sealed class DetachFaceCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyFaceDetachAfter(_batches);
+            context.Operations.ApplyFaceDetachAfter(_batches);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -54,7 +54,7 @@ public sealed class DetachFaceCommand : EditorCommand
         if (_batches == null || _batches.Length == 0)
             return;
 
-        context.Scene.ApplyFaceDetachBefore(_batches);
+        context.Operations.ApplyFaceDetachBefore(_batches);
         context.ApplySelection(_selectionBefore);
     }
 

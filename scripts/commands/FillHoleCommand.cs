@@ -25,7 +25,7 @@ public sealed class FillHoleCommand : EditorCommand
     {
         if (_change == null)
         {
-            _change = context.Scene.FillHole(_edgeTarget);
+            _change = context.Operations.FillHole(_edgeTarget);
             if (_change == null)
                 return false;
 
@@ -35,7 +35,7 @@ public sealed class FillHoleCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyFillHoleAfter(_change);
+            context.Operations.ApplyFillHoleAfter(_change);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -47,7 +47,7 @@ public sealed class FillHoleCommand : EditorCommand
         if (_change == null)
             return;
 
-        context.Scene.ApplyFillHoleBefore(_change);
+        context.Operations.ApplyFillHoleBefore(_change);
         context.ApplySelection(_selectionBefore);
     }
 

@@ -40,7 +40,7 @@ public sealed class CollapseVerticesCommand : EditorCommand
     {
         if (_change == null)
         {
-            _change = context.Scene.CollapseVertices(_vertexTargets, _twoVertexTarget);
+            _change = context.Operations.CollapseVertices(_vertexTargets, _twoVertexTarget);
             if (_change == null)
                 return false;
 
@@ -50,7 +50,7 @@ public sealed class CollapseVerticesCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyVertexCollapseAfter(_change);
+            context.Operations.ApplyVertexCollapseAfter(_change);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -62,7 +62,7 @@ public sealed class CollapseVerticesCommand : EditorCommand
         if (_change == null)
             return;
 
-        context.Scene.ApplyVertexCollapseBefore(_change);
+        context.Operations.ApplyVertexCollapseBefore(_change);
         context.ApplySelection(_selectionBefore);
     }
 

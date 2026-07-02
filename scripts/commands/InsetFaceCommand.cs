@@ -29,7 +29,7 @@ public sealed class InsetFaceCommand : EditorCommand
     {
         if (_change == null)
         {
-            _change = context.Scene.InsetFace(_faceTarget, _depth);
+            _change = context.Operations.InsetFace(_faceTarget, _depth);
             if (_change == null)
                 return false;
 
@@ -39,7 +39,7 @@ public sealed class InsetFaceCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyFaceInsetAfter(_change);
+            context.Operations.ApplyFaceInsetAfter(_change);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -51,7 +51,7 @@ public sealed class InsetFaceCommand : EditorCommand
         if (_change == null)
             return;
 
-        context.Scene.ApplyFaceInsetBefore(_change);
+        context.Operations.ApplyFaceInsetBefore(_change);
         context.ApplySelection(_selectionBefore);
     }
 

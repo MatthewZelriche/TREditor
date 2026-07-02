@@ -1,4 +1,3 @@
-using System.Numerics;
 using TREditorSharp;
 
 namespace TREditor2026.Tests;
@@ -115,8 +114,12 @@ public sealed class CommandServiceTests
         SelectionSnapshot current = SelectionSnapshot.From(
             [SelectionTarget.ForObject(new EditorObjectId(Guid.NewGuid()))]
         );
+        EditorSceneModel model = new();
+        MinimalView view = new();
+        EditorObjectLifecycle lifecycle = new(model, view);
         EditorCommandContext context = new(
-            new FakeObjectLifecycle(),
+            lifecycle,
+            new EditorMeshOperations(model, view),
             selection =>
             {
                 if (selection == current)
@@ -191,97 +194,41 @@ public sealed class CommandServiceTests
         Assert.False(service.CanRedo);
     }
 
-    [Fact]
-    public void CreateCommand_UndoneThenDiscardedDestroysDetachedObject()
+    private static CommandService CreateService() => new(CreateContext());
+
+    private static EditorCommandContext CreateContext()
     {
-        FakeObjectLifecycle objects = new();
-        using CommandService service = CreateService(objects);
-        EditorObjectId id = new(Guid.NewGuid());
-        using SpatialMesh mesh = new();
-        CreateMeshCommand create = new(id, mesh, "Box");
-        service.Execute(create);
-        service.Undo();
-
-        service.Execute(new TrackingCommand());
-
-        Assert.Equal([id], objects.Destroyed);
-        Assert.Equal(EditorCommandState.Disposed, create.State);
-        Assert.Throws<ObjectDisposedException>(() => mesh.AddVertex(Vector3.Zero));
+        EditorSceneModel model = new();
+        MinimalView view = new();
+        return new EditorCommandContext(
+            new EditorObjectLifecycle(model, view),
+            new EditorMeshOperations(model, view),
+            _ => false
+        );
     }
 
-    [Fact]
-    public void CreateCommand_AppliedThenDiscardedLeavesLiveObjectOwnedByScene()
+    private sealed class MinimalView : IEditorSceneView
     {
-        FakeObjectLifecycle objects = new();
-        using CommandService service = CreateService(objects);
-        EditorObjectId id = new(Guid.NewGuid());
-        using SpatialMesh mesh = new();
-        CreateMeshCommand create = new(id, mesh, "Box");
-        service.Execute(create);
+        public bool Attach(EditorObjectModel obj) => true;
 
-        service.ClearHistory();
+        public void Destroy(EditorObjectId id) { }
 
-        Assert.Empty(objects.Destroyed);
-        Assert.Equal(EditorCommandState.Disposed, create.State);
-        mesh.AddVertex(Vector3.Zero);
+        public void SyncTransform(EditorObjectModel obj) { }
+
+        public void SyncGeometry(EditorObjectId id) { }
+
+        public void SyncRender(EditorObjectId id) { }
+
+        public bool TryGetNode(EditorObjectId id, out TRMeshGD node)
+        {
+            node = null!;
+            return false;
+        }
+
+        public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> Nodes => [];
+
+        public void Clear() { }
     }
-
-    [Fact]
-    public void CreateCommand_FailureDisposesUnclaimedMesh()
-    {
-        FakeObjectLifecycle objects = new() { AllowCreate = false };
-        using CommandService service = CreateService(objects);
-        SpatialMesh mesh = new();
-        CreateMeshCommand create = new(new EditorObjectId(Guid.NewGuid()), mesh, "Box");
-
-        service.Execute(create);
-
-        Assert.Equal(EditorCommandState.Disposed, create.State);
-        Assert.Throws<ObjectDisposedException>(() => mesh.AddVertex(Vector3.Zero));
-        Assert.False(service.CanUndo);
-    }
-
-    [Fact]
-    public void DeleteCommand_AppliedThenDiscardedDestroysDetachedObject()
-    {
-        FakeObjectLifecycle objects = new();
-        EditorObjectId id = new(Guid.NewGuid());
-        objects.Live.Add(id);
-        SelectionSnapshot selection = SelectionSnapshot.From([SelectionTarget.ForObject(id)]);
-        using CommandService service = CreateService(objects);
-        DeleteMeshCommand command = DeleteMeshCommand.CreateIfAny(selection)!;
-        service.Execute(command);
-
-        service.ClearHistory();
-
-        Assert.Equal([id], objects.Destroyed);
-        Assert.Equal(EditorCommandState.Disposed, command.State);
-    }
-
-    [Fact]
-    public void DeleteCommand_UndoneThenDiscardedLeavesRestoredObjectOwnedByScene()
-    {
-        FakeObjectLifecycle objects = new();
-        EditorObjectId id = new(Guid.NewGuid());
-        objects.Live.Add(id);
-        SelectionSnapshot selection = SelectionSnapshot.From([SelectionTarget.ForObject(id)]);
-        using CommandService service = CreateService(objects);
-        DeleteMeshCommand command = DeleteMeshCommand.CreateIfAny(selection)!;
-        service.Execute(command);
-        service.Undo();
-
-        service.Execute(new TrackingCommand());
-
-        Assert.Empty(objects.Destroyed);
-        Assert.Contains(id, objects.Live);
-        Assert.Equal(EditorCommandState.Disposed, command.State);
-    }
-
-    private static CommandService CreateService(FakeObjectLifecycle? objects = null) =>
-        new(CreateContext(objects));
-
-    private static EditorCommandContext CreateContext(FakeObjectLifecycle? objects = null) =>
-        new(objects ?? new FakeObjectLifecycle(), _ => false);
 
     private sealed class TrackingCommand : EditorCommand
     {
@@ -329,53 +276,6 @@ public sealed class CommandServiceTests
         {
             DisposeCount++;
             DiscardedState = discardedState;
-        }
-    }
-
-    private sealed class FakeObjectLifecycle : IEditorObjectLifecycle
-    {
-        public bool AllowCreate { get; init; } = true;
-        public HashSet<EditorObjectId> Live { get; } = [];
-        public HashSet<EditorObjectId> Detached { get; } = [];
-        public List<EditorObjectId> Destroyed { get; } = [];
-        private Dictionary<EditorObjectId, SpatialMesh> Meshes { get; } = [];
-
-        public bool CreateMeshObject(EditorObjectId objectId, SpatialMesh mesh, string displayName)
-        {
-            if (!AllowCreate || !Live.Add(objectId))
-                return false;
-
-            Meshes.Add(objectId, mesh);
-            return true;
-        }
-
-        public bool RemoveMeshObject(EditorObjectId objectId)
-        {
-            if (!Live.Remove(objectId))
-                return false;
-
-            Detached.Add(objectId);
-            return true;
-        }
-
-        public bool RestoreMeshObject(EditorObjectId objectId)
-        {
-            if (!Detached.Remove(objectId))
-                return false;
-
-            Live.Add(objectId);
-            return true;
-        }
-
-        public bool DestroyMeshObject(EditorObjectId objectId)
-        {
-            if (!Detached.Remove(objectId))
-                return false;
-
-            if (Meshes.Remove(objectId, out SpatialMesh? mesh))
-                mesh.Dispose();
-            Destroyed.Add(objectId);
-            return true;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -5,7 +6,7 @@ public sealed class DeleteMeshCommand : EditorCommand
 {
     private readonly SelectionSnapshot _selection;
     private readonly EditorObjectId[] _objectIds;
-    private EditorObjectId[] _removedObjectIds;
+    private EditorObjectModel[] _removedObjects;
 
     public override string Name => _objectIds.Length == 1 ? "Delete Mesh" : "Delete Meshes";
 
@@ -31,13 +32,14 @@ public sealed class DeleteMeshCommand : EditorCommand
     {
         context.ApplySelection(SelectionSnapshot.Empty);
 
-        if (_removedObjectIds == null)
+        if (_removedObjects == null)
         {
-            List<EditorObjectId> removed = [];
+            List<EditorObjectModel> removed = [];
             foreach (EditorObjectId objectId in _objectIds)
             {
-                if (context.Objects.RemoveMeshObject(objectId))
-                    removed.Add(objectId);
+                EditorObjectModel removedObject = context.Lifecycle.Remove(objectId);
+                if (removedObject != null)
+                    removed.Add(removedObject);
             }
 
             if (removed.Count == 0)
@@ -46,12 +48,18 @@ public sealed class DeleteMeshCommand : EditorCommand
                 return false;
             }
 
-            _removedObjectIds = removed.ToArray();
+            _removedObjects = removed.ToArray();
+            return true;
         }
-        else
+
+        foreach (EditorObjectModel removedObject in _removedObjects)
         {
-            foreach (EditorObjectId objectId in _removedObjectIds)
-                context.Objects.RemoveMeshObject(objectId);
+            if (context.Lifecycle.Remove(removedObject.Id) == null)
+            {
+                throw new InvalidOperationException(
+                    $"Could not remove object '{removedObject.Id}' during delete redo."
+                );
+            }
         }
 
         return true;
@@ -59,9 +67,14 @@ public sealed class DeleteMeshCommand : EditorCommand
 
     protected override void Undo(EditorCommandContext context)
     {
-        foreach (EditorObjectId objectId in _removedObjectIds)
+        foreach (EditorObjectModel removedObject in _removedObjects)
         {
-            context.Objects.RestoreMeshObject(objectId);
+            if (!context.Lifecycle.Add(removedObject))
+            {
+                throw new InvalidOperationException(
+                    $"Could not restore object '{removedObject.Id}' during delete undo."
+                );
+            }
         }
 
         context.ApplySelection(_selection);
@@ -72,10 +85,10 @@ public sealed class DeleteMeshCommand : EditorCommand
         EditorCommandState discardedState
     )
     {
-        if (discardedState != EditorCommandState.Applied || _removedObjectIds == null)
+        if (discardedState != EditorCommandState.Applied || _removedObjects == null)
             return;
 
-        foreach (EditorObjectId objectId in _removedObjectIds)
-            context.Objects.DestroyMeshObject(objectId);
+        foreach (EditorObjectModel removedObject in _removedObjects)
+            removedObject.Dispose();
     }
 }

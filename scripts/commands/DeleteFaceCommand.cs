@@ -32,13 +32,13 @@ public sealed class DeleteFaceCommand : EditorCommand
 
     protected override bool Do(EditorCommandContext context)
     {
-        _changes ??= context.Scene.CaptureFaceDeletions(_faceTargets);
+        _changes ??= context.Operations.CaptureFaceDeletions(_faceTargets);
         if (_changes.Length == 0)
             return false;
 
         // Remove stale face selections before rebuilding overlays against the changed topology.
         context.ApplySelection(_selectionAfterDelete);
-        context.Scene.DeleteFaces(_changes);
+        context.Operations.DeleteFaces(_changes);
         return true;
     }
 
@@ -47,7 +47,7 @@ public sealed class DeleteFaceCommand : EditorCommand
         if (_changes == null || _changes.Length == 0)
             return;
 
-        context.Scene.RestoreFaces(_changes);
+        context.Operations.RestoreFaces(_changes);
         context.ApplySelection(BuildRestoredSelection());
     }
 

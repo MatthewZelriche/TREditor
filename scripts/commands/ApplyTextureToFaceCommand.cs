@@ -28,10 +28,10 @@ public sealed class ApplyTextureToFaceCommand : EditorCommand
     }
 
     protected override bool Do(EditorCommandContext context) =>
-        context.Scene.ApplyFaceTexture(_objectId, _change, revert: false);
+        context.Operations.ApplyFaceTexture(_objectId, _change, revert: false);
 
     protected override void Undo(EditorCommandContext context)
     {
-        context.Scene.ApplyFaceTexture(_objectId, _change, revert: true);
+        context.Operations.ApplyFaceTexture(_objectId, _change, revert: true);
     }
 }

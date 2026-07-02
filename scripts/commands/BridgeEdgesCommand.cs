@@ -45,7 +45,7 @@ public sealed class BridgeEdgesCommand : EditorCommand
     {
         if (_change == null)
         {
-            _change = context.Scene.BridgeEdges(_first, _second, _segments, _archAngleDegrees);
+            _change = context.Operations.BridgeEdges(_first, _second, _segments, _archAngleDegrees);
             if (_change == null)
                 return false;
 
@@ -55,7 +55,7 @@ public sealed class BridgeEdgesCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyBridgeEdgesAfter(_change);
+            context.Operations.ApplyBridgeEdgesAfter(_change);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -67,7 +67,7 @@ public sealed class BridgeEdgesCommand : EditorCommand
         if (_change == null)
             return;
 
-        context.Scene.ApplyBridgeEdgesBefore(_change);
+        context.Operations.ApplyBridgeEdgesBefore(_change);
         context.ApplySelection(_selectionBefore);
     }
 

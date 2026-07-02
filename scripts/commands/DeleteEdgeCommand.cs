@@ -31,7 +31,7 @@ public sealed class DeleteEdgeCommand : EditorCommand
     {
         if (_batches == null)
         {
-            _batches = context.Scene.DeleteEdges(_edgeTargets);
+            _batches = context.Operations.DeleteEdges(_edgeTargets);
             if (_batches.Length == 0)
                 return false;
 
@@ -40,7 +40,7 @@ public sealed class DeleteEdgeCommand : EditorCommand
         else
         {
             // Redo replays the stored after-state rather than rerunning the deletion.
-            context.Scene.ApplyEdgeDeletionAfter(_batches);
+            context.Operations.ApplyEdgeDeletionAfter(_batches);
         }
 
         context.ApplySelection(_selectionAfterDelete);
@@ -52,7 +52,7 @@ public sealed class DeleteEdgeCommand : EditorCommand
         if (_batches == null || _batches.Length == 0)
             return;
 
-        context.Scene.ApplyEdgeDeletionBefore(_batches);
+        context.Operations.ApplyEdgeDeletionBefore(_batches);
         context.ApplySelection(_selectionBefore);
     }
 

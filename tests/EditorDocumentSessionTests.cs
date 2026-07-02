@@ -16,12 +16,15 @@ public sealed class EditorDocumentSessionTests
     );
 
     [Fact]
-    public void CaptureDocument_ExcludesDetachedObjects()
+    public void CaptureDocument_ExcludesCommandOwnedObjects()
     {
         TestSession session = CreateSession();
         session.Scene.CreateMeshObject(FirstId, new SpatialMesh(), "Live");
-        session.Scene.CreateMeshObject(SecondId, new SpatialMesh(), "Detached");
-        session.Scene.RemoveMeshObject(SecondId);
+        session.Scene.CreateMeshObject(SecondId, new SpatialMesh(), "Deleted");
+        DeleteMeshCommand delete = DeleteMeshCommand.CreateIfAny(
+            SelectionSnapshot.From([SelectionTarget.ForObject(SecondId)])
+        )!;
+        session.Commands.Execute(delete);
 
         EditorDocument captured = session.DocumentSession.CaptureDocument();
 
@@ -214,6 +217,7 @@ public sealed class EditorDocumentSessionTests
         public EditorSceneService Scene { get; }
         public TextureMaterialLibrary Materials { get; } = new();
         public SelectionService Selection { get; } = new();
+        public EditorObjectLifecycle Lifecycle { get; }
         public CommandService Commands { get; }
         public EditorDocumentSession DocumentSession { get; set; }
 
@@ -221,10 +225,12 @@ public sealed class EditorDocumentSessionTests
         {
             Model = new EditorSceneModel();
             View = new FakeEditorSceneView();
-            EditorObjectLifecycle lifecycle = new(Model, View);
+            Lifecycle = new EditorObjectLifecycle(Model, View);
             EditorMeshOperations operations = new(Model, View);
-            Scene = new EditorSceneService(lifecycle, Model, View, operations);
-            Commands = new CommandService(new EditorCommandContext(Scene, Selection));
+            Scene = new EditorSceneService(Lifecycle, Model, View, operations);
+            Commands = new CommandService(
+                new EditorCommandContext(Lifecycle, operations, Selection)
+            );
             DocumentSession = new EditorDocumentSession(
                 Scene,
                 Materials,

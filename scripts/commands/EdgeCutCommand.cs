@@ -58,7 +58,7 @@ public sealed class EdgeCutCommand : EditorCommand
     {
         if (_change == null)
         {
-            _change = context.Scene.CutFace(
+            _change = context.Operations.CutFace(
                 _face,
                 _firstEdge,
                 _firstParameter,
@@ -74,7 +74,7 @@ public sealed class EdgeCutCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyEdgeCutAfter(_change);
+            context.Operations.ApplyEdgeCutAfter(_change);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -86,7 +86,7 @@ public sealed class EdgeCutCommand : EditorCommand
         if (_change == null)
             return;
 
-        context.Scene.ApplyEdgeCutBefore(_change);
+        context.Operations.ApplyEdgeCutBefore(_change);
         context.ApplySelection(_selectionBefore);
     }
 

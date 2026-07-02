@@ -20,11 +20,11 @@ public sealed class TranslateSelectionCommand : EditorCommand
 
     protected override bool Do(EditorCommandContext context)
     {
-        return context.Scene.TranslateSelection(_selection, _delta);
+        return context.Operations.TranslateSelection(_selection, _delta);
     }
 
     protected override void Undo(EditorCommandContext context)
     {
-        context.Scene.TranslateSelection(_selection, -_delta);
+        context.Operations.TranslateSelection(_selection, -_delta);
     }
 }

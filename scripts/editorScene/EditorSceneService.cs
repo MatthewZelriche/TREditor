@@ -7,13 +7,12 @@ using TREditorSharp;
 /// Compatibility façade over object lifecycle, authoritative model state, view synchronization,
 /// and mesh operations. Callers continue to use this type until migration completes in Step 4.8.
 /// </summary>
-public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
+public sealed class EditorSceneService : IDisposable
 {
     private readonly EditorSceneModel _model;
     private readonly IEditorSceneView _view;
     private readonly EditorObjectLifecycle _lifecycle;
     private readonly EditorMeshOperations _operations;
-    private readonly Dictionary<EditorObjectId, EditorObjectModel> _detachedObjects = [];
     private bool _disposed;
 
     public EditorSceneService(Node3D worldRoot, TextureMaterialLibrary textureMaterials)
@@ -47,13 +46,15 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
 
     internal EditorSceneModel Model => _model;
 
+    internal EditorObjectLifecycle Lifecycle => _lifecycle;
+
     internal EditorMeshOperations Operations => _operations;
 
     public bool CreateMeshObject(EditorObjectId objectId, SpatialMesh mesh, string displayName)
     {
         ArgumentNullException.ThrowIfNull(mesh);
 
-        if (_model.Contains(objectId) || _detachedObjects.ContainsKey(objectId))
+        if (_model.Contains(objectId))
             return false;
 
         EditorObjectModel obj = new(objectId, displayName, Transform3D.Identity, mesh);
@@ -89,7 +90,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     {
         ArgumentNullException.ThrowIfNull(obj);
 
-        if (_model.Contains(obj.Id) || _detachedObjects.ContainsKey(obj.Id))
+        if (_model.Contains(obj.Id))
             return false;
 
         return _lifecycle.Add(obj);
@@ -99,42 +100,6 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     {
         _view.Clear();
         _model.Clear();
-
-        foreach (EditorObjectModel obj in _detachedObjects.Values)
-            obj.Dispose();
-
-        _detachedObjects.Clear();
-    }
-
-    public bool RemoveMeshObject(EditorObjectId objectId)
-    {
-        EditorObjectModel removed = _lifecycle.Remove(objectId);
-        if (removed == null)
-            return false;
-
-        _detachedObjects.Add(objectId, removed);
-        return true;
-    }
-
-    public bool RestoreMeshObject(EditorObjectId objectId)
-    {
-        if (!_detachedObjects.TryGetValue(objectId, out EditorObjectModel obj))
-            return false;
-
-        if (!_lifecycle.Add(obj))
-            return false;
-
-        _detachedObjects.Remove(objectId);
-        return true;
-    }
-
-    public bool DestroyMeshObject(EditorObjectId objectId)
-    {
-        if (!_detachedObjects.Remove(objectId, out EditorObjectModel obj))
-            return false;
-
-        obj.Dispose();
-        return true;
     }
 
     public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> EnumerateMeshObjects() =>
@@ -324,11 +289,6 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
             return;
 
         _disposed = true;
-
-        foreach (EditorObjectModel obj in _detachedObjects.Values)
-            obj.Dispose();
-
-        _detachedObjects.Clear();
 
         if (_view is IDisposable disposableView)
             disposableView.Dispose();

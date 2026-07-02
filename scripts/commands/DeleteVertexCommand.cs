@@ -31,7 +31,7 @@ public sealed class DeleteVertexCommand : EditorCommand
     {
         if (_batches == null)
         {
-            _batches = context.Scene.DeleteVertices(_vertexTargets);
+            _batches = context.Operations.DeleteVertices(_vertexTargets);
             if (_batches.Length == 0)
                 return false;
 
@@ -39,7 +39,7 @@ public sealed class DeleteVertexCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyVertexDeletionAfter(_batches);
+            context.Operations.ApplyVertexDeletionAfter(_batches);
         }
 
         context.ApplySelection(_selectionAfterDelete);
@@ -51,7 +51,7 @@ public sealed class DeleteVertexCommand : EditorCommand
         if (_batches == null || _batches.Length == 0)
             return;
 
-        context.Scene.ApplyVertexDeletionBefore(_batches);
+        context.Operations.ApplyVertexDeletionBefore(_batches);
         context.ApplySelection(_selectionBefore);
     }
 

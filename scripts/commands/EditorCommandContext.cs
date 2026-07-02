@@ -2,39 +2,49 @@ using System;
 
 /// <summary>
 /// Provides shared editor dependencies when a command is applied or undone. Commands can retain
-/// only their operation data while <see cref="CommandService"/> supplies scene, selection, and
-/// object-lifecycle access at execution time, avoiding global service lookups and enabling focused
-/// lifecycle tests.
+/// only their operation data while <see cref="CommandService"/> supplies lifecycle, mesh
+/// operations, and selection access at execution time.
 /// </summary>
 public sealed class EditorCommandContext
 {
     private readonly Func<SelectionSnapshot, bool> _applySelection;
 
-    public EditorCommandContext(EditorSceneService scene, SelectionService selection)
+    public EditorCommandContext(
+        EditorObjectLifecycle lifecycle,
+        EditorMeshOperations operations,
+        SelectionService selection
+    )
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(lifecycle);
+        ArgumentNullException.ThrowIfNull(operations);
         ArgumentNullException.ThrowIfNull(selection);
 
-        Scene = scene;
-        Objects = scene;
+        Lifecycle = lifecycle;
+        Operations = operations;
         _applySelection = selection.Apply;
     }
 
+    public EditorCommandContext(EditorSceneService scene, SelectionService selection)
+        : this(scene.Lifecycle, scene.Operations, selection) { }
+
     internal EditorCommandContext(
-        IEditorObjectLifecycle objects,
+        EditorObjectLifecycle lifecycle,
+        EditorMeshOperations operations,
         Func<SelectionSnapshot, bool> applySelection
     )
     {
-        ArgumentNullException.ThrowIfNull(objects);
+        ArgumentNullException.ThrowIfNull(lifecycle);
+        ArgumentNullException.ThrowIfNull(operations);
         ArgumentNullException.ThrowIfNull(applySelection);
 
-        Objects = objects;
+        Lifecycle = lifecycle;
+        Operations = operations;
         _applySelection = applySelection;
     }
 
-    public EditorSceneService Scene { get; }
+    public EditorObjectLifecycle Lifecycle { get; }
 
-    internal IEditorObjectLifecycle Objects { get; }
+    public EditorMeshOperations Operations { get; }
 
     public bool ApplySelection(SelectionSnapshot selection) => _applySelection(selection);
 }

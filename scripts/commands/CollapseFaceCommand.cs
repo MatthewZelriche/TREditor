@@ -25,7 +25,7 @@ public sealed class CollapseFaceCommand : EditorCommand
     {
         if (_change == null)
         {
-            _change = context.Scene.CollapseFace(_faceTarget);
+            _change = context.Operations.CollapseFace(_faceTarget);
             if (_change == null)
                 return false;
 
@@ -35,7 +35,7 @@ public sealed class CollapseFaceCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyFaceCollapseAfter(_change);
+            context.Operations.ApplyFaceCollapseAfter(_change);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -47,7 +47,7 @@ public sealed class CollapseFaceCommand : EditorCommand
         if (_change == null)
             return;
 
-        context.Scene.ApplyFaceCollapseBefore(_change);
+        context.Operations.ApplyFaceCollapseBefore(_change);
         context.ApplySelection(_selectionBefore);
     }
 

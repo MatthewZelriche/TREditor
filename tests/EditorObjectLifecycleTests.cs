@@ -121,50 +121,6 @@ public sealed class EditorObjectLifecycleTests
         model.Dispose();
     }
 
-    [Fact]
-    public void DetachedObjectLifecycle_RemoveRestoreAndDestroy()
-    {
-        EditorObjectId id = EditorObjectId.New();
-        SpatialMesh mesh = new();
-        EditorSceneModel model = new();
-        FakeEditorSceneView view = new();
-        EditorObjectLifecycle lifecycle = new(model, view);
-        EditorMeshOperations operations = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view, operations);
-        scene.CreateMeshObject(id, mesh, "Box");
-
-        Assert.True(scene.RemoveMeshObject(id));
-        Assert.Empty(model.Objects);
-        Assert.DoesNotContain(id, view.LiveNodeIds);
-
-        Assert.True(scene.RestoreMeshObject(id));
-        Assert.Single(model.Objects);
-        Assert.Equal(2, view.AttachCount);
-
-        Assert.True(scene.RemoveMeshObject(id));
-        Assert.True(scene.DestroyMeshObject(id));
-        AssertMeshDisposed(mesh);
-    }
-
-    [Fact]
-    public void ClearAll_DisposesDetachedObjects()
-    {
-        EditorObjectId id = EditorObjectId.New();
-        SpatialMesh mesh = new();
-        EditorSceneModel model = new();
-        FakeEditorSceneView view = new();
-        EditorObjectLifecycle lifecycle = new(model, view);
-        EditorMeshOperations operations = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view, operations);
-        scene.CreateMeshObject(id, mesh, "Box");
-        scene.RemoveMeshObject(id);
-
-        scene.ClearAll();
-
-        AssertMeshDisposed(mesh);
-        Assert.Equal(0, model.Count);
-    }
-
     private static EditorObjectModel CreateObject(
         EditorObjectId? id = null,
         string name = "Box",

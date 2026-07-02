@@ -1,12 +1,11 @@
 using System;
+using Godot;
 using TREditorSharp;
 
 public sealed class CreateMeshCommand : EditorCommand
 {
-    private readonly EditorObjectId _objectId;
-    private readonly SpatialMesh _mesh;
-    private readonly string _displayName;
-    private bool _created;
+    private readonly EditorObjectModel _object;
+    private bool _inScene;
 
     public override string Name { get; }
 
@@ -14,24 +13,23 @@ public sealed class CreateMeshCommand : EditorCommand
     {
         ArgumentNullException.ThrowIfNull(mesh);
 
-        _objectId = objectId;
-        _mesh = mesh;
-        _displayName = displayName;
+        _object = new EditorObjectModel(objectId, displayName, Transform3D.Identity, mesh);
         Name = $"Create {displayName}";
     }
 
     protected override bool Do(EditorCommandContext context)
     {
-        if (_created)
-            return context.Objects.RestoreMeshObject(_objectId);
+        if (!context.Lifecycle.Add(_object))
+            return false;
 
-        _created = context.Objects.CreateMeshObject(_objectId, _mesh, _displayName);
-        return _created;
+        _inScene = true;
+        return true;
     }
 
     protected override void Undo(EditorCommandContext context)
     {
-        context.Objects.RemoveMeshObject(_objectId);
+        if (context.Lifecycle.Remove(_object.Id) != null)
+            _inScene = false;
     }
 
     protected override void OnDispose(
@@ -39,13 +37,9 @@ public sealed class CreateMeshCommand : EditorCommand
         EditorCommandState discardedState
     )
     {
-        if (!_created)
-        {
-            _mesh.Dispose();
-        }
-        else if (discardedState == EditorCommandState.Undone)
-        {
-            context.Objects.DestroyMeshObject(_objectId);
-        }
+        if (_inScene && discardedState == EditorCommandState.Applied)
+            return;
+
+        _object.Dispose();
     }
 }

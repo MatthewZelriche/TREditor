@@ -38,7 +38,7 @@ public sealed class ExtrudeEdgeCommand : EditorCommand
     {
         if (_change == null)
         {
-            _change = context.Scene.ExtrudeEdge(_edgeTarget, _worldDelta);
+            _change = context.Operations.ExtrudeEdge(_edgeTarget, _worldDelta);
             if (_change == null)
                 return false;
 
@@ -48,7 +48,7 @@ public sealed class ExtrudeEdgeCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyEdgeExtrusionAfter(_change);
+            context.Operations.ApplyEdgeExtrusionAfter(_change);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -60,7 +60,7 @@ public sealed class ExtrudeEdgeCommand : EditorCommand
         if (_change == null)
             return;
 
-        context.Scene.ApplyEdgeExtrusionBefore(_change);
+        context.Operations.ApplyEdgeExtrusionBefore(_change);
         context.ApplySelection(_selectionBefore);
     }
 

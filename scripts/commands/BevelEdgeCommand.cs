@@ -36,7 +36,7 @@ public sealed class BevelEdgeCommand : EditorCommand
     {
         if (_batches == null)
         {
-            _batches = context.Scene.BevelEdges(_edgeTargets, _width);
+            _batches = context.Operations.BevelEdges(_edgeTargets, _width);
             if (_batches.Length == 0)
                 return false;
 
@@ -48,7 +48,7 @@ public sealed class BevelEdgeCommand : EditorCommand
         }
         else
         {
-            context.Scene.ApplyEdgeBevelAfter(_batches);
+            context.Operations.ApplyEdgeBevelAfter(_batches);
         }
 
         context.ApplySelection(_selectionAfter);
@@ -60,7 +60,7 @@ public sealed class BevelEdgeCommand : EditorCommand
         if (_batches == null || _batches.Length == 0)
             return;
 
-        context.Scene.ApplyEdgeBevelBefore(_batches);
+        context.Operations.ApplyEdgeBevelBefore(_batches);
         context.ApplySelection(_selectionBefore);
     }
 
