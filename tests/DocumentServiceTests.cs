@@ -25,7 +25,7 @@ public sealed class DocumentServiceTests
 
         service.Open(source);
 
-        Assert.Equal(["CancelPreview", "Reset", "Apply"], session.Events);
+        Assert.Equal(["Reset", "Apply"], session.Events);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class DocumentServiceTests
 
         Assert.Throws<InvalidOperationException>(() => service.Open(source));
 
-        Assert.Equal(["CancelPreview", "Reset", "Apply", "Reset"], session.Events);
+        Assert.Equal(["Reset", "Apply", "Reset"], session.Events);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class DocumentServiceTests
 
         service.New();
 
-        Assert.Equal(["CancelPreview", "Reset"], session.Events);
+        Assert.Equal(["Reset"], session.Events);
     }
 
     [Fact]

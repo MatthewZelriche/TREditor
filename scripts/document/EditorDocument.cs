@@ -92,6 +92,22 @@ public sealed class LoadedEditorDocument : IDisposable
             throw new InvalidOperationException("The document no longer owns this object's mesh.");
     }
 
+    /// <summary>
+    /// Transfers mesh ownership from this loaded document into a new <see cref="EditorObjectModel"/>
+    /// ready for lifecycle insertion. The caller owns the returned object until a successful add
+    /// transfers it to the scene model.
+    /// </summary>
+    public EditorObjectModel TakeObject(EditorDocumentObject documentObject)
+    {
+        TransferMeshOwnership(documentObject);
+        return new EditorObjectModel(
+            documentObject.Id,
+            documentObject.Name,
+            documentObject.Transform,
+            documentObject.Mesh
+        );
+    }
+
     public void Dispose()
     {
         if (_disposed)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 internal interface IEditorDocumentSession
 {
@@ -45,25 +46,18 @@ internal sealed class EditorDocumentSession : IEditorDocumentSession
 
     public EditorDocument CaptureDocument()
     {
-        List<EditorDocumentObject> objects = [];
-        foreach ((EditorObjectId id, TRMeshGD meshNode) in _scene.EnumerateMeshObjects())
-        {
-            objects.Add(
-                new EditorDocumentObject(
-                    id,
-                    meshNode.Name.ToString(),
-                    meshNode.Transform,
-                    meshNode.SourceMesh
-                )
-            );
-        }
+        List<EditorDocumentObject> objects = _scene
+            .Model.Objects.OrderBy(obj => obj.Id.Value)
+            .Select(obj => new EditorDocumentObject(obj.Id, obj.Name, obj.LocalTransform, obj.Mesh))
+            .ToList();
 
         return new EditorDocument(objects, _textureMaterials.GetMappings());
     }
 
-    // Clear history before freeing meshes so command-owned topology patches release reservations.
+    // Cancel preview before clearing history so preview-owned topology patches release reservations.
     public void Reset()
     {
+        _cancelPreview();
         _commands.ClearHistory();
         _selection.Apply(SelectionSnapshot.Empty);
         _scene.ClearAll();
@@ -79,21 +73,14 @@ internal sealed class EditorDocumentSession : IEditorDocumentSession
 
         foreach (EditorDocumentObject documentObject in document.Objects)
         {
-            if (
-                !_scene.CreateMeshObject(
-                    documentObject.Id,
-                    documentObject.Mesh,
-                    documentObject.Name,
-                    documentObject.Transform
-                )
-            )
+            EditorObjectModel obj = document.TakeObject(documentObject);
+            if (!_scene.TryAddObject(obj))
             {
+                obj.Dispose();
                 throw new InvalidOperationException(
                     $"Could not create loaded object '{documentObject.Id}'."
                 );
             }
-
-            document.TransferMeshOwnership(documentObject);
         }
     }
 }

@@ -85,6 +85,16 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         return true;
     }
 
+    internal bool TryAddObject(EditorObjectModel obj)
+    {
+        ArgumentNullException.ThrowIfNull(obj);
+
+        if (_model.Contains(obj.Id) || _detachedObjects.ContainsKey(obj.Id))
+            return false;
+
+        return _lifecycle.Add(obj);
+    }
+
     public void ClearAll()
     {
         _view.Clear();

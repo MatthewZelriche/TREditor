@@ -50,11 +50,7 @@ public sealed class DocumentService
     }
 
     /// <summary>Discards the current document and starts from an empty scene.</summary>
-    public void New()
-    {
-        _session.CancelPreview();
-        _session.Reset();
-    }
+    public void New() => _session.Reset();
 
     public void Save(string path)
     {
@@ -84,7 +80,6 @@ public sealed class DocumentService
         ArgumentNullException.ThrowIfNull(source);
         using LoadedEditorDocument loadedDocument = _serializer.Read(source);
 
-        _session.CancelPreview();
         _session.Reset();
         try
         {
