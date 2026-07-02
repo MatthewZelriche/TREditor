@@ -15,7 +15,10 @@ public partial class TRMeshGD : Node3D
 
     public EditorObjectId ObjectId { get; internal set; }
 
-    public SpatialMesh SourceMesh { get; private set; } = new();
+    private SpatialMesh _boundMesh;
+
+    public SpatialMesh SourceMesh =>
+        _boundMesh ?? throw new InvalidOperationException("TRMeshGD has no bound mesh.");
 
     public MeshRenderable Renderable { get; private set; }
 
@@ -39,19 +42,15 @@ public partial class TRMeshGD : Node3D
         _textureMaterials = textureMaterials;
     }
 
-    public void TakeMesh(SpatialMesh mesh)
+    public void BindMesh(SpatialMesh mesh)
     {
         ArgumentNullException.ThrowIfNull(mesh);
         EnsureChildren();
-
-        if (!ReferenceEquals(SourceMesh, mesh))
-        {
-            SourceMesh.Dispose();
-            SourceMesh = mesh;
-        }
-
+        _boundMesh = mesh;
         Rebuild();
     }
+
+    public void UnbindMesh() => _boundMesh = null;
 
     public void SetObjectSelected(bool selected)
     {
@@ -73,6 +72,9 @@ public partial class TRMeshGD : Node3D
 
     private void Rebuild(RebuildTarget targets)
     {
+        if (_boundMesh == null)
+            return;
+
         EnsureChildren();
         bool rebuildRender = (targets & RebuildTarget.Render) != 0;
         bool rebuildCollision = (targets & RebuildTarget.Collision) != 0;
@@ -82,11 +84,11 @@ public partial class TRMeshGD : Node3D
             );
         ClearRebuildScratch(rebuildRender, rebuildCollision);
 
-        foreach (var face in SourceMesh.EnumerateLiveFaces())
+        foreach (var face in _boundMesh.EnumerateLiveFaces())
         {
             _rebuildScratchFaceCorners.Clear();
 
-            if (!SourceMesh.TriangulateFace(face, _rebuildScratchFaceCorners))
+            if (!_boundMesh.TriangulateFace(face, _rebuildScratchFaceCorners))
             {
                 GD.PushWarning($"TRMeshGD skipped face {face}: triangulation failed.");
                 continue;
@@ -96,7 +98,7 @@ public partial class TRMeshGD : Node3D
             // face appends directly to the same material surface without a later grouping pass.
             MeshRenderData renderSurface = rebuildRender
                 ? MeshRenderDataBuilder.GetFaceSurface(
-                    SourceMesh,
+                    _boundMesh,
                     _rebuildScratchRenderSurfaces,
                     face
                 )
@@ -106,7 +108,7 @@ public partial class TRMeshGD : Node3D
             {
                 // TRMesh stores outward faces CCW; Godot expects the opposite winding.
                 MeshRenderDataBuilder.AppendTriangulation(
-                    SourceMesh,
+                    _boundMesh,
                     renderSurface,
                     _rebuildScratchFaceCorners
                 );
@@ -120,7 +122,7 @@ public partial class TRMeshGD : Node3D
                     FaceCornerHandle b = _rebuildScratchFaceCorners[i + 1];
                     FaceCornerHandle c = _rebuildScratchFaceCorners[i + 2];
                     MeshCollider.AppendRebuildTriangle(
-                        SourceMesh,
+                        _boundMesh,
                         _rebuildScratchColliderFaces,
                         a,
                         b,
@@ -138,15 +140,6 @@ public partial class TRMeshGD : Node3D
         if (rebuildCollision)
         {
             Collider.Rebuild(_rebuildScratchColliderFaces);
-        }
-    }
-
-    // TODO: Investigate this a little further, there's probably a less goofy way to do this.
-    public override void _Notification(int what)
-    {
-        if (what == NotificationPredelete)
-        {
-            SourceMesh.Dispose();
         }
     }
 

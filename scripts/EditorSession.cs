@@ -327,7 +327,7 @@ public partial class EditorSession : Node3D
         _componentSelectionHighlightController?.Dispose();
         _componentSelectionHighlightController = null;
         // Commands may own topology patches that must release reserved handles before the
-        // scene service disposes their meshes.
+        // scene view unbinds nodes and the model disposes meshes.
         Commands.CommandHistoryChanged -= OnCommandHistoryChanged;
         Commands.Dispose();
         _sceneService?.Dispose();

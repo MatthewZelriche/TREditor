@@ -15,6 +15,7 @@ public sealed class EditorObjectModel : IDisposable
     private readonly SpatialMesh _mesh;
     private Transform3D _localTransform;
     private bool _disposed;
+    private bool _meshReleased;
 
     public EditorObjectModel(
         EditorObjectId id,
@@ -113,8 +114,23 @@ public sealed class EditorObjectModel : IDisposable
             return;
 
         _disposed = true;
-        _mesh.Dispose();
-        GC.SuppressFinalize(this);
+        if (!_meshReleased)
+            _mesh.Dispose();
+    }
+
+    /// <summary>
+    /// Returns the owned mesh without disposing it. Used when a failed lifecycle add must hand
+    /// mesh ownership back to the original caller.
+    /// </summary>
+    internal SpatialMesh ReleaseOwnedMesh()
+    {
+        ThrowIfDisposed();
+        if (_meshReleased)
+            throw new InvalidOperationException("Mesh ownership was already released.");
+
+        _meshReleased = true;
+        _disposed = true;
+        return _mesh;
     }
 
     private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);

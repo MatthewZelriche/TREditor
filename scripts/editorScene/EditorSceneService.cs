@@ -10,10 +10,10 @@ using NumericVector3 = System.Numerics.Vector3;
 // TODO: This class is getting huge
 public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
 {
-    private readonly Node3D _worldRoot;
-    private readonly TextureMaterialLibrary _textureMaterials;
-    private readonly Dictionary<EditorObjectId, TRMeshGD> _meshNodes = [];
-
+    private readonly EditorSceneModel _model;
+    private readonly IEditorSceneView _view;
+    private readonly EditorObjectLifecycle _lifecycle;
+    private readonly Dictionary<EditorObjectId, EditorObjectModel> _detachedObjects = [];
     private bool _disposed;
 
     public EditorSceneService(Node3D worldRoot, TextureMaterialLibrary textureMaterials)
@@ -21,22 +21,42 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         ArgumentNullException.ThrowIfNull(worldRoot);
         ArgumentNullException.ThrowIfNull(textureMaterials);
 
-        _worldRoot = worldRoot;
-        _textureMaterials = textureMaterials;
+        _model = new EditorSceneModel();
+        _view = new EditorSceneView(worldRoot, textureMaterials);
+        _lifecycle = new EditorObjectLifecycle(_model, _view);
     }
+
+    internal EditorSceneService(
+        EditorObjectLifecycle lifecycle,
+        EditorSceneModel model,
+        IEditorSceneView view
+    )
+    {
+        ArgumentNullException.ThrowIfNull(lifecycle);
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(view);
+
+        _lifecycle = lifecycle;
+        _model = model;
+        _view = view;
+    }
+
+    internal EditorSceneModel Model => _model;
 
     public bool CreateMeshObject(EditorObjectId objectId, SpatialMesh mesh, string displayName)
     {
         ArgumentNullException.ThrowIfNull(mesh);
 
-        if (_meshNodes.ContainsKey(objectId))
+        if (_model.Contains(objectId) || _detachedObjects.ContainsKey(objectId))
             return false;
 
-        TRMeshGD meshNode = new() { Name = displayName, ObjectId = objectId };
-        meshNode.SetTextureMaterialLibrary(_textureMaterials);
-        meshNode.TakeMesh(mesh);
-        _meshNodes.Add(objectId, meshNode);
-        _worldRoot.AddChild(meshNode);
+        EditorObjectModel obj = new(objectId, displayName, Transform3D.Identity, mesh);
+        if (!_lifecycle.Add(obj))
+        {
+            obj.ReleaseOwnedMesh();
+            return false;
+        }
+
         return true;
     }
 
@@ -54,8 +74,12 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         if (!CreateMeshObject(objectId, mesh, displayName))
             return false;
 
-        if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
-            meshNode.Transform = transform;
+        if (_model.TryGet(objectId, out EditorObjectModel obj))
+        {
+            obj.SetLocalTransform(transform);
+            _view.SyncTransform(obj);
+        }
+
         return true;
     }
 
@@ -65,53 +89,52 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     /// </summary>
     public void ClearAll()
     {
-        foreach (TRMeshGD meshNode in _meshNodes.Values)
-        {
-            Node parent = meshNode.GetParent();
-            parent?.RemoveChild(meshNode);
-            meshNode.QueueFree();
-        }
+        _view.Clear();
+        _model.Clear();
 
-        _meshNodes.Clear();
+        foreach (EditorObjectModel obj in _detachedObjects.Values)
+            obj.Dispose();
+
+        _detachedObjects.Clear();
     }
 
     public bool RemoveMeshObject(EditorObjectId objectId)
     {
-        if (!_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
+        EditorObjectModel removed = _lifecycle.Remove(objectId);
+        if (removed == null)
             return false;
 
-        Node parent = meshNode.GetParent();
-        parent?.RemoveChild(meshNode);
+        _detachedObjects.Add(objectId, removed);
         return true;
     }
 
     public bool RestoreMeshObject(EditorObjectId objectId)
     {
-        if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode) && meshNode.GetParent() == null)
-        {
-            _worldRoot.AddChild(meshNode);
-            return true;
-        }
+        if (!_detachedObjects.TryGetValue(objectId, out EditorObjectModel obj))
+            return false;
 
-        return false;
+        if (!_lifecycle.Add(obj))
+            return false;
+
+        _detachedObjects.Remove(objectId);
+        return true;
     }
 
     /// <summary>Permanently frees a mesh object that no longer participates in history.</summary>
     public bool DestroyMeshObject(EditorObjectId objectId)
     {
-        if (!_meshNodes.Remove(objectId, out TRMeshGD meshNode))
+        if (!_detachedObjects.Remove(objectId, out EditorObjectModel obj))
             return false;
 
-        Node parent = meshNode.GetParent();
-        parent?.RemoveChild(meshNode);
-        meshNode.Free();
+        obj.Dispose();
         return true;
     }
 
-    public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> EnumerateMeshObjects() => _meshNodes;
+    public IEnumerable<KeyValuePair<EditorObjectId, TRMeshGD>> EnumerateMeshObjects() =>
+        _view.Nodes;
 
     public bool TryGetMeshNode(EditorObjectId objectId, out TRMeshGD meshNode) =>
-        _meshNodes.TryGetValue(objectId, out meshNode);
+        _view.TryGetNode(objectId, out meshNode);
 
     public bool TryGetSelectionCenter(SelectionSnapshot selection, out Vector3 center)
     {
@@ -148,7 +171,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         normal = Vector3.Zero;
         if (
             target.Kind != ScenePickElementKind.Face
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
             || !meshNode.SourceMesh.IsFaceAlive(target.Face)
         )
         {
@@ -173,7 +196,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         {
             if (target.Kind == ScenePickElementKind.Object)
             {
-                if (_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode))
+                if (_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode))
                 {
                     meshNode.GlobalPosition += worldDelta;
                     translatedObjects.Add(target.ObjectId);
@@ -188,7 +211,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
                 continue;
             }
 
-            if (!_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD componentMeshNode))
+            if (!_view.TryGetNode(target.ObjectId, out TRMeshGD componentMeshNode))
             {
                 continue;
             }
@@ -209,7 +232,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
                 continue;
             }
 
-            if (!_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
+            if (!_view.TryGetNode(objectId, out TRMeshGD meshNode))
             {
                 continue;
             }
@@ -236,7 +259,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         if (
             target.Kind != ScenePickElementKind.Face
             || worldDelta.IsZeroApprox()
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -256,7 +279,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
 
     public bool CanExtrudeEdge(SelectionTarget target) =>
         target.Kind == ScenePickElementKind.Edge
-        && _meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        && _view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         && EdgeExtrusionChange.CanExtrude(meshNode.SourceMesh, target.Edge);
 
     public EdgeExtrusionChange ExtrudeEdge(SelectionTarget target, Vector3 worldDelta)
@@ -264,7 +287,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         if (
             target.Kind != ScenePickElementKind.Edge
             || worldDelta.IsZeroApprox()
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -287,7 +310,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         if (
             target.Kind != ScenePickElementKind.Face
             || !(depth > 0f)
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -309,7 +332,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         maximumDepth = 0f;
         if (
             target.Kind != ScenePickElementKind.Face
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
             || !meshNode.SourceMesh.IsFaceAlive(target.Face)
         )
         {
@@ -332,10 +355,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         Dictionary<EditorObjectId, List<HalfEdgeHandle>> edgesByObject = [];
         foreach (SelectionTarget target in targets)
         {
-            if (
-                target.Kind != ScenePickElementKind.Edge
-                || !_meshNodes.ContainsKey(target.ObjectId)
-            )
+            if (target.Kind != ScenePickElementKind.Edge || !_model.Contains(target.ObjectId))
             {
                 maximumWidth = 0f;
                 return false;
@@ -352,8 +372,9 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         foreach ((EditorObjectId objectId, List<HalfEdgeHandle> edges) in edgesByObject)
         {
             if (
-                !EdgeBevelBatch.TryGetMaximumWidth(
-                    _meshNodes[objectId].SourceMesh,
+                !_model.TryGet(objectId, out EditorObjectModel edgeBevelObject)
+                || !EdgeBevelBatch.TryGetMaximumWidth(
+                    edgeBevelObject.Mesh,
                     edges,
                     out float objectMaximumWidth
                 )
@@ -395,15 +416,17 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach ((EditorObjectId objectId, List<HalfEdgeHandle> edges) in edgesByObject)
         {
-            TRMeshGD meshNode = _meshNodes[objectId];
             if (
-                EdgeBevelBatch.Bevel(objectId, meshNode.SourceMesh, edges, width)
-                is EdgeBevelBatch batch
+                !_model.TryGet(objectId, out EditorObjectModel bevelObject)
+                || EdgeBevelBatch.Bevel(objectId, bevelObject.Mesh, edges, width)
+                    is not EdgeBevelBatch batch
             )
             {
-                batches.Add(batch);
-                changedObjects.Add(objectId);
+                continue;
             }
+
+            batches.Add(batch);
+            changedObjects.Add(objectId);
         }
 
         RebuildObjects(changedObjects);
@@ -422,10 +445,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         Dictionary<EditorObjectId, List<VertexHandle>> verticesByObject = [];
         foreach (SelectionTarget target in targets)
         {
-            if (
-                target.Kind != ScenePickElementKind.Vertex
-                || !_meshNodes.ContainsKey(target.ObjectId)
-            )
+            if (target.Kind != ScenePickElementKind.Vertex || !_model.Contains(target.ObjectId))
             {
                 maximumWidth = 0f;
                 return false;
@@ -442,8 +462,9 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         foreach ((EditorObjectId objectId, List<VertexHandle> vertices) in verticesByObject)
         {
             if (
-                !VertexBevelBatch.TryGetMaximumWidth(
-                    _meshNodes[objectId].SourceMesh,
+                !_model.TryGet(objectId, out EditorObjectModel vertexBevelObject)
+                || !VertexBevelBatch.TryGetMaximumWidth(
+                    vertexBevelObject.Mesh,
                     vertices,
                     out float objectMaximumWidth
                 )
@@ -485,15 +506,17 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach ((EditorObjectId objectId, List<VertexHandle> vertices) in verticesByObject)
         {
-            TRMeshGD meshNode = _meshNodes[objectId];
             if (
-                VertexBevelBatch.Bevel(objectId, meshNode.SourceMesh, vertices, width)
-                is VertexBevelBatch batch
+                !_model.TryGet(objectId, out EditorObjectModel vertexBevelObject)
+                || VertexBevelBatch.Bevel(objectId, vertexBevelObject.Mesh, vertices, width)
+                    is not VertexBevelBatch batch
             )
             {
-                batches.Add(batch);
-                changedObjects.Add(objectId);
+                continue;
             }
+
+            batches.Add(batch);
+            changedObjects.Add(objectId);
         }
 
         RebuildObjects(changedObjects);
@@ -504,7 +527,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     {
         if (
             target.Kind != ScenePickElementKind.Edge
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         )
         {
             return false;
@@ -518,7 +541,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     {
         if (
             target.Kind != ScenePickElementKind.Edge
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -536,14 +559,14 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
 
     public bool CanCollapseFace(SelectionTarget target) =>
         target.Kind == ScenePickElementKind.Face
-        && _meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+        && _view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         && FaceCollapseChange.CanCollapse(meshNode.SourceMesh, target.Face);
 
     public FaceCollapseChange CollapseFace(SelectionTarget target)
     {
         if (
             target.Kind != ScenePickElementKind.Face
-            || !_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -567,7 +590,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         if (
             targets.Count < 2
             || targets[0].Kind != ScenePickElementKind.Vertex
-            || !_meshNodes.TryGetValue(targets[0].ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(targets[0].ObjectId, out TRMeshGD meshNode)
         )
         {
             return false;
@@ -597,7 +620,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         if (
             targets.Count < 2
             || targets[0].Kind != ScenePickElementKind.Vertex
-            || !_meshNodes.TryGetValue(targets[0].ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(targets[0].ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -631,7 +654,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         first.Kind == ScenePickElementKind.Edge
         && second.Kind == ScenePickElementKind.Edge
         && first.ObjectId == second.ObjectId
-        && _meshNodes.TryGetValue(first.ObjectId, out TRMeshGD meshNode)
+        && _view.TryGetNode(first.ObjectId, out TRMeshGD meshNode)
         && BridgeEdgesChange.CanBridge(meshNode.SourceMesh, first.Edge, second.Edge);
 
     public BridgeEdgesChange BridgeEdges(
@@ -645,7 +668,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
             first.Kind != ScenePickElementKind.Edge
             || second.Kind != ScenePickElementKind.Edge
             || first.ObjectId != second.ObjectId
-            || !_meshNodes.TryGetValue(first.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(first.ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -672,10 +695,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         Dictionary<EditorObjectId, List<FaceHandle>> facesByObject = [];
         foreach (SelectionTarget target in targets)
         {
-            if (
-                target.Kind != ScenePickElementKind.Face
-                || !_meshNodes.ContainsKey(target.ObjectId)
-            )
+            if (target.Kind != ScenePickElementKind.Face || !_model.Contains(target.ObjectId))
             {
                 return false;
             }
@@ -689,7 +709,10 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
 
         foreach ((EditorObjectId objectId, List<FaceHandle> faces) in facesByObject)
         {
-            if (!FaceDetachBatch.CanDetach(_meshNodes[objectId].SourceMesh, faces))
+            if (
+                !_model.TryGet(objectId, out EditorObjectModel detachObject)
+                || !FaceDetachBatch.CanDetach(detachObject.Mesh, faces)
+            )
                 return false;
         }
         return true;
@@ -715,15 +738,17 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach ((EditorObjectId objectId, List<FaceHandle> faces) in facesByObject)
         {
-            TRMeshGD meshNode = _meshNodes[objectId];
             if (
-                FaceDetachBatch.Detach(objectId, meshNode.SourceMesh, faces)
-                is FaceDetachBatch batch
+                !_model.TryGet(objectId, out EditorObjectModel detachObject)
+                || FaceDetachBatch.Detach(objectId, detachObject.Mesh, faces)
+                    is not FaceDetachBatch batch
             )
             {
-                batches.Add(batch);
-                changedObjects.Add(objectId);
+                continue;
             }
+
+            batches.Add(batch);
+            changedObjects.Add(objectId);
         }
 
         RebuildObjects(changedObjects);
@@ -740,7 +765,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     {
         if (
             face.Kind != ScenePickElementKind.Face
-            || !_meshNodes.TryGetValue(face.ObjectId, out TRMeshGD meshNode)
+            || !_view.TryGetNode(face.ObjectId, out TRMeshGD meshNode)
         )
         {
             return null;
@@ -825,7 +850,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyFaceExtrusion(FaceExtrusionChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -838,7 +863,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyEdgeExtrusion(EdgeExtrusionChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -851,7 +876,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyFaceInset(FaceInsetChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -866,7 +891,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach (EdgeBevelBatch batch in batches)
         {
-            if (!_meshNodes.ContainsKey(batch.ObjectId))
+            if (!_model.Contains(batch.ObjectId))
                 continue;
 
             if (before)
@@ -884,7 +909,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach (VertexBevelBatch batch in batches)
         {
-            if (!_meshNodes.ContainsKey(batch.ObjectId))
+            if (!_model.Contains(batch.ObjectId))
                 continue;
 
             if (before)
@@ -900,7 +925,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyFillHole(FillHoleChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -913,7 +938,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyFaceCollapse(FaceCollapseChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -926,7 +951,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyVertexCollapse(VertexCollapseChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -939,7 +964,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyBridgeEdges(BridgeEdgesChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -954,7 +979,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach (FaceDetachBatch batch in batches)
         {
-            if (!_meshNodes.ContainsKey(batch.ObjectId))
+            if (!_model.Contains(batch.ObjectId))
                 continue;
 
             if (before)
@@ -970,7 +995,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     private void ApplyEdgeCut(EdgeCutChange change, bool before)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
             return;
 
         if (before)
@@ -983,7 +1008,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     public bool ApplyFaceTexture(EditorObjectId objectId, FaceTextureChange change, bool revert)
     {
         ArgumentNullException.ThrowIfNull(change);
-        if (!_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(objectId, out TRMeshGD meshNode))
             return false;
 
         if (revert)
@@ -1001,7 +1026,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         {
             if (
                 target.Kind == ScenePickElementKind.Face
-                && _meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode)
+                && _view.TryGetNode(target.ObjectId, out TRMeshGD meshNode)
                 && FaceDeletionChange.Capture(target.ObjectId, meshNode.SourceMesh, target.Face)
                     is FaceDeletionChange change
             )
@@ -1019,7 +1044,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         foreach (FaceDeletionChange change in changes)
         {
             if (
-                _meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode)
+                _view.TryGetNode(change.ObjectId, out TRMeshGD meshNode)
                 && change.Delete(meshNode.SourceMesh)
             )
             {
@@ -1036,7 +1061,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         for (int i = changes.Count - 1; i >= 0; i--)
         {
             FaceDeletionChange change = changes[i];
-            if (!_meshNodes.TryGetValue(change.ObjectId, out TRMeshGD meshNode))
+            if (!_view.TryGetNode(change.ObjectId, out TRMeshGD meshNode))
                 continue;
 
             change.Restore(meshNode.SourceMesh);
@@ -1055,10 +1080,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         Dictionary<EditorObjectId, List<HalfEdgeHandle>> edgesByObject = [];
         foreach (SelectionTarget target in targets)
         {
-            if (
-                target.Kind != ScenePickElementKind.Edge
-                || !_meshNodes.ContainsKey(target.ObjectId)
-            )
+            if (target.Kind != ScenePickElementKind.Edge || !_model.Contains(target.ObjectId))
             {
                 continue;
             }
@@ -1076,15 +1098,17 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach ((EditorObjectId objectId, List<HalfEdgeHandle> edges) in edgesByObject)
         {
-            TRMeshGD meshNode = _meshNodes[objectId];
             if (
-                EdgeDeletionBatch.Delete(objectId, meshNode.SourceMesh, edges)
-                is EdgeDeletionBatch batch
+                !_model.TryGet(objectId, out EditorObjectModel edgeDeleteObject)
+                || EdgeDeletionBatch.Delete(objectId, edgeDeleteObject.Mesh, edges)
+                    is not EdgeDeletionBatch batch
             )
             {
-                batches.Add(batch);
-                changedObjects.Add(objectId);
+                continue;
             }
+
+            batches.Add(batch);
+            changedObjects.Add(objectId);
         }
 
         RebuildObjects(changedObjects);
@@ -1104,7 +1128,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach (EdgeDeletionBatch batch in batches)
         {
-            if (!_meshNodes.ContainsKey(batch.ObjectId))
+            if (!_model.Contains(batch.ObjectId))
                 continue;
 
             if (before)
@@ -1126,10 +1150,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         Dictionary<EditorObjectId, List<VertexHandle>> verticesByObject = [];
         foreach (SelectionTarget target in targets)
         {
-            if (
-                target.Kind != ScenePickElementKind.Vertex
-                || !_meshNodes.ContainsKey(target.ObjectId)
-            )
+            if (target.Kind != ScenePickElementKind.Vertex || !_model.Contains(target.ObjectId))
             {
                 continue;
             }
@@ -1147,15 +1168,17 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach ((EditorObjectId objectId, List<VertexHandle> vertices) in verticesByObject)
         {
-            TRMeshGD meshNode = _meshNodes[objectId];
             if (
-                VertexDeletionBatch.Delete(objectId, meshNode.SourceMesh, vertices)
-                is VertexDeletionBatch batch
+                !_model.TryGet(objectId, out EditorObjectModel vertexDeleteObject)
+                || VertexDeletionBatch.Delete(objectId, vertexDeleteObject.Mesh, vertices)
+                    is not VertexDeletionBatch batch
             )
             {
-                batches.Add(batch);
-                changedObjects.Add(objectId);
+                continue;
             }
+
+            batches.Add(batch);
+            changedObjects.Add(objectId);
         }
 
         RebuildObjects(changedObjects);
@@ -1173,7 +1196,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
         HashSet<EditorObjectId> changedObjects = [];
         foreach (VertexDeletionBatch batch in batches)
         {
-            if (!_meshNodes.ContainsKey(batch.ObjectId))
+            if (!_model.Contains(batch.ObjectId))
                 continue;
 
             if (before)
@@ -1189,26 +1212,25 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     public void Dispose()
     {
         if (_disposed)
-        {
             return;
-        }
 
         _disposed = true;
 
-        foreach (TRMeshGD meshNode in _meshNodes.Values)
-        {
-            Node parent = meshNode.GetParent();
-            parent?.RemoveChild(meshNode);
-            meshNode.QueueFree();
-        }
+        foreach (EditorObjectModel obj in _detachedObjects.Values)
+            obj.Dispose();
 
-        _meshNodes.Clear();
+        _detachedObjects.Clear();
+
+        if (_view is IDisposable disposableView)
+            disposableView.Dispose();
+
+        _model.Dispose();
     }
 
     private bool TryGetSelectionTargetCenter(SelectionTarget target, out Vector3 center)
     {
         center = Vector3.Zero;
-        if (!_meshNodes.TryGetValue(target.ObjectId, out TRMeshGD meshNode))
+        if (!_view.TryGetNode(target.ObjectId, out TRMeshGD meshNode))
         {
             return false;
         }
@@ -1390,7 +1412,7 @@ public sealed class EditorSceneService : IDisposable, IEditorObjectLifecycle
     {
         foreach (EditorObjectId objectId in objectIds)
         {
-            if (_meshNodes.TryGetValue(objectId, out TRMeshGD meshNode))
+            if (_view.TryGetNode(objectId, out TRMeshGD meshNode))
                 meshNode.Rebuild();
         }
     }
