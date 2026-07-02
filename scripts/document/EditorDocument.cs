@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using TREditorSharp;
 
@@ -29,9 +30,8 @@ public sealed class EditorDocument
 }
 
 /// <summary>
-/// One persisted mesh object: stable identity, display name, world transform, and geometry. The
-/// object owns its <see cref="Mesh"/> only for the duration of a load; on save the mesh is borrowed
-/// from the live scene and must not be disposed by the document layer.
+/// One persisted mesh object: stable identity, display name, world transform, and geometry.
+/// Ownership of <see cref="Mesh"/> belongs to the container that produced this object.
 /// </summary>
 public sealed class EditorDocumentObject
 {
@@ -58,4 +58,48 @@ public sealed class EditorDocumentObject
     public Transform3D Transform { get; }
 
     public SpatialMesh Mesh { get; }
+}
+
+/// <summary>
+/// Owns every mesh parsed from a document until ownership is transferred to the live scene.
+/// Disposing a partially consumed result releases all meshes that were not transferred.
+/// </summary>
+public sealed class LoadedEditorDocument : IDisposable
+{
+    private readonly HashSet<SpatialMesh> _ownedMeshes;
+    private bool _disposed;
+
+    internal LoadedEditorDocument(EditorDocument document)
+    {
+        Document = document;
+        _ownedMeshes = new HashSet<SpatialMesh>(
+            document.Objects.Select(documentObject => documentObject.Mesh),
+            ReferenceEqualityComparer.Instance
+        );
+    }
+
+    public EditorDocument Document { get; }
+
+    public IReadOnlyList<EditorDocumentObject> Objects => Document.Objects;
+
+    public IReadOnlyList<MaterialSlotMapping> MaterialMappings => Document.MaterialMappings;
+
+    public void TransferMeshOwnership(EditorDocumentObject documentObject)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(documentObject);
+        if (!_ownedMeshes.Remove(documentObject.Mesh))
+            throw new InvalidOperationException("The document no longer owns this object's mesh.");
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        foreach (SpatialMesh mesh in _ownedMeshes)
+            mesh.Dispose();
+        _ownedMeshes.Clear();
+    }
 }

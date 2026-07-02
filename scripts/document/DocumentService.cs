@@ -1,9 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using Godot;
-using TREditorSharp;
-using FileAccess = Godot.FileAccess;
 
 /// <summary>
 /// Coordinates persistent document operations (new/open/save) over the live editor session. Saving
@@ -13,112 +9,108 @@ using FileAccess = Godot.FileAccess;
 /// </summary>
 public sealed class DocumentService
 {
-    private readonly EditorSceneService _scene;
-    private readonly TextureMaterialLibrary _textureMaterials;
-    private readonly SelectionService _selection;
-    private readonly CommandService _commands;
-    private readonly EditorDocumentSerializer _serializer = new();
+    private readonly IEditorDocumentSession _session;
+    private readonly EditorDocumentSerializer _serializer;
+    private readonly IDocumentFileSystem _fileSystem;
 
     public DocumentService(
         EditorSceneService scene,
         TextureMaterialLibrary textureMaterials,
         SelectionService selection,
-        CommandService commands
+        CommandService commands,
+        Action cancelPreview
     )
     {
-        ArgumentNullException.ThrowIfNull(scene);
-        ArgumentNullException.ThrowIfNull(textureMaterials);
-        ArgumentNullException.ThrowIfNull(selection);
-        ArgumentNullException.ThrowIfNull(commands);
+        _session = new EditorDocumentSession(
+            scene,
+            textureMaterials,
+            selection,
+            commands,
+            cancelPreview
+        );
+        _serializer = new EditorDocumentSerializer();
+        _fileSystem = new GodotDocumentFileSystem();
+    }
 
-        _scene = scene;
-        _textureMaterials = textureMaterials;
-        _selection = selection;
-        _commands = commands;
+    internal DocumentService(IEditorDocumentSession session, EditorDocumentSerializer serializer)
+        : this(session, serializer, new GodotDocumentFileSystem()) { }
+
+    internal DocumentService(
+        IEditorDocumentSession session,
+        EditorDocumentSerializer serializer,
+        IDocumentFileSystem fileSystem
+    )
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(serializer);
+        ArgumentNullException.ThrowIfNull(fileSystem);
+        _session = session;
+        _serializer = serializer;
+        _fileSystem = fileSystem;
     }
 
     /// <summary>Discards the current document and starts from an empty scene.</summary>
-    public void New() => Reset();
+    public void New()
+    {
+        _session.CancelPreview();
+        _session.Reset();
+    }
 
     public void Save(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-
-        EditorDocument document = CaptureDocument();
-
         using var buffer = new MemoryStream();
-        _serializer.Write(document, buffer);
-
-        using FileAccess file = FileAccess.Open(path, FileAccess.ModeFlags.Write);
-        if (file == null)
-            throw new IOException(
-                $"Unable to save document '{path}': {FileAccess.GetOpenError()}."
-            );
-
-        file.StoreBuffer(buffer.ToArray());
+        Save(buffer);
+        WriteAtomically(path, buffer.ToArray());
     }
 
     public void Open(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        EditorDocument document;
-        using (var buffer = ReadAllBytes(path))
+        using MemoryStream buffer = new(_fileSystem.ReadAllBytes(path), writable: false);
+        Open(buffer);
+    }
+
+    internal void Save(Stream destination)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        _session.CancelPreview();
+        _serializer.Write(_session.CaptureDocument(), destination);
+    }
+
+    internal void Open(Stream source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        using LoadedEditorDocument loadedDocument = _serializer.Read(source);
+
+        _session.CancelPreview();
+        _session.Reset();
+        try
         {
-            document = _serializer.Read(buffer);
+            _session.Apply(loadedDocument);
         }
-
-        Reset();
-
-        foreach (MaterialSlotMapping mapping in document.MaterialMappings)
-            _textureMaterials.RegisterSlot(mapping.Slot, mapping.AssetId);
-
-        foreach (EditorDocumentObject documentObject in document.Objects)
-            _scene.CreateMeshObject(
-                documentObject.Id,
-                documentObject.Mesh,
-                documentObject.Name,
-                documentObject.Transform
-            );
-    }
-
-    private EditorDocument CaptureDocument()
-    {
-        List<EditorDocumentObject> objects = [];
-        foreach ((EditorObjectId id, TRMeshGD meshNode) in _scene.EnumerateMeshObjects())
+        catch
         {
-            objects.Add(
-                new EditorDocumentObject(
-                    id,
-                    meshNode.Name.ToString(),
-                    meshNode.Transform,
-                    meshNode.SourceMesh
-                )
-            );
+            // A validated document should not fail here, but never leave a partially replaced
+            // session if a runtime scene operation does.
+            _session.Reset();
+            throw;
         }
-
-        return new EditorDocument(objects, _textureMaterials.GetMappings());
     }
 
-    // The reset ordering matters: clear undo history first so commands release the topology patches
-    // and reserved handles that point at meshes we are about to free.
-    private void Reset()
+    private void WriteAtomically(string path, byte[] data)
     {
-        _commands.ClearHistory();
-        _selection.Apply(SelectionSnapshot.Empty);
-        _scene.ClearAll();
-        _textureMaterials.Clear();
-    }
-
-    private static MemoryStream ReadAllBytes(string path)
-    {
-        using FileAccess file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
-        if (file == null)
-            throw new IOException(
-                $"Unable to open document '{path}': {FileAccess.GetOpenError()}."
-            );
-
-        byte[] data = file.GetBuffer((long)file.GetLength());
-        return new MemoryStream(data, writable: false);
+        string temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            _fileSystem.WriteAllBytes(temporaryPath, data);
+            _fileSystem.Replace(temporaryPath, path);
+        }
+        finally
+        {
+            if (_fileSystem.Exists(temporaryPath))
+                _fileSystem.Remove(temporaryPath);
+        }
     }
 }

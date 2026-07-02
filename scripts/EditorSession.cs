@@ -106,7 +106,13 @@ public partial class EditorSession : Node3D
         ApplyEditOperationSettings();
         Commands = new CommandService(new EditorCommandContext(_sceneService, Selection));
         Commands.CommandHistoryChanged += OnCommandHistoryChanged;
-        Document = new DocumentService(_sceneService, TextureMaterials, Selection, Commands);
+        Document = new DocumentService(
+            _sceneService,
+            TextureMaterials,
+            Selection,
+            Commands,
+            () => _previewService?.Apply(new EditorPreviewRequest.Clear())
+        );
     }
 
     public override void _Ready()
