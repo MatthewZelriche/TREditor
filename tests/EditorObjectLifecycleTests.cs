@@ -87,34 +87,31 @@ public sealed class EditorObjectLifecycleTests
     }
 
     [Fact]
-    public void CreateMeshObject_DuplicateAddLeavesCallerMeshAlive()
+    public void Add_DuplicateIdLeavesCallerMeshAlive()
     {
         EditorObjectId id = EditorObjectId.New();
         SpatialMesh mesh = new();
         EditorSceneModel model = new();
         FakeEditorSceneView view = new();
         EditorObjectLifecycle lifecycle = new(model, view);
-        EditorMeshOperations operations = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view, operations);
 
-        Assert.True(scene.CreateMeshObject(id, mesh, "Box"));
-        Assert.False(scene.CreateMeshObject(id, new SpatialMesh(), "Duplicate"));
+        Assert.True(lifecycle.Add(CreateObject(id, "Box", mesh)));
+        Assert.False(lifecycle.Add(CreateObject(id, "Duplicate", new SpatialMesh())));
         AssertMeshAlive(mesh);
 
-        scene.ClearAll();
+        lifecycle.Clear();
     }
 
     [Fact]
-    public void CreateMeshObject_ViewFailureReturnsMeshToCaller()
+    public void Add_ViewFailureLeavesCallerMeshAlive()
     {
         SpatialMesh mesh = new();
         EditorSceneModel model = new();
         FakeEditorSceneView view = new() { AllowAttach = false };
         EditorObjectLifecycle lifecycle = new(model, view);
-        EditorMeshOperations operations = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view, operations);
+        EditorObjectModel obj = CreateObject(mesh: mesh);
 
-        Assert.False(scene.CreateMeshObject(EditorObjectId.New(), mesh, "Box"));
+        Assert.False(lifecycle.Add(obj));
         Assert.Empty(model.Objects);
         AssertMeshAlive(mesh);
 

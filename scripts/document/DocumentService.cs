@@ -14,7 +14,8 @@ public sealed class DocumentService
     private readonly IDocumentFileSystem _fileSystem;
 
     public DocumentService(
-        EditorSceneService scene,
+        EditorSceneModel model,
+        EditorObjectLifecycle lifecycle,
         TextureMaterialLibrary textureMaterials,
         SelectionService selection,
         CommandService commands,
@@ -22,7 +23,8 @@ public sealed class DocumentService
     )
     {
         _session = new EditorDocumentSession(
-            scene,
+            model,
+            lifecycle,
             textureMaterials,
             selection,
             commands,

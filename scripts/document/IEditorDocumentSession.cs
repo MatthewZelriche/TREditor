@@ -15,27 +15,31 @@ internal interface IEditorDocumentSession
 
 internal sealed class EditorDocumentSession : IEditorDocumentSession
 {
-    private readonly EditorSceneService _scene;
+    private readonly EditorSceneModel _model;
+    private readonly EditorObjectLifecycle _lifecycle;
     private readonly TextureMaterialLibrary _textureMaterials;
     private readonly SelectionService _selection;
     private readonly CommandService _commands;
     private readonly Action _cancelPreview;
 
     public EditorDocumentSession(
-        EditorSceneService scene,
+        EditorSceneModel model,
+        EditorObjectLifecycle lifecycle,
         TextureMaterialLibrary textureMaterials,
         SelectionService selection,
         CommandService commands,
         Action cancelPreview
     )
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(lifecycle);
         ArgumentNullException.ThrowIfNull(textureMaterials);
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(commands);
         ArgumentNullException.ThrowIfNull(cancelPreview);
 
-        _scene = scene;
+        _model = model;
+        _lifecycle = lifecycle;
         _textureMaterials = textureMaterials;
         _selection = selection;
         _commands = commands;
@@ -46,8 +50,8 @@ internal sealed class EditorDocumentSession : IEditorDocumentSession
 
     public EditorDocument CaptureDocument()
     {
-        List<EditorDocumentObject> objects = _scene
-            .Model.Objects.OrderBy(obj => obj.Id.Value)
+        List<EditorDocumentObject> objects = _model
+            .Objects.OrderBy(obj => obj.Id.Value)
             .Select(obj => new EditorDocumentObject(obj.Id, obj.Name, obj.LocalTransform, obj.Mesh))
             .ToList();
 
@@ -60,7 +64,7 @@ internal sealed class EditorDocumentSession : IEditorDocumentSession
         _cancelPreview();
         _commands.ClearHistory();
         _selection.Apply(SelectionSnapshot.Empty);
-        _scene.ClearAll();
+        _lifecycle.Clear();
         _textureMaterials.Clear();
     }
 
@@ -74,7 +78,7 @@ internal sealed class EditorDocumentSession : IEditorDocumentSession
         foreach (EditorDocumentObject documentObject in document.Objects)
         {
             EditorObjectModel obj = document.TakeObject(documentObject);
-            if (!_scene.TryAddObject(obj))
+            if (!_lifecycle.Add(obj))
             {
                 obj.Dispose();
                 throw new InvalidOperationException(

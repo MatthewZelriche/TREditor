@@ -5,7 +5,7 @@ using Godot;
 public sealed class EditorPreviewService : IDisposable
 {
     private readonly Node3D _previewParent;
-    private readonly EditorSceneService _scene;
+    private readonly EditorMeshOperations _operations;
     private readonly Action _scenePreviewChanged;
 
     private PrimitiveCreationPreview _primitivePreview;
@@ -25,16 +25,16 @@ public sealed class EditorPreviewService : IDisposable
 
     public EditorPreviewService(
         Node3D previewParent,
-        EditorSceneService scene,
+        EditorMeshOperations operations,
         Action scenePreviewChanged
     )
     {
         ArgumentNullException.ThrowIfNull(previewParent);
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(operations);
         ArgumentNullException.ThrowIfNull(scenePreviewChanged);
 
         _previewParent = previewParent;
-        _scene = scene;
+        _operations = operations;
         _scenePreviewChanged = scenePreviewChanged;
     }
 
@@ -191,7 +191,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _scene.TranslateSelection(translation.Selection, translation.Delta);
+        _operations.TranslateSelection(translation.Selection, translation.Delta);
         _translationPreview = translation;
         _scenePreviewChanged();
     }
@@ -217,7 +217,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _faceExtrusionPreview = _scene.ExtrudeFace(extrusion.Face, extrusion.Delta);
+        _faceExtrusionPreview = _operations.ExtrudeFace(extrusion.Face, extrusion.Delta);
         _scenePreviewChanged();
     }
 
@@ -242,7 +242,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _edgeExtrusionPreview = _scene.ExtrudeEdge(extrusion.Edge, extrusion.Delta);
+        _edgeExtrusionPreview = _operations.ExtrudeEdge(extrusion.Edge, extrusion.Delta);
         _scenePreviewChanged();
     }
 
@@ -267,7 +267,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _faceInsetPreview = _scene.InsetFace(inset.Face, inset.Depth);
+        _faceInsetPreview = _operations.InsetFace(inset.Face, inset.Depth);
         _scenePreviewChanged();
     }
 
@@ -292,7 +292,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _edgeBevelPreview = _scene.BevelEdges(bevel.Selection.Targets, bevel.Width);
+        _edgeBevelPreview = _operations.BevelEdges(bevel.Selection.Targets, bevel.Width);
         _scenePreviewChanged();
     }
 
@@ -317,7 +317,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _vertexBevelPreview = _scene.BevelVertices(bevel.Selection.Targets, bevel.Width);
+        _vertexBevelPreview = _operations.BevelVertices(bevel.Selection.Targets, bevel.Width);
         _scenePreviewChanged();
     }
 
@@ -336,7 +336,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearBridgeEdgesPreview(refresh: false);
         ClearFaceDetachPreview(refresh: false);
 
-        _fillHolePreview = _scene.FillHole(fillHole.Edge);
+        _fillHolePreview = _operations.FillHole(fillHole.Edge);
         _scenePreviewChanged();
     }
 
@@ -355,7 +355,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearBridgeEdgesPreview(refresh: false);
         ClearFaceDetachPreview(refresh: false);
 
-        _faceCollapsePreview = _scene.CollapseFace(collapseFace.Face);
+        _faceCollapsePreview = _operations.CollapseFace(collapseFace.Face);
         _scenePreviewChanged();
     }
 
@@ -374,7 +374,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearBridgeEdgesPreview(refresh: false);
         ClearFaceDetachPreview(refresh: false);
 
-        _vertexCollapsePreview = _scene.CollapseVertices(
+        _vertexCollapsePreview = _operations.CollapseVertices(
             collapse.Selection.Targets,
             collapse.TwoVertexTarget
         );
@@ -396,7 +396,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearBridgeEdgesPreview(refresh: false);
         ClearFaceDetachPreview(refresh: false);
 
-        _bridgeEdgesPreview = _scene.BridgeEdges(
+        _bridgeEdgesPreview = _operations.BridgeEdges(
             bridge.First,
             bridge.Second,
             bridge.Segments,
@@ -420,7 +420,7 @@ public sealed class EditorPreviewService : IDisposable
         ClearBridgeEdgesPreview(refresh: false);
         ClearFaceDetachPreview(refresh: false);
 
-        _faceDetachPreview = _scene.DetachFaces(detach.Selection.Targets);
+        _faceDetachPreview = _operations.DetachFaces(detach.Selection.Targets);
         _scenePreviewChanged();
     }
 
@@ -431,7 +431,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _scene.TranslateSelection(_translationPreview.Selection, -_translationPreview.Delta);
+        _operations.TranslateSelection(_translationPreview.Selection, -_translationPreview.Delta);
         _translationPreview = null;
         if (refresh)
         {
@@ -446,7 +446,7 @@ public sealed class EditorPreviewService : IDisposable
             return;
         }
 
-        _scene.ApplyFaceExtrusionBefore(_faceExtrusionPreview);
+        _operations.ApplyFaceExtrusionBefore(_faceExtrusionPreview);
         _faceExtrusionPreview.Dispose();
         _faceExtrusionPreview = null;
         if (refresh)
@@ -460,7 +460,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_edgeExtrusionPreview == null)
             return;
 
-        _scene.ApplyEdgeExtrusionBefore(_edgeExtrusionPreview);
+        _operations.ApplyEdgeExtrusionBefore(_edgeExtrusionPreview);
         _edgeExtrusionPreview.Dispose();
         _edgeExtrusionPreview = null;
         if (refresh)
@@ -472,7 +472,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_faceInsetPreview == null)
             return;
 
-        _scene.ApplyFaceInsetBefore(_faceInsetPreview);
+        _operations.ApplyFaceInsetBefore(_faceInsetPreview);
         _faceInsetPreview.Dispose();
         _faceInsetPreview = null;
         if (refresh)
@@ -484,7 +484,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_edgeBevelPreview == null)
             return;
 
-        _scene.ApplyEdgeBevelBefore(_edgeBevelPreview);
+        _operations.ApplyEdgeBevelBefore(_edgeBevelPreview);
         foreach (EdgeBevelBatch batch in _edgeBevelPreview)
             batch.Dispose();
         _edgeBevelPreview = null;
@@ -497,7 +497,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_vertexBevelPreview == null)
             return;
 
-        _scene.ApplyVertexBevelBefore(_vertexBevelPreview);
+        _operations.ApplyVertexBevelBefore(_vertexBevelPreview);
         foreach (VertexBevelBatch batch in _vertexBevelPreview)
             batch.Dispose();
         _vertexBevelPreview = null;
@@ -510,7 +510,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_fillHolePreview == null)
             return;
 
-        _scene.ApplyFillHoleBefore(_fillHolePreview);
+        _operations.ApplyFillHoleBefore(_fillHolePreview);
         _fillHolePreview.Dispose();
         _fillHolePreview = null;
         if (refresh)
@@ -522,7 +522,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_faceCollapsePreview == null)
             return;
 
-        _scene.ApplyFaceCollapseBefore(_faceCollapsePreview);
+        _operations.ApplyFaceCollapseBefore(_faceCollapsePreview);
         _faceCollapsePreview.Dispose();
         _faceCollapsePreview = null;
         if (refresh)
@@ -534,7 +534,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_vertexCollapsePreview == null)
             return;
 
-        _scene.ApplyVertexCollapseBefore(_vertexCollapsePreview);
+        _operations.ApplyVertexCollapseBefore(_vertexCollapsePreview);
         _vertexCollapsePreview.Dispose();
         _vertexCollapsePreview = null;
         if (refresh)
@@ -546,7 +546,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_bridgeEdgesPreview == null)
             return;
 
-        _scene.ApplyBridgeEdgesBefore(_bridgeEdgesPreview);
+        _operations.ApplyBridgeEdgesBefore(_bridgeEdgesPreview);
         _bridgeEdgesPreview.Dispose();
         _bridgeEdgesPreview = null;
         if (refresh)
@@ -558,7 +558,7 @@ public sealed class EditorPreviewService : IDisposable
         if (_faceDetachPreview == null)
             return;
 
-        _scene.ApplyFaceDetachBefore(_faceDetachPreview);
+        _operations.ApplyFaceDetachBefore(_faceDetachPreview);
         foreach (FaceDetachBatch batch in _faceDetachPreview)
             batch.Dispose();
         _faceDetachPreview = null;

@@ -24,9 +24,6 @@ public sealed class EditorCommandContext
         _applySelection = selection.Apply;
     }
 
-    public EditorCommandContext(EditorSceneService scene, SelectionService selection)
-        : this(scene.Lifecycle, scene.Operations, selection) { }
-
     internal EditorCommandContext(
         EditorObjectLifecycle lifecycle,
         EditorMeshOperations operations,

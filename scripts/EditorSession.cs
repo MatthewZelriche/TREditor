@@ -8,6 +8,14 @@ public partial class EditorSession : Node3D
 
     public SelectionService Selection { get; private set; }
 
+    public EditorSceneModel SceneModel { get; private set; }
+
+    public IEditorSceneView SceneView { get; private set; }
+
+    public EditorObjectLifecycle ObjectLifecycle { get; private set; }
+
+    public EditorMeshOperations MeshOperations { get; private set; }
+
     public ScenePickingService ScenePicking { get; private set; }
 
     public TextureMaterialLibrary TextureMaterials { get; private set; }
@@ -61,7 +69,7 @@ public partial class EditorSession : Node3D
     private ObjectSelectionHighlightController _objectSelectionHighlightController;
     private SelectionTranslationGizmoController _selectionTranslationGizmoController;
     private ComponentSelectionHighlightController _componentSelectionHighlightController;
-    private EditorSceneService _sceneService;
+    private EditorSceneView _sceneView;
     private bool _translationGizmoEventsWired;
 
     // TODO: Feels like this shouldn't be such a globally available state.
@@ -88,29 +96,36 @@ public partial class EditorSession : Node3D
                 ? TextureFileLoader.Load(textureRoot, assetId)
                 : null
         );
-        _sceneService = new EditorSceneService(this, TextureMaterials);
-        ScenePicking = new ScenePickingService(GetWorld3D(), _sceneService.Model, this);
+        SceneModel = new EditorSceneModel();
+        _sceneView = new EditorSceneView(this, TextureMaterials);
+        SceneView = _sceneView;
+        ObjectLifecycle = new EditorObjectLifecycle(SceneModel, SceneView);
+        MeshOperations = new EditorMeshOperations(SceneModel, SceneView, this);
+        ScenePicking = new ScenePickingService(GetWorld3D(), SceneModel, this);
         _objectSelectionHighlightController = new ObjectSelectionHighlightController(
-            _sceneService.Model,
-            _sceneService.View,
+            SceneModel,
+            SceneView,
             Selection
         );
         _componentSelectionHighlightController = new ComponentSelectionHighlightController(
-            _sceneService.Model,
-            _sceneService.View,
+            SceneModel,
+            SceneView,
             this,
             Selection
         );
         _selectionTranslationGizmoController = new SelectionTranslationGizmoController(
-            _sceneService.Operations,
+            MeshOperations,
             Selection
         );
         EditOperationSettings.Changed += ApplyEditOperationSettings;
         ApplyEditOperationSettings();
-        Commands = new CommandService(new EditorCommandContext(_sceneService, Selection));
+        Commands = new CommandService(
+            new EditorCommandContext(ObjectLifecycle, MeshOperations, Selection)
+        );
         Commands.CommandHistoryChanged += OnCommandHistoryChanged;
         Document = new DocumentService(
-            _sceneService,
+            SceneModel,
+            ObjectLifecycle,
             TextureMaterials,
             Selection,
             Commands,
@@ -333,8 +348,11 @@ public partial class EditorSession : Node3D
         // scene view unbinds nodes and the model disposes meshes.
         Commands.CommandHistoryChanged -= OnCommandHistoryChanged;
         Commands.Dispose();
-        _sceneService?.Dispose();
-        _sceneService = null;
+        _sceneView?.Dispose();
+        _sceneView = null;
+        SceneView = null;
+        SceneModel?.Dispose();
+        SceneModel = null;
         Selection = null;
     }
 
@@ -356,13 +374,13 @@ public partial class EditorSession : Node3D
             TextureMaterials,
             ReportStatus,
             () => GridSnapSize,
-            _sceneService.Model,
+            SceneModel,
             this,
-            _sceneService.View
+            SceneView
         );
         _previewService = new EditorPreviewService(
             this,
-            _sceneService,
+            MeshOperations,
             _componentSelectionHighlightController.Refresh
         );
         _toolManager = new EditorToolManager(_toolContext, () => PrimitiveCreationSettings);
@@ -436,7 +454,7 @@ public partial class EditorSession : Node3D
         else if (
             !(_maximumInsetDepth > 0f)
             && InsetFaceCommand.CanCreate(Selection.Current)
-            && _sceneService.TryGetMaximumFaceInsetDepth(
+            && MeshOperations.TryGetMaximumFaceInsetDepth(
                 Selection.Current.Targets[0],
                 out float maximumInsetDepth
             )
@@ -450,7 +468,7 @@ public partial class EditorSession : Node3D
             if (
                 bevelEdgeSelected
                 && BevelEdgeCommand.CanCreate(Selection.Current)
-                && _sceneService.TryGetMaximumEdgeBevelWidth(
+                && MeshOperations.TryGetMaximumEdgeBevelWidth(
                     Selection.Current.Targets,
                     out float maximumEdgeBevelWidth
                 )
@@ -461,7 +479,7 @@ public partial class EditorSession : Node3D
             else if (
                 bevelVertexSelected
                 && BevelVertexCommand.CanCreate(Selection.Current)
-                && _sceneService.TryGetMaximumVertexBevelWidth(
+                && MeshOperations.TryGetMaximumVertexBevelWidth(
                     Selection.Current.Targets,
                     out float maximumVertexBevelWidth
                 )
@@ -476,7 +494,7 @@ public partial class EditorSession : Node3D
         else if (
             !_canFillHole
             && FillHoleCommand.CanCreate(Selection.Current)
-            && _sceneService.CanFillHole(Selection.Current.Targets[0])
+            && MeshOperations.CanFillHole(Selection.Current.Targets[0])
         )
             _canFillHole = true;
 
@@ -485,7 +503,7 @@ public partial class EditorSession : Node3D
         else if (
             !_canCollapseFace
             && CollapseFaceCommand.CanCreate(Selection.Current)
-            && _sceneService.CanCollapseFace(Selection.Current.Targets[0])
+            && MeshOperations.CanCollapseFace(Selection.Current.Targets[0])
         )
             _canCollapseFace = true;
 
@@ -508,7 +526,7 @@ public partial class EditorSession : Node3D
             if (
                 !_canCollapseVertices
                 && CollapseVerticesCommand.CanCreate(Selection.Current)
-                && _sceneService.CanCollapseVertices(
+                && MeshOperations.CanCollapseVertices(
                     Selection.Current.Targets,
                     collapseVerticesTarget
                 )
@@ -521,7 +539,7 @@ public partial class EditorSession : Node3D
         else if (
             !_canBridgeEdges
             && BridgeEdgesCommand.CanCreate(Selection.Current)
-            && _sceneService.CanBridgeEdges(
+            && MeshOperations.CanBridgeEdges(
                 Selection.Current.Targets[0],
                 Selection.Current.Targets[1]
             )
@@ -533,7 +551,7 @@ public partial class EditorSession : Node3D
         else if (
             !_canDetachFaces
             && DetachFaceCommand.CanCreate(Selection.Current)
-            && _sceneService.CanDetachFaces(Selection.Current.Targets)
+            && MeshOperations.CanDetachFaces(Selection.Current.Targets)
         )
             _canDetachFaces = true;
 

@@ -19,8 +19,8 @@ public sealed class EditorDocumentSessionTests
     public void CaptureDocument_ExcludesCommandOwnedObjects()
     {
         TestSession session = CreateSession();
-        session.Scene.CreateMeshObject(FirstId, new SpatialMesh(), "Live");
-        session.Scene.CreateMeshObject(SecondId, new SpatialMesh(), "Deleted");
+        AddObject(session, FirstId, new SpatialMesh(), "Live");
+        AddObject(session, SecondId, new SpatialMesh(), "Deleted");
         DeleteMeshCommand delete = DeleteMeshCommand.CreateIfAny(
             SelectionSnapshot.From([SelectionTarget.ForObject(SecondId)])
         )!;
@@ -36,7 +36,7 @@ public sealed class EditorDocumentSessionTests
     public void CaptureDocument_ReadsModelTransformEvenWhenViewIsStale()
     {
         TestSession session = CreateSession();
-        session.Scene.CreateMeshObject(FirstId, new SpatialMesh(), "Box");
+        AddObject(session, FirstId, new SpatialMesh(), "Box");
         Assert.True(session.Model.TryGet(FirstId, out EditorObjectModel obj));
 
         Transform3D modelTransform = new(
@@ -55,8 +55,8 @@ public sealed class EditorDocumentSessionTests
     public void CaptureDocument_SortsObjectsById()
     {
         TestSession session = CreateSession();
-        session.Scene.CreateMeshObject(SecondId, new SpatialMesh(), "Second");
-        session.Scene.CreateMeshObject(FirstId, new SpatialMesh(), "First");
+        AddObject(session, SecondId, new SpatialMesh(), "Second");
+        AddObject(session, FirstId, new SpatialMesh(), "First");
 
         EditorDocument captured = session.DocumentSession.CaptureDocument();
 
@@ -69,8 +69,8 @@ public sealed class EditorDocumentSessionTests
     public void CaptureDocument_RepeatedCapturesProduceIdenticalSerializedBytes()
     {
         TestSession session = CreateSession();
-        session.Scene.CreateMeshObject(SecondId, BuildBox(), "Second");
-        session.Scene.CreateMeshObject(FirstId, BuildBox(), "First");
+        AddObject(session, SecondId, BuildBox(), "Second");
+        AddObject(session, FirstId, BuildBox(), "First");
         session.Materials.RegisterSlot(2, "floors/metal.png");
         session.Materials.RegisterSlot(1, "walls/brick.png");
 
@@ -89,7 +89,7 @@ public sealed class EditorDocumentSessionTests
             new Basis(Vector3.Up, 0.5f).Scaled(new Vector3(1f, 2f, 3f)),
             new Vector3(10f, 20f, 30f)
         );
-        session.Scene.CreateMeshObject(FirstId, mesh, "Box", transform);
+        AddObject(session, FirstId, mesh, "Box", transform);
         session.Materials.RegisterSlot(1, "walls/brick.png");
 
         List<NumericsVector3> expectedPositions = SortedPositions(mesh);
@@ -132,14 +132,15 @@ public sealed class EditorDocumentSessionTests
         TestSession session = CreateSession();
         bool previewCancelled = false;
         session.DocumentSession = new EditorDocumentSession(
-            session.Scene,
+            session.Model,
+            session.Lifecycle,
             session.Materials,
             session.Selection,
             session.Commands,
             () => previewCancelled = true
         );
 
-        session.Scene.CreateMeshObject(FirstId, new SpatialMesh(), "Box");
+        AddObject(session, FirstId, new SpatialMesh(), "Box");
         session.Materials.RegisterSlot(1, "walls/brick.png");
         session.Selection.Apply(SelectionSnapshot.From([SelectionTarget.ForObject(FirstId)]));
 
@@ -150,6 +151,18 @@ public sealed class EditorDocumentSessionTests
         Assert.Empty(session.Materials.GetMappings());
         Assert.True(session.Selection.Current.IsEmpty);
         Assert.False(session.Commands.CanUndo);
+    }
+
+    private static void AddObject(
+        TestSession session,
+        EditorObjectId id,
+        SpatialMesh mesh,
+        string name,
+        Transform3D? transform = null
+    )
+    {
+        EditorObjectModel obj = new(id, name, transform ?? Transform3D.Identity, mesh);
+        Assert.True(session.Lifecycle.Add(obj));
     }
 
     private static TestSession CreateSession(bool allowAttach = true)
@@ -214,7 +227,6 @@ public sealed class EditorDocumentSessionTests
     {
         public EditorSceneModel Model { get; }
         public FakeEditorSceneView View { get; }
-        public EditorSceneService Scene { get; }
         public TextureMaterialLibrary Materials { get; } = new();
         public SelectionService Selection { get; } = new();
         public EditorObjectLifecycle Lifecycle { get; }
@@ -227,12 +239,12 @@ public sealed class EditorDocumentSessionTests
             View = new FakeEditorSceneView();
             Lifecycle = new EditorObjectLifecycle(Model, View);
             EditorMeshOperations operations = new(Model, View);
-            Scene = new EditorSceneService(Lifecycle, Model, View, operations);
             Commands = new CommandService(
                 new EditorCommandContext(Lifecycle, operations, Selection)
             );
             DocumentSession = new EditorDocumentSession(
-                Scene,
+                Model,
+                Lifecycle,
                 Materials,
                 Selection,
                 Commands,
