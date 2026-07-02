@@ -151,7 +151,7 @@ public sealed class ScenePickingService
             if (filter == ScenePickElementFilter.Object)
             {
                 UpdateBestHit(
-                    ObjectPickResolver.ResolveCandidate(candidate, vertex, edge, face),
+                    ObjectPickResolver.ResolveCandidate(candidate.ObjectId, vertex, edge, face),
                     ref objectHit
                 );
                 continue;
@@ -318,19 +318,19 @@ public sealed class ScenePickingService
         return localHit.Kind switch
         {
             ScenePickElementKind.Vertex => ScenePickHit.VertexHit(
-                localHit.Mesh,
+                localHit.ObjectId,
                 localHit.Vertex,
                 worldPosition,
                 worldDistance
             ),
             ScenePickElementKind.Edge => ScenePickHit.EdgeHit(
-                localHit.Mesh,
+                localHit.ObjectId,
                 localHit.Edge,
                 worldPosition,
                 worldDistance
             ),
             ScenePickElementKind.Face => ScenePickHit.FaceHit(
-                localHit.Mesh,
+                localHit.ObjectId,
                 localHit.Face,
                 worldPosition,
                 worldDistance

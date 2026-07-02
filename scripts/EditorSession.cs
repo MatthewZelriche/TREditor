@@ -332,7 +332,6 @@ public partial class EditorSession : Node3D
         Commands.Dispose();
         _sceneService?.Dispose();
         _sceneService = null;
-        Selection?.Dispose();
         Selection = null;
     }
 
@@ -626,7 +625,7 @@ public partial class EditorSession : Node3D
         }
     }
 
-    private void OnSelectionChangedForEditOperation()
+    private void OnSelectionChangedForEditOperation(SelectionSnapshot selection)
     {
         if (IsModalEditOperationSelected())
         {

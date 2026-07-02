@@ -98,11 +98,12 @@ public sealed class EdgeCutToolInput
         }
 
         PendingCut first = _pending.Value;
-        SpatialMesh mesh = first.Point.Mesh.SourceMesh;
+        TRMeshGD firstMeshNode = _context.GetMeshNode(first.Point.ObjectId);
         if (
-            !mesh.IsFaceAlive(face.Face)
-            || !mesh.IsHalfEdgeAlive(first.Point.Edge)
-            || first.Point.Mesh.ObjectId != face.ObjectId
+            firstMeshNode == null
+            || !firstMeshNode.SourceMesh.IsFaceAlive(face.Face)
+            || !firstMeshNode.SourceMesh.IsHalfEdgeAlive(first.Point.Edge)
+            || first.Point.ObjectId != face.ObjectId
         )
         {
             Reset();
@@ -115,7 +116,7 @@ public sealed class EdgeCutToolInput
         Vector3 end = hasValidTarget
             ? target.Position
             : ProjectRayOntoFace(
-                first.Point.Mesh,
+                firstMeshNode,
                 face.Face,
                 input.RayOrigin,
                 input.RayDirection,
@@ -224,7 +225,13 @@ public sealed class EdgeCutToolInput
 
         if (!bestVertex.IsNull)
         {
-            point = new CutPoint(meshNode, bestVertexEdge, 0f, bestVertex, bestVertexPosition);
+            point = new CutPoint(
+                meshNode.ObjectId,
+                bestVertexEdge,
+                0f,
+                bestVertex,
+                bestVertexPosition
+            );
             return true;
         }
 
@@ -272,7 +279,13 @@ public sealed class EdgeCutToolInput
         Vector3 bestStart = ToGodot(mesh.GetVertexPosition(bestData.Origin));
         Vector3 bestEnd = ToGodot(mesh.GetVertexPosition(mesh.GetHalfEdge(bestData.Twin).Origin));
         bestPosition = bestStart.Lerp(bestEnd, bestParameter);
-        point = new CutPoint(meshNode, bestEdge, bestParameter, VertexHandle.Null, bestPosition);
+        point = new CutPoint(
+            meshNode.ObjectId,
+            bestEdge,
+            bestParameter,
+            VertexHandle.Null,
+            bestPosition
+        );
         return true;
     }
 
@@ -311,39 +324,49 @@ public sealed class EdgeCutToolInput
         return distance >= 0f ? localOrigin + localDirection * distance : fallback;
     }
 
-    private static EditorPreviewRequest.EdgeCut CreatePreview(
+    private EditorPreviewRequest.EdgeCut CreatePreview(
         CutPoint first,
         CutPoint end,
         bool hasValidTarget
     ) => CreatePreview(first, end.Position, hasValidTarget);
 
-    private static EditorPreviewRequest.EdgeCut CreatePreview(
+    private EditorPreviewRequest.EdgeCut CreatePreview(
         CutPoint first,
         Vector3 end,
         bool hasValidTarget
-    ) => new(first.Mesh.GlobalTransform, first.Position, end, hasValidTarget);
+    ) => new(GetMeshTransform(first), first.Position, end, hasValidTarget);
+
+    private Transform3D GetMeshTransform(CutPoint point)
+    {
+        TRMeshGD meshNode = _context.GetMeshNode(point.ObjectId);
+        return meshNode?.GlobalTransform ?? Transform3D.Identity;
+    }
+
+    private bool CanConnect(SelectionTarget face, CutPoint first, CutPoint second)
+    {
+        TRMeshGD meshNode = _context.GetMeshNode(first.ObjectId);
+        return meshNode != null
+            && EdgeCutChange.CanCut(
+                meshNode.SourceMesh,
+                face.Face,
+                first.Edge,
+                first.Parameter,
+                second.Edge,
+                second.Parameter
+            );
+    }
 
     private static SelectionTarget CreateSelectionTarget(EditorObjectId objectId, CutPoint point) =>
         point.Vertex.IsNull
             ? SelectionTarget.ForEdge(objectId, point.Edge)
             : SelectionTarget.ForVertex(objectId, point.Vertex);
 
-    private static bool CanConnect(SelectionTarget face, CutPoint first, CutPoint second) =>
-        EdgeCutChange.CanCut(
-            first.Mesh.SourceMesh,
-            face.Face,
-            first.Edge,
-            first.Parameter,
-            second.Edge,
-            second.Parameter
-        );
-
     private static Vector3 ToGodot(NumericsVector3 value) => new(value.X, value.Y, value.Z);
 
     private readonly record struct PendingCut(SelectionTarget Face, CutPoint Point);
 
     private readonly record struct CutPoint(
-        TRMeshGD Mesh,
+        EditorObjectId ObjectId,
         HalfEdgeHandle Edge,
         float Parameter,
         VertexHandle Vertex,

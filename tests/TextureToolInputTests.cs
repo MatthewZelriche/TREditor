@@ -4,6 +4,9 @@ namespace TREditor2026.Tests;
 
 public sealed class TextureToolInputTests
 {
+    private static readonly EditorObjectId ObjectId = new(
+        Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    );
     private static readonly FaceHandle Face = new(7, 2);
     private static readonly ViewportInputModifiers NoModifiers = new(false, false, false, false);
 
@@ -11,7 +14,7 @@ public sealed class TextureToolInputTests
     public void TryResolveApplyIntent_LeftPressOnFaceWithActiveTextureSucceeds()
     {
         ViewportMouseButtonEvent input = CreateInput(MouseButton.Left, pressed: true);
-        ScenePickHit hit = ScenePickHit.FaceHit(null!, Face, Vector3.Zero, 1);
+        ScenePickHit hit = ScenePickHit.FaceHit(ObjectId, Face, Vector3.Zero, 1);
 
         bool success = TextureToolInput.TryResolveApplyIntent(
             input,
@@ -38,7 +41,7 @@ public sealed class TextureToolInputTests
             TextureToolInput.TryResolveApplyIntent(
                 input,
                 "walls/brick.png",
-                ScenePickHit.FaceHit(null!, Face, Vector3.Zero, 1),
+                ScenePickHit.FaceHit(ObjectId, Face, Vector3.Zero, 1),
                 out _
             )
         );
@@ -53,7 +56,7 @@ public sealed class TextureToolInputTests
             TextureToolInput.TryResolveApplyIntent(
                 CreateInput(button, pressed),
                 "walls/brick.png",
-                ScenePickHit.FaceHit(null!, Face, Vector3.Zero, 1),
+                ScenePickHit.FaceHit(ObjectId, Face, Vector3.Zero, 1),
                 out _
             )
         );
@@ -66,7 +69,7 @@ public sealed class TextureToolInputTests
             TextureToolInput.TryResolveApplyIntent(
                 CreateInput(MouseButton.Left, pressed: true),
                 null,
-                ScenePickHit.FaceHit(null!, Face, Vector3.Zero, 1),
+                ScenePickHit.FaceHit(ObjectId, Face, Vector3.Zero, 1),
                 out _
             )
         );
@@ -81,9 +84,14 @@ public sealed class TextureToolInputTests
     {
         ScenePickHit hit = kind switch
         {
-            ScenePickElementKind.Object => ScenePickHit.ObjectHit(null!, Vector3.Zero, 1),
-            ScenePickElementKind.Vertex => ScenePickHit.VertexHit(null!, default, Vector3.Zero, 1),
-            ScenePickElementKind.Edge => ScenePickHit.EdgeHit(null!, default, Vector3.Zero, 1),
+            ScenePickElementKind.Object => ScenePickHit.ObjectHit(ObjectId, Vector3.Zero, 1),
+            ScenePickElementKind.Vertex => ScenePickHit.VertexHit(
+                ObjectId,
+                default,
+                Vector3.Zero,
+                1
+            ),
+            ScenePickElementKind.Edge => ScenePickHit.EdgeHit(ObjectId, default, Vector3.Zero, 1),
             _ => ScenePickHit.None,
         };
 

@@ -25,6 +25,18 @@ public class SelectionSnapshotTests
     }
 
     [Fact]
+    public void From_RejectsInvalidTargets()
+    {
+        SelectionTarget valid = TargetA;
+        SelectionTarget invalid = default;
+
+        SelectionSnapshot snapshot = SelectionSnapshot.From([valid, invalid, valid]);
+
+        Assert.Single(snapshot.Targets);
+        Assert.Contains(valid, snapshot.Targets);
+    }
+
+    [Fact]
     public void From_DeduplicatesTargets()
     {
         SelectionSnapshot snapshot = SelectionSnapshot.From([TargetA, TargetA, TargetB]);

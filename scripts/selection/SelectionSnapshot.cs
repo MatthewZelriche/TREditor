@@ -26,10 +26,11 @@ public readonly struct SelectionSnapshot : IEquatable<SelectionSnapshot>
         List<SelectionTarget> uniqueTargets = [];
         foreach (SelectionTarget target in targets)
         {
+            if (!target.IsValid)
+                continue;
+
             if (!uniqueTargets.Contains(target))
-            {
                 uniqueTargets.Add(target);
-            }
         }
 
         return uniqueTargets.Count == 0 ? Empty : new SelectionSnapshot(uniqueTargets.ToArray());

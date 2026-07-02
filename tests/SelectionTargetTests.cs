@@ -15,6 +15,7 @@ public class SelectionTargetTests
 
         Assert.Equal(ScenePickElementKind.Object, target.Kind);
         Assert.Equal(ObjectId, target.ObjectId);
+        Assert.True(target.IsValid);
     }
 
     [Fact]
@@ -25,6 +26,9 @@ public class SelectionTargetTests
 
         Assert.Equal(ScenePickElementKind.Vertex, target.Kind);
         Assert.Equal(vertex, target.Vertex);
+        Assert.True(target.Element.TryGetVertex(out VertexHandle actual));
+        Assert.Equal(vertex, actual);
+        Assert.False(target.Element.TryGetEdge(out _));
     }
 
     [Fact]
@@ -48,31 +52,34 @@ public class SelectionTargetTests
     }
 
     [Fact]
+    public void Default_IsInvalid()
+    {
+        SelectionTarget target = default;
+
+        Assert.False(target.IsValid);
+        Assert.Equal(ScenePickElementKind.None, target.Kind);
+    }
+
+    [Fact]
     public void TryFromHit_NoHit_ReturnsFalse()
     {
         bool success = SelectionTarget.TryFromHit(ScenePickHit.None, out SelectionTarget target);
 
         Assert.False(success);
-        Assert.Equal(default, target);
+        Assert.False(target.IsValid);
     }
 
     [Fact]
-    public void TryFromHit_NullMesh_ReturnsFalse()
+    public void TryFromHit_ValidHit_ReturnsTarget()
     {
-        ScenePickHit hit = new(
-            ScenePickElementKind.Object,
-            null!,
-            default,
-            default,
-            default,
-            Vector3.Zero,
-            1.0f
-        );
+        FaceHandle face = new(1, 0);
+        ScenePickHit hit = ScenePickHit.FaceHit(ObjectId, face, Vector3.Zero, 1.0f);
 
         bool success = SelectionTarget.TryFromHit(hit, out SelectionTarget target);
 
-        Assert.False(success);
-        Assert.Equal(default, target);
+        Assert.True(success);
+        Assert.Equal(ObjectId, target.ObjectId);
+        Assert.Equal(face, target.Face);
     }
 
     [Theory]

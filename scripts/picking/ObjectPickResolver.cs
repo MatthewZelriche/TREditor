@@ -3,7 +3,7 @@ using Godot;
 public static class ObjectPickResolver
 {
     public static ScenePickHit ResolveCandidate(
-        TRMeshGD candidate,
+        EditorObjectId objectId,
         ScenePickHit vertex,
         ScenePickHit edge,
         ScenePickHit face
@@ -15,7 +15,7 @@ public static class ObjectPickResolver
         UpdateClosest(face, ref closest);
 
         return closest.HasHit
-            ? ScenePickHit.ObjectHit(candidate, closest.Position, closest.Distance)
+            ? ScenePickHit.ObjectHit(objectId, closest.Position, closest.Distance)
             : ScenePickHit.None;
     }
 

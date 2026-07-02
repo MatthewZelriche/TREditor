@@ -74,7 +74,7 @@ public static class MeshComponentPicker
         }
 
         return bestDistance < float.MaxValue
-            ? ScenePickHit.VertexHit(meshNode, bestVertex, bestPosition, bestDistance)
+            ? ScenePickHit.VertexHit(meshNode.ObjectId, bestVertex, bestPosition, bestDistance)
             : ScenePickHit.None;
     }
 
@@ -130,7 +130,7 @@ public static class MeshComponentPicker
         }
 
         return bestDistance < float.MaxValue
-            ? ScenePickHit.EdgeHit(meshNode, bestEdge, bestPosition, bestDistance)
+            ? ScenePickHit.EdgeHit(meshNode.ObjectId, bestEdge, bestPosition, bestDistance)
             : ScenePickHit.None;
     }
 
@@ -175,7 +175,7 @@ public static class MeshComponentPicker
 
         return bestDistance < float.MaxValue
             ? ScenePickHit.FaceHit(
-                meshNode,
+                meshNode.ObjectId,
                 bestFace,
                 rayOrigin + rayDirection * bestDistance,
                 bestDistance

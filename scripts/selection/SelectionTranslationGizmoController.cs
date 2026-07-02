@@ -157,7 +157,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         }
     }
 
-    private void OnSelectionChanged()
+    private void OnSelectionChanged(SelectionSnapshot _)
     {
         if (!_dragging)
         {

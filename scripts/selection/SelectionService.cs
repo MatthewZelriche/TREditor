@@ -1,9 +1,8 @@
-using Godot;
+using System;
 
-public sealed partial class SelectionService : GodotObject
+public sealed class SelectionService
 {
-    [Signal]
-    public delegate void SelectionChangedEventHandler();
+    public event Action<SelectionSnapshot> SelectionChanged;
 
     public SelectionSnapshot Current { get; private set; } = SelectionSnapshot.Empty;
 
@@ -15,7 +14,7 @@ public sealed partial class SelectionService : GodotObject
             return false;
 
         Current = selection;
-        EmitSignal(SignalName.SelectionChanged);
+        SelectionChanged?.Invoke(selection);
         return true;
     }
 }

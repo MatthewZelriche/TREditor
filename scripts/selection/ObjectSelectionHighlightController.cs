@@ -17,7 +17,7 @@ public sealed class ObjectSelectionHighlightController : IDisposable
 
         _scene = scene;
         _selection = selection;
-        _selection.SelectionChanged += Sync;
+        _selection.SelectionChanged += OnSelectionChanged;
     }
 
     public void SetActive(bool active)
@@ -39,9 +39,11 @@ public sealed class ObjectSelectionHighlightController : IDisposable
         }
 
         _disposed = true;
-        _selection.SelectionChanged -= Sync;
+        _selection.SelectionChanged -= OnSelectionChanged;
         Clear();
     }
+
+    private void OnSelectionChanged(SelectionSnapshot _) => Sync();
 
     private void Sync()
     {

@@ -19,40 +19,48 @@ public enum ScenePickElementFilter
 }
 
 public readonly record struct ScenePickHit(
-    ScenePickElementKind Kind,
-    TRMeshGD Mesh,
-    VertexHandle Vertex,
-    HalfEdgeHandle Edge,
-    FaceHandle Face,
+    EditorObjectId ObjectId,
+    SelectionElement Element,
     Vector3 Position,
     float Distance
 )
 {
     public static ScenePickHit None => default;
 
-    public bool HasHit => Kind != ScenePickElementKind.None;
+    public ScenePickElementKind Kind => Element.Kind;
 
-    public static ScenePickHit ObjectHit(TRMeshGD mesh, Vector3 position, float distance) =>
-        new(ScenePickElementKind.Object, mesh, default, default, default, position, distance);
+    public bool HasHit => ObjectId.Value != System.Guid.Empty && Element.IsValid;
+
+    public VertexHandle Vertex => Element.TryGetVertex(out VertexHandle vertex) ? vertex : default;
+
+    public HalfEdgeHandle Edge => Element.TryGetEdge(out HalfEdgeHandle edge) ? edge : default;
+
+    public FaceHandle Face => Element.TryGetFace(out FaceHandle face) ? face : default;
+
+    public static ScenePickHit ObjectHit(
+        EditorObjectId objectId,
+        Vector3 position,
+        float distance
+    ) => new(objectId, SelectionElement.Object(), position, distance);
 
     public static ScenePickHit VertexHit(
-        TRMeshGD mesh,
+        EditorObjectId objectId,
         VertexHandle vertex,
         Vector3 position,
         float distance
-    ) => new(ScenePickElementKind.Vertex, mesh, vertex, default, default, position, distance);
+    ) => new(objectId, SelectionElement.Vertex(vertex), position, distance);
 
     public static ScenePickHit EdgeHit(
-        TRMeshGD mesh,
+        EditorObjectId objectId,
         HalfEdgeHandle edge,
         Vector3 position,
         float distance
-    ) => new(ScenePickElementKind.Edge, mesh, default, edge, default, position, distance);
+    ) => new(objectId, SelectionElement.Edge(edge), position, distance);
 
     public static ScenePickHit FaceHit(
-        TRMeshGD mesh,
+        EditorObjectId objectId,
         FaceHandle face,
         Vector3 position,
         float distance
-    ) => new(ScenePickElementKind.Face, mesh, default, default, face, position, distance);
+    ) => new(objectId, SelectionElement.Face(face), position, distance);
 }

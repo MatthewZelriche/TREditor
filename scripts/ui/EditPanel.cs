@@ -144,7 +144,7 @@ public partial class EditPanel : PanelContainer
         {
             _session.EditOperationSettings.Changed += RefreshOperationSelection;
             _session.GridSnapSizeChanged += RefreshOperationSelection;
-            _session.Selection.SelectionChanged += RefreshOperationSelection;
+            _session.Selection.SelectionChanged += OnSelectionChanged;
         }
         RefreshOperationSelection();
     }
@@ -175,7 +175,7 @@ public partial class EditPanel : PanelContainer
         {
             _session.EditOperationSettings.Changed -= RefreshOperationSelection;
             _session.GridSnapSizeChanged -= RefreshOperationSelection;
-            _session.Selection.SelectionChanged -= RefreshOperationSelection;
+            _session.Selection.SelectionChanged -= OnSelectionChanged;
         }
         if (KeybindingService.Instance != null)
             KeybindingService.Instance.BindingChanged -= OnKeybindingChanged;
@@ -242,6 +242,8 @@ public partial class EditPanel : PanelContainer
             _session.EditOperationSettings.Deselect();
         RefreshOperationSelection();
     }
+
+    private void OnSelectionChanged(SelectionSnapshot selection) => RefreshOperationSelection();
 
     private void RefreshOperationSelection()
     {
