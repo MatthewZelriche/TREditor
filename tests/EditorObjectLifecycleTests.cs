@@ -94,7 +94,8 @@ public sealed class EditorObjectLifecycleTests
         EditorSceneModel model = new();
         FakeEditorSceneView view = new();
         EditorObjectLifecycle lifecycle = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view);
+        EditorMeshOperations operations = new(model, view);
+        EditorSceneService scene = new(lifecycle, model, view, operations);
 
         Assert.True(scene.CreateMeshObject(id, mesh, "Box"));
         Assert.False(scene.CreateMeshObject(id, new SpatialMesh(), "Duplicate"));
@@ -110,7 +111,8 @@ public sealed class EditorObjectLifecycleTests
         EditorSceneModel model = new();
         FakeEditorSceneView view = new() { AllowAttach = false };
         EditorObjectLifecycle lifecycle = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view);
+        EditorMeshOperations operations = new(model, view);
+        EditorSceneService scene = new(lifecycle, model, view, operations);
 
         Assert.False(scene.CreateMeshObject(EditorObjectId.New(), mesh, "Box"));
         Assert.Empty(model.Objects);
@@ -127,7 +129,8 @@ public sealed class EditorObjectLifecycleTests
         EditorSceneModel model = new();
         FakeEditorSceneView view = new();
         EditorObjectLifecycle lifecycle = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view);
+        EditorMeshOperations operations = new(model, view);
+        EditorSceneService scene = new(lifecycle, model, view, operations);
         scene.CreateMeshObject(id, mesh, "Box");
 
         Assert.True(scene.RemoveMeshObject(id));
@@ -151,7 +154,8 @@ public sealed class EditorObjectLifecycleTests
         EditorSceneModel model = new();
         FakeEditorSceneView view = new();
         EditorObjectLifecycle lifecycle = new(model, view);
-        EditorSceneService scene = new(lifecycle, model, view);
+        EditorMeshOperations operations = new(model, view);
+        EditorSceneService scene = new(lifecycle, model, view, operations);
         scene.CreateMeshObject(id, mesh, "Box");
         scene.RemoveMeshObject(id);
 
