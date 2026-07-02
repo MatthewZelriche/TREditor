@@ -48,6 +48,8 @@ public sealed class EditorSceneService : IDisposable
 
     internal EditorObjectLifecycle Lifecycle => _lifecycle;
 
+    internal IEditorSceneView View => _view;
+
     internal EditorMeshOperations Operations => _operations;
 
     public bool CreateMeshObject(EditorObjectId objectId, SpatialMesh mesh, string displayName)

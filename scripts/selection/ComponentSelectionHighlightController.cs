@@ -4,7 +4,9 @@ using Godot;
 
 public sealed class ComponentSelectionHighlightController : IDisposable
 {
-    private readonly EditorSceneService _scene;
+    private readonly EditorSceneModel _model;
+    private readonly IEditorSceneView _view;
+    private readonly Node3D _worldRoot;
     private readonly SelectionService _selection;
     private readonly Dictionary<EditorObjectId, ComponentSelectionOverlay> _overlays = [];
 
@@ -15,14 +17,20 @@ public sealed class ComponentSelectionHighlightController : IDisposable
     private bool _disposed;
 
     public ComponentSelectionHighlightController(
-        EditorSceneService scene,
+        EditorSceneModel model,
+        IEditorSceneView view,
+        Node3D worldRoot,
         SelectionService selection
     )
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(view);
+        ArgumentNullException.ThrowIfNull(worldRoot);
         ArgumentNullException.ThrowIfNull(selection);
 
-        _scene = scene;
+        _model = model;
+        _view = view;
+        _worldRoot = worldRoot;
         _selection = selection;
         _selection.SelectionChanged += OnSelectionChanged;
     }
@@ -106,21 +114,23 @@ public sealed class ComponentSelectionHighlightController : IDisposable
             BuildSelectedByObject();
         HashSet<EditorObjectId> liveObjectIds = [];
 
-        foreach ((EditorObjectId objectId, TRMeshGD meshNode) in _scene.EnumerateMeshObjects())
+        foreach (EditorObjectModel obj in _model.Objects)
         {
-            if (meshNode.GetParent() == null)
+            liveObjectIds.Add(obj.Id);
+            if (!_view.TryGetNode(obj.Id, out TRMeshGD meshNode) || meshNode.GetParent() == null)
             {
                 continue;
             }
 
-            liveObjectIds.Add(objectId);
-            selectedByObject.TryGetValue(objectId, out List<SelectionTarget> selected);
+            selectedByObject.TryGetValue(obj.Id, out List<SelectionTarget> selected);
+            Transform3D globalTransform = _worldRoot.GlobalTransform * obj.LocalTransform;
 
-            ComponentSelectionOverlay overlay = GetOrCreateOverlay(objectId, meshNode);
+            ComponentSelectionOverlay overlay = GetOrCreateOverlay(obj.Id, meshNode);
             overlay.Rebuild(
-                meshNode,
+                obj.Mesh,
+                globalTransform,
                 selected ?? [],
-                GetHoverForObject(objectId),
+                GetHoverForObject(obj.Id),
                 _cameraOrigin,
                 _mode
             );

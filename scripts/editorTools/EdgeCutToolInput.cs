@@ -98,11 +98,10 @@ public sealed class EdgeCutToolInput
         }
 
         PendingCut first = _pending.Value;
-        TRMeshGD firstMeshNode = _context.GetMeshNode(first.Point.ObjectId);
         if (
-            firstMeshNode == null
-            || !firstMeshNode.SourceMesh.IsFaceAlive(face.Face)
-            || !firstMeshNode.SourceMesh.IsHalfEdgeAlive(first.Point.Edge)
+            !_context.TryGetObject(first.Point.ObjectId, out EditorObjectModel firstObject)
+            || !firstObject.Mesh.IsFaceAlive(face.Face)
+            || !firstObject.Mesh.IsHalfEdgeAlive(first.Point.Edge)
             || first.Point.ObjectId != face.ObjectId
         )
         {
@@ -116,7 +115,8 @@ public sealed class EdgeCutToolInput
         Vector3 end = hasValidTarget
             ? target.Position
             : ProjectRayOntoFace(
-                firstMeshNode,
+                firstObject.Mesh,
+                _context.GetObjectGlobalTransform(firstObject),
                 face.Face,
                 input.RayOrigin,
                 input.RayDirection,
@@ -184,18 +184,22 @@ public sealed class EdgeCutToolInput
     )
     {
         point = default;
-        TRMeshGD meshNode = _context.GetMeshNode(face.ObjectId);
-        if (meshNode == null || !meshNode.SourceMesh.IsFaceAlive(face.Face))
+        if (
+            !_context.TryGetObject(face.ObjectId, out EditorObjectModel obj)
+            || !obj.Mesh.IsFaceAlive(face.Face)
+        )
+        {
             return false;
+        }
 
-        Transform3D inverse = meshNode.GlobalTransform.AffineInverse();
+        Transform3D inverse = _context.GetObjectGlobalTransform(obj).AffineInverse();
         Vector3 localOrigin = inverse * rayOrigin;
         Vector3 localDirection = inverse.Basis * rayDirection;
         if (localDirection.IsZeroApprox())
             return false;
         localDirection = localDirection.Normalized();
 
-        SpatialMesh mesh = meshNode.SourceMesh;
+        SpatialMesh mesh = obj.Mesh;
         float vertexRadiusSquared =
             _context.ScenePicking.VertexPickRadius * _context.ScenePicking.VertexPickRadius;
         float bestVertexRayDistance = float.MaxValue;
@@ -225,13 +229,7 @@ public sealed class EdgeCutToolInput
 
         if (!bestVertex.IsNull)
         {
-            point = new CutPoint(
-                meshNode.ObjectId,
-                bestVertexEdge,
-                0f,
-                bestVertex,
-                bestVertexPosition
-            );
+            point = new CutPoint(obj.Id, bestVertexEdge, 0f, bestVertex, bestVertexPosition);
             return true;
         }
 
@@ -279,13 +277,7 @@ public sealed class EdgeCutToolInput
         Vector3 bestStart = ToGodot(mesh.GetVertexPosition(bestData.Origin));
         Vector3 bestEnd = ToGodot(mesh.GetVertexPosition(mesh.GetHalfEdge(bestData.Twin).Origin));
         bestPosition = bestStart.Lerp(bestEnd, bestParameter);
-        point = new CutPoint(
-            meshNode.ObjectId,
-            bestEdge,
-            bestParameter,
-            VertexHandle.Null,
-            bestPosition
-        );
+        point = new CutPoint(obj.Id, bestEdge, bestParameter, VertexHandle.Null, bestPosition);
         return true;
     }
 
@@ -303,15 +295,15 @@ public sealed class EdgeCutToolInput
     }
 
     private static Vector3 ProjectRayOntoFace(
-        TRMeshGD meshNode,
+        SpatialMesh mesh,
+        Transform3D globalTransform,
         FaceHandle face,
         Vector3 rayOrigin,
         Vector3 rayDirection,
         Vector3 fallback
     )
     {
-        SpatialMesh mesh = meshNode.SourceMesh;
-        Transform3D inverse = meshNode.GlobalTransform.AffineInverse();
+        Transform3D inverse = globalTransform.AffineInverse();
         Vector3 localOrigin = inverse * rayOrigin;
         Vector3 localDirection = inverse.Basis * rayDirection;
         Vector3 normal = ToGodot(mesh.ComputeFaceNormal(face));
@@ -336,25 +328,21 @@ public sealed class EdgeCutToolInput
         bool hasValidTarget
     ) => new(GetMeshTransform(first), first.Position, end, hasValidTarget);
 
-    private Transform3D GetMeshTransform(CutPoint point)
-    {
-        TRMeshGD meshNode = _context.GetMeshNode(point.ObjectId);
-        return meshNode?.GlobalTransform ?? Transform3D.Identity;
-    }
+    private Transform3D GetMeshTransform(CutPoint point) =>
+        _context.TryGetObject(point.ObjectId, out EditorObjectModel obj)
+            ? _context.GetObjectGlobalTransform(obj)
+            : Transform3D.Identity;
 
-    private bool CanConnect(SelectionTarget face, CutPoint first, CutPoint second)
-    {
-        TRMeshGD meshNode = _context.GetMeshNode(first.ObjectId);
-        return meshNode != null
-            && EdgeCutChange.CanCut(
-                meshNode.SourceMesh,
-                face.Face,
-                first.Edge,
-                first.Parameter,
-                second.Edge,
-                second.Parameter
-            );
-    }
+    private bool CanConnect(SelectionTarget face, CutPoint first, CutPoint second) =>
+        _context.TryGetObject(first.ObjectId, out EditorObjectModel obj)
+        && EdgeCutChange.CanCut(
+            obj.Mesh,
+            face.Face,
+            first.Edge,
+            first.Parameter,
+            second.Edge,
+            second.Parameter
+        );
 
     private static SelectionTarget CreateSelectionTarget(EditorObjectId objectId, CutPoint point) =>
         point.Vertex.IsNull

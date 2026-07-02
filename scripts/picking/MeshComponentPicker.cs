@@ -5,13 +5,13 @@ using TREditorSharp;
 using NumericsVector3 = System.Numerics.Vector3;
 
 // Manages the simple collision test logic for picking mesh vertices, edges, and faces.
-// returns TRMesh handles for the picked components
 public static class MeshComponentPicker
 {
     private const float Epsilon = 0.000001f;
 
     public static bool TryPickComponents(
-        TRMeshGD meshNode,
+        EditorObjectId objectId,
+        SpatialMesh mesh,
         Vector3 rayOrigin,
         Vector3 rayDirection,
         float maxDistance,
@@ -22,16 +22,17 @@ public static class MeshComponentPicker
         out ScenePickHit face
     )
     {
-        ArgumentNullException.ThrowIfNull(meshNode);
+        ArgumentNullException.ThrowIfNull(mesh);
 
-        vertex = PickVertex(meshNode, rayOrigin, rayDirection, maxDistance, vertexRadius);
-        edge = PickEdge(meshNode, rayOrigin, rayDirection, maxDistance, edgeRadius);
-        face = PickFace(meshNode, rayOrigin, rayDirection, maxDistance);
+        vertex = PickVertex(objectId, mesh, rayOrigin, rayDirection, maxDistance, vertexRadius);
+        edge = PickEdge(objectId, mesh, rayOrigin, rayDirection, maxDistance, edgeRadius);
+        face = PickFace(objectId, mesh, rayOrigin, rayDirection, maxDistance);
         return vertex.HasHit || edge.HasHit || face.HasHit;
     }
 
     private static ScenePickHit PickVertex(
-        TRMeshGD meshNode,
+        EditorObjectId objectId,
+        SpatialMesh mesh,
         Vector3 rayOrigin,
         Vector3 rayDirection,
         float maxDistance,
@@ -43,7 +44,6 @@ public static class MeshComponentPicker
             return ScenePickHit.None;
         }
 
-        SpatialMesh mesh = meshNode.SourceMesh;
         float bestDistance = float.MaxValue;
         VertexHandle bestVertex = default;
         Vector3 bestPosition = default;
@@ -74,12 +74,13 @@ public static class MeshComponentPicker
         }
 
         return bestDistance < float.MaxValue
-            ? ScenePickHit.VertexHit(meshNode.ObjectId, bestVertex, bestPosition, bestDistance)
+            ? ScenePickHit.VertexHit(objectId, bestVertex, bestPosition, bestDistance)
             : ScenePickHit.None;
     }
 
     private static ScenePickHit PickEdge(
-        TRMeshGD meshNode,
+        EditorObjectId objectId,
+        SpatialMesh mesh,
         Vector3 rayOrigin,
         Vector3 rayDirection,
         float maxDistance,
@@ -91,7 +92,6 @@ public static class MeshComponentPicker
             return ScenePickHit.None;
         }
 
-        SpatialMesh mesh = meshNode.SourceMesh;
         float bestDistance = float.MaxValue;
         HalfEdgeHandle bestEdge = default;
         Vector3 bestPosition = default;
@@ -130,18 +130,18 @@ public static class MeshComponentPicker
         }
 
         return bestDistance < float.MaxValue
-            ? ScenePickHit.EdgeHit(meshNode.ObjectId, bestEdge, bestPosition, bestDistance)
+            ? ScenePickHit.EdgeHit(objectId, bestEdge, bestPosition, bestDistance)
             : ScenePickHit.None;
     }
 
     private static ScenePickHit PickFace(
-        TRMeshGD meshNode,
+        EditorObjectId objectId,
+        SpatialMesh mesh,
         Vector3 rayOrigin,
         Vector3 rayDirection,
         float maxDistance
     )
     {
-        SpatialMesh mesh = meshNode.SourceMesh;
         List<FaceCornerHandle> faceTriangulation = [];
         float bestDistance = float.MaxValue;
         FaceHandle bestFace = default;
@@ -175,7 +175,7 @@ public static class MeshComponentPicker
 
         return bestDistance < float.MaxValue
             ? ScenePickHit.FaceHit(
-                meshNode.ObjectId,
+                objectId,
                 bestFace,
                 rayOrigin + rayDirection * bestDistance,
                 bestDistance

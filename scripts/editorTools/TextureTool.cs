@@ -44,16 +44,17 @@ public sealed class TextureTool : IEditorTool
         }
 
         int materialSlot = _context.TextureMaterials.GetOrCreateSlot(intent.AssetId);
-        TRMeshGD meshNode = _context.GetMeshNode(hit.ObjectId);
-        ApplyTextureToFaceCommand? command =
-            meshNode != null
-                ? ApplyTextureToFaceCommand.CreateIfValid(
-                    hit.ObjectId,
-                    meshNode.SourceMesh,
-                    intent.Face,
-                    materialSlot
-                )
-                : null;
+        ApplyTextureToFaceCommand? command = _context.TryGetObject(
+            hit.ObjectId,
+            out EditorObjectModel obj
+        )
+            ? ApplyTextureToFaceCommand.CreateIfValid(
+                hit.ObjectId,
+                obj.Mesh,
+                intent.Face,
+                materialSlot
+            )
+            : null;
         return command == null
             ? EditorToolResult.Continue
             : EditorToolResult.ContinueWithCommand(command);

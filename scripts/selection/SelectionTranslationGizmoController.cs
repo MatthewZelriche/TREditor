@@ -5,7 +5,7 @@ using Godot;
 
 public sealed class SelectionTranslationGizmoController : IDisposable
 {
-    private readonly EditorSceneService _scene;
+    private readonly EditorMeshOperations _operations;
     private readonly SelectionService _selection;
     private readonly Func<bool> _isExtrusionModifierPressed;
     private readonly List<GizmoRegistration> _registrations = [];
@@ -27,15 +27,15 @@ public sealed class SelectionTranslationGizmoController : IDisposable
     private Vector3 _dragFaceNormal;
 
     public SelectionTranslationGizmoController(
-        EditorSceneService scene,
+        EditorMeshOperations operations,
         SelectionService selection,
         Func<bool> isExtrusionModifierPressed = null
     )
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(operations);
         ArgumentNullException.ThrowIfNull(selection);
 
-        _scene = scene;
+        _operations = operations;
         _selection = selection;
         _isExtrusionModifierPressed =
             isExtrusionModifierPressed ?? (() => Input.IsKeyPressed(Key.Shift));
@@ -171,7 +171,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
             !_active
             || _inputSuppressed
             || (Gizmo3D.TransformMode)mode != Gizmo3D.TransformMode.Translate
-            || !_scene.TryGetSelectionCenter(_selection.Current, out _dragCenter)
+            || !_operations.TryGetSelectionCenter(_selection.Current, out _dragCenter)
         )
         {
             return;
@@ -196,13 +196,13 @@ public sealed class SelectionTranslationGizmoController : IDisposable
                 extrusionModifierPressed,
                 _extrudeEdgeOperationSelected,
                 ExtrudeEdgeCommand.CanCreate(_dragSelection)
-                    && _scene.CanExtrudeEdge(_dragSelection.Targets[0])
+                    && _operations.CanExtrudeEdge(_dragSelection.Targets[0])
             );
         _dragFaceNormal =
             _extrudeFaceDrag
             && _extrudeFaceOperationSelected
             && _extrudeAlongFaceNormal
-            && _scene.TryGetFaceWorldNormal(_dragSelection.Targets[0], out Vector3 faceNormal)
+            && _operations.TryGetFaceWorldNormal(_dragSelection.Targets[0], out Vector3 faceNormal)
                 ? faceNormal
                 : Vector3.Zero;
     }
@@ -281,7 +281,7 @@ public sealed class SelectionTranslationGizmoController : IDisposable
         if (
             !_active
             || _inputSuppressed
-            || !_scene.TryGetSelectionCenter(_selection.Current, out Vector3 center)
+            || !_operations.TryGetSelectionCenter(_selection.Current, out Vector3 center)
         )
         {
             HideGizmos();

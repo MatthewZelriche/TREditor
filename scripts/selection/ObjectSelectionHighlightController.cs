@@ -3,19 +3,26 @@ using System.Collections.Generic;
 
 public sealed class ObjectSelectionHighlightController : IDisposable
 {
-    private readonly EditorSceneService _scene;
+    private readonly EditorSceneModel _model;
+    private readonly IEditorSceneView _view;
     private readonly SelectionService _selection;
     private readonly HashSet<EditorObjectId> _highlighted = [];
 
     private bool _active;
     private bool _disposed;
 
-    public ObjectSelectionHighlightController(EditorSceneService scene, SelectionService selection)
+    public ObjectSelectionHighlightController(
+        EditorSceneModel model,
+        IEditorSceneView view,
+        SelectionService selection
+    )
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(selection);
 
-        _scene = scene;
+        _model = model;
+        _view = view;
         _selection = selection;
         _selection.SelectionChanged += OnSelectionChanged;
     }
@@ -68,7 +75,7 @@ public sealed class ObjectSelectionHighlightController : IDisposable
 
         foreach (EditorObjectId objectId in selectedObjectIds)
         {
-            if (!_highlighted.Add(objectId))
+            if (!_model.Contains(objectId) || !_highlighted.Add(objectId))
             {
                 continue;
             }
@@ -103,15 +110,9 @@ public sealed class ObjectSelectionHighlightController : IDisposable
 
     private void SetObjectHighlighted(EditorObjectId objectId, bool highlighted)
     {
-        foreach ((EditorObjectId candidateId, TRMeshGD meshNode) in _scene.EnumerateMeshObjects())
+        if (_view.TryGetNode(objectId, out TRMeshGD meshNode))
         {
-            if (candidateId != objectId)
-            {
-                continue;
-            }
-
             meshNode.SetObjectSelected(highlighted);
-            return;
         }
     }
 }

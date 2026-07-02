@@ -19,6 +19,8 @@ public sealed class ScenePickingService
     private const float DepthEpsilon = 0.000001f;
 
     private readonly World3D _world;
+    private readonly EditorSceneModel _model;
+    private readonly Node3D _worldRoot;
     private readonly CapsuleShape3D _broadphaseCapsule = new();
     private readonly PhysicsShapeQueryParameters3D _broadphaseQuery = new()
     {
@@ -27,11 +29,15 @@ public sealed class ScenePickingService
     };
     private readonly HashSet<TRMeshGD> _candidateScratch = [];
 
-    public ScenePickingService(World3D world)
+    public ScenePickingService(World3D world, EditorSceneModel model, Node3D worldRoot)
     {
         ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(worldRoot);
 
         _world = world;
+        _model = model;
+        _worldRoot = worldRoot;
     }
 
     /// <summary>Radius used for fuzzy object broad-phase capsule traces.</summary>
@@ -244,7 +250,16 @@ public sealed class ScenePickingService
         out ScenePickHit face
     )
     {
-        Transform3D inverseTransform = candidate.GlobalTransform.AffineInverse();
+        if (!_model.TryGet(candidate.ObjectId, out EditorObjectModel obj))
+        {
+            vertex = ScenePickHit.None;
+            edge = ScenePickHit.None;
+            face = ScenePickHit.None;
+            return false;
+        }
+
+        Transform3D globalTransform = _worldRoot.GlobalTransform * obj.LocalTransform;
+        Transform3D inverseTransform = globalTransform.AffineInverse();
         Vector3 localOrigin = inverseTransform * rayOrigin;
         Vector3 localEnd = inverseTransform * (rayOrigin + rayDirectionUnit * maxDistance);
         Vector3 localSegment = localEnd - localOrigin;
@@ -260,7 +275,8 @@ public sealed class ScenePickingService
 
         Vector3 localDirection = localSegment / localMaxDistance;
         bool hasHit = MeshComponentPicker.TryPickComponents(
-            candidate,
+            obj.Id,
+            obj.Mesh,
             localOrigin,
             localDirection,
             localMaxDistance,
@@ -271,27 +287,9 @@ public sealed class ScenePickingService
             out face
         );
 
-        vertex = ToWorldHit(
-            vertex,
-            candidate.GlobalTransform,
-            rayOrigin,
-            rayDirectionUnit,
-            maxDistance
-        );
-        edge = ToWorldHit(
-            edge,
-            candidate.GlobalTransform,
-            rayOrigin,
-            rayDirectionUnit,
-            maxDistance
-        );
-        face = ToWorldHit(
-            face,
-            candidate.GlobalTransform,
-            rayOrigin,
-            rayDirectionUnit,
-            maxDistance
-        );
+        vertex = ToWorldHit(vertex, globalTransform, rayOrigin, rayDirectionUnit, maxDistance);
+        edge = ToWorldHit(edge, globalTransform, rayOrigin, rayDirectionUnit, maxDistance);
+        face = ToWorldHit(face, globalTransform, rayOrigin, rayDirectionUnit, maxDistance);
         return hasHit;
     }
 

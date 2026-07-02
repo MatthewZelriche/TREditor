@@ -58,19 +58,19 @@ public sealed partial class ComponentSelectionOverlay : Node3D
     }
 
     public void Rebuild(
-        TRMeshGD meshNode,
+        SpatialMesh mesh,
+        Transform3D globalTransform,
         IReadOnlyList<SelectionTarget> selected,
         SelectionTarget? hover,
         Vector3 cameraOrigin,
         ComponentHighlightMode mode
     )
     {
-        ArgumentNullException.ThrowIfNull(meshNode);
+        ArgumentNullException.ThrowIfNull(mesh);
         EnsureChildren();
         ClearScratch();
 
-        SpatialMesh mesh = meshNode.SourceMesh;
-        Vector3 localCameraOrigin = meshNode.GlobalTransform.AffineInverse() * cameraOrigin;
+        Vector3 localCameraOrigin = globalTransform.AffineInverse() * cameraOrigin;
 
         CollectInvalidFaceEdges(mesh);
         AddDefaultComponents(mesh, localCameraOrigin, mode.PassiveKinds);

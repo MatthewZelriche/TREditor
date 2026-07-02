@@ -14,7 +14,9 @@ public sealed class EditorToolContext
         TextureMaterialLibrary textureMaterials,
         Action<string> reportStatus,
         Func<float> getGridSnapSize,
-        Func<EditorObjectId, TRMeshGD> getMeshNode
+        EditorSceneModel sceneModel,
+        Node3D worldRoot,
+        IEditorSceneView sceneView
     )
     {
         ArgumentNullException.ThrowIfNull(scenePicking);
@@ -27,7 +29,9 @@ public sealed class EditorToolContext
         ArgumentNullException.ThrowIfNull(textureMaterials);
         ArgumentNullException.ThrowIfNull(reportStatus);
         ArgumentNullException.ThrowIfNull(getGridSnapSize);
-        ArgumentNullException.ThrowIfNull(getMeshNode);
+        ArgumentNullException.ThrowIfNull(sceneModel);
+        ArgumentNullException.ThrowIfNull(worldRoot);
+        ArgumentNullException.ThrowIfNull(sceneView);
 
         ScenePicking = scenePicking;
         Selection = selection;
@@ -39,7 +43,9 @@ public sealed class EditorToolContext
         TextureMaterials = textureMaterials;
         ReportStatus = reportStatus;
         GetGridSnapSize = getGridSnapSize;
-        GetMeshNode = getMeshNode;
+        SceneModel = sceneModel;
+        WorldRoot = worldRoot;
+        SceneView = sceneView;
     }
 
     public ScenePickingService ScenePicking { get; }
@@ -52,5 +58,13 @@ public sealed class EditorToolContext
     public TextureMaterialLibrary TextureMaterials { get; }
     public Action<string> ReportStatus { get; }
     public Func<float> GetGridSnapSize { get; }
-    public Func<EditorObjectId, TRMeshGD> GetMeshNode { get; }
+    public EditorSceneModel SceneModel { get; }
+    public Node3D WorldRoot { get; }
+    public IEditorSceneView SceneView { get; }
+
+    public bool TryGetObject(EditorObjectId objectId, out EditorObjectModel obj) =>
+        SceneModel.TryGet(objectId, out obj);
+
+    public Transform3D GetObjectGlobalTransform(EditorObjectModel obj) =>
+        WorldRoot.GlobalTransform * obj.LocalTransform;
 }

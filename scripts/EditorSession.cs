@@ -77,7 +77,6 @@ public partial class EditorSession : Node3D
 
     public override void _EnterTree()
     {
-        ScenePicking = new ScenePickingService(GetWorld3D());
         Selection = new SelectionService();
         EditOperationSettings = new EditOperationSettings();
         Selection.SelectionChanged += OnSelectionChangedForEditOperation;
@@ -90,16 +89,20 @@ public partial class EditorSession : Node3D
                 : null
         );
         _sceneService = new EditorSceneService(this, TextureMaterials);
+        ScenePicking = new ScenePickingService(GetWorld3D(), _sceneService.Model, this);
         _objectSelectionHighlightController = new ObjectSelectionHighlightController(
-            _sceneService,
+            _sceneService.Model,
+            _sceneService.View,
             Selection
         );
         _componentSelectionHighlightController = new ComponentSelectionHighlightController(
-            _sceneService,
+            _sceneService.Model,
+            _sceneService.View,
+            this,
             Selection
         );
         _selectionTranslationGizmoController = new SelectionTranslationGizmoController(
-            _sceneService,
+            _sceneService.Operations,
             Selection
         );
         EditOperationSettings.Changed += ApplyEditOperationSettings;
@@ -353,8 +356,9 @@ public partial class EditorSession : Node3D
             TextureMaterials,
             ReportStatus,
             () => GridSnapSize,
-            objectId =>
-                _sceneService.TryGetMeshNode(objectId, out TRMeshGD meshNode) ? meshNode : null
+            _sceneService.Model,
+            this,
+            _sceneService.View
         );
         _previewService = new EditorPreviewService(
             this,
