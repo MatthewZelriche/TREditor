@@ -1,3 +1,6 @@
 [submodule "addons/TilingContainer"]
 	path = addons/TilingContainer
 	url = https://github.com/MatthewZelriche/TilingContainer.git
+[submodule "vendor/TRMesh"]
+	path = vendor/TRMesh
+	url = https://github.com/MatthewZelriche/TRMesh.git
