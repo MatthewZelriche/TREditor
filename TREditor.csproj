@@ -1,0 +1,11 @@
+<Project Sdk="Godot.NET.Sdk/4.7.0-beta.1">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="addons\TilingContainer\tests\**" />
+    <None Remove="addons\TilingContainer\tests\**" />
+  </ItemGroup>
+</Project>
