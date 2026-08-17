@@ -60,6 +60,16 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 6
 
+[node name="ApplicationTitle" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.847059, 0.858824, 0.886275, 1)
+theme_override_font_sizes/font_size = 13
+text = "TREditor"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="LeftInset" type="Control" parent="Contents"]
 custom_minimum_size = Vector2(8, 0)
 layout_mode = 2
@@ -74,16 +84,6 @@ size_flags_vertical = 4
 mouse_filter = 0
 expand_mode = 1
 stretch_mode = 5
-
-[node name="ApplicationTitle" type="Label" parent="Contents"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 3
-mouse_filter = 0
-theme_override_colors/font_color = Color(0.847059, 0.858824, 0.886275, 1)
-theme_override_font_sizes/font_size = 13
-text = "TREditor"
-vertical_alignment = 1
 
 [node name="TitleMenuGap" type="Control" parent="Contents"]
 custom_minimum_size = Vector2(6, 0)
@@ -223,7 +223,6 @@ theme_override_styles/focus = SubResource("StyleBox_button_normal")
 text = "×"
 
 [connection signal="gui_input" from="Contents/ApplicationIcon" to="." method="OnDragRegionGuiInput"]
-[connection signal="gui_input" from="Contents/ApplicationTitle" to="." method="OnDragRegionGuiInput"]
 [connection signal="id_pressed" from="Contents/MainMenu/AboutMenu" to="." method="OnMenuIdPressed"]
 [connection signal="id_pressed" from="Contents/MainMenu/EditMenu" to="." method="OnMenuIdPressed"]
 [connection signal="id_pressed" from="Contents/MainMenu/FileMenu" to="." method="OnMenuIdPressed"]

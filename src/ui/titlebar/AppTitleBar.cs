@@ -6,6 +6,8 @@ using Godot;
 
 public partial class AppTitleBar : PanelContainer
 {
+    private const int WindowDragThreshold = 4;
+
     public enum AppMenuAction
     {
         NewDocument = 100,
@@ -32,6 +34,12 @@ public partial class AppTitleBar : PanelContainer
     private string _titleOverride = string.Empty;
     private Texture2D? _applicationIcon;
     private bool _showWindowControls = true;
+    private bool _isMaximized;
+    private bool _hasRestoreBounds;
+    private Vector2I _restorePosition;
+    private Vector2I _restoreSize;
+    private bool _windowDragPending;
+    private Vector2I _windowDragStart;
 
     private Window? _window;
     private TextureRect? _icon;
@@ -172,27 +180,62 @@ public partial class AppTitleBar : PanelContainer
     // Handles clicks on drag area to window drag or maximize
     private void OnDragRegionGuiInput(InputEvent @event)
     {
+        if (@event is InputEventMouseButton mouseButton)
+        {
+            if (mouseButton.ButtonIndex != MouseButton.Left)
+            {
+                return;
+            }
+
+            if (!mouseButton.Pressed)
+            {
+                _windowDragPending = false;
+                return;
+            }
+
+            if (mouseButton.DoubleClick)
+            {
+                _windowDragPending = false;
+                ToggleMaximizeWindow();
+                AcceptEvent();
+                return;
+            }
+
+            _windowDragPending = true;
+            _windowDragStart = DisplayServer.MouseGetPosition();
+            AcceptEvent();
+            return;
+        }
+
         if (
-            @event is not InputEventMouseButton mouseButton
-            || mouseButton.ButtonIndex != MouseButton.Left
-            || !mouseButton.Pressed
+            @event is not InputEventMouseMotion
+            || !_windowDragPending
+            || !Input.IsMouseButtonPressed(MouseButton.Left)
         )
         {
             return;
         }
 
-        if (mouseButton.DoubleClick)
+        Vector2I dragDistance = DisplayServer.MouseGetPosition() - _windowDragStart;
+        if (dragDistance.LengthSquared() < WindowDragThreshold * WindowDragThreshold)
         {
-            ToggleMaximizeWindow();
-            AcceptEvent();
             return;
         }
 
-        if (DisplayServer.HasFeature(DisplayServer.Feature.WindowDrag))
+        _windowDragPending = false;
+
+        if (!DisplayServer.HasFeature(DisplayServer.Feature.WindowDrag))
         {
-            DisplayServer.WindowStartDrag();
-            AcceptEvent();
+            return;
         }
+
+        if (_isMaximized)
+        {
+            RestoreWindowForDrag();
+        }
+
+        DisplayServer.WindowStartDrag();
+        AcceptEvent();
     }
 
     private void MinimizeWindow()
@@ -210,9 +253,63 @@ public partial class AppTitleBar : PanelContainer
             return;
         }
 
-        _window.Mode = _window.Mode == Window.ModeEnum.Maximized
-            ? Window.ModeEnum.Windowed
-            : Window.ModeEnum.Maximized;
+        if (_isMaximized)
+        {
+            RestoreWindow();
+            return;
+        }
+
+        _restorePosition = _window.Position;
+        _restoreSize = _window.Size;
+        _hasRestoreBounds = true;
+        _isMaximized = true;
+        _window.Mode = Window.ModeEnum.Maximized;
+        RefreshWindowState();
+    }
+
+    private void RestoreWindow()
+    {
+        if (_window is null)
+        {
+            return;
+        }
+
+        _isMaximized = false;
+        _window.Mode = Window.ModeEnum.Windowed;
+
+        if (_hasRestoreBounds)
+        {
+            _window.Size = _restoreSize;
+            _window.Position = _restorePosition;
+        }
+
+        RefreshWindowState();
+    }
+
+    private void RestoreWindowForDrag()
+    {
+        if (_window is null)
+        {
+            return;
+        }
+
+        Vector2 pointerInWindow = GetViewport().GetMousePosition();
+        Vector2I pointerOnScreen = DisplayServer.MouseGetPosition();
+        Vector2I restoredSize = _hasRestoreBounds ? _restoreSize : new Vector2I(960, 540);
+        float horizontalRatio = Mathf.Clamp(
+            pointerInWindow.X / Mathf.Max(_window.Size.X, 1),
+            0.0f,
+            1.0f
+        );
+        int titleBarOffset = Mathf.Clamp(Mathf.RoundToInt(pointerInWindow.Y), 0, 35);
+
+        _isMaximized = false;
+        _window.Mode = Window.ModeEnum.Windowed;
+        _window.Size = restoredSize;
+        _window.Position = new Vector2I(
+            pointerOnScreen.X - Mathf.RoundToInt(restoredSize.X * horizontalRatio),
+            pointerOnScreen.Y - titleBarOffset
+        );
         RefreshWindowState();
     }
 
@@ -265,7 +362,7 @@ public partial class AppTitleBar : PanelContainer
             return;
         }
 
-        bool isMaximized = _window.Mode == Window.ModeEnum.Maximized;
+        bool isMaximized = _isMaximized;
         _maximizeButton.Text = isMaximized ? "❐" : "□";
         _maximizeButton.TooltipText = isMaximized ? "Restore" : "Maximize";
         _maximizeButton.Disabled = _window.MaximizeDisabled;
