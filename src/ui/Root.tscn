@@ -1,10 +1,11 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="PackedScene" path="res://src/ui/titlebar/AppTitleBar.tscn" id="1_title_bar"]
 [ext_resource type="Script" path="res://src/ui/WindowResizeHandle.cs" id="2_resize_handle"]
 [ext_resource type="Script" path="res://src/ui/Root.cs" id="3_root"]
 [ext_resource type="Script" path="res://src/ui/viewport/MainViewportArea.cs" id="4_main_viewport"]
 [ext_resource type="Script" path="res://src/ui/viewport/ViewportBottomBar.cs" id="5_bottom_bar"]
+[ext_resource type="PackedScene" path="res://src/ui/sidebar/ToolSettingsSidebar.tscn" id="6_tool_settings_sidebar"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_toolbar_background"]
 bg_color = Color(0.117647, 0.12549, 0.141176, 1)
@@ -90,6 +91,7 @@ theme_override_constants/margin_bottom = 5
 
 [node name="SelectionModes" type="HBoxContainer" parent="ToolbarStrip/ToolbarMargin"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
 [node name="ObjectButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
@@ -183,6 +185,26 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_selection_mode")
 text = "Face"
 
+[node name="ToolbarSpacer" type="Control" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="SidebarToggleButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+tooltip_text = "Hide tool settings"
+theme_override_colors/font_color = Color(0.819608, 0.811765, 0.847059, 1)
+theme_override_colors/font_hover_color = Color(0.909804, 0.913725, 0.929412, 1)
+theme_override_colors/font_pressed_color = Color(0.909804, 0.913725, 0.929412, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBox_mode_normal")
+theme_override_styles/hover = SubResource("StyleBox_mode_hover")
+theme_override_styles/pressed = SubResource("StyleBox_mode_hover")
+text = ">"
+
 [node name="ViewportGap" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 10
@@ -199,11 +221,25 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_top = 76.0
+offset_right = -222.0
 offset_bottom = -34.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_main_viewport")
 BorderColor = Color(0.215686, 0.235294, 0.270588, 1)
+
+[node name="ToolSettingsSidebar" parent="." instance=ExtResource("6_tool_settings_sidebar")]
+layout_mode = 1
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -222.0
+offset_top = 76.0
+offset_bottom = -34.0
+grow_horizontal = 0
+grow_vertical = 2
+AdjacentContentPath = NodePath("../MainViewportArea")
+ToggleButtonPath = NodePath("../ToolbarStrip/ToolbarMargin/SelectionModes/SidebarToggleButton")
 
 [node name="BottomBarGap" type="ColorRect" parent="."]
 layout_mode = 1
@@ -265,7 +301,7 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBox_mode_normal")
 theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_hover")
-text = "Angle 15°"
+text = "Angle Off"
 
 [node name="SpaceButton" type="MenuButton" parent="BottomBar/BarMargin/Controls"]
 custom_minimum_size = Vector2(58, 23)
