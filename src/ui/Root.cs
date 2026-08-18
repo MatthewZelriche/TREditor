@@ -2,7 +2,7 @@
 
 using Godot;
 
-public partial class Root : Control
+public partial class Root : Node
 {
     private static readonly Vector2I MinimumWindowSize = new(640, 360);
 

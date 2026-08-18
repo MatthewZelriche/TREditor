@@ -2,6 +2,7 @@
 
 using Godot;
 
+// TODO: This will need to display a camera view of the world
 public partial class MainViewport : ColorRect
 {
     private static readonly Color ViewportBackground = new(
