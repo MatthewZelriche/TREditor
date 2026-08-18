@@ -1,7 +1,7 @@
 [gd_scene load_steps=13 format=3]
 
-[ext_resource type="PackedScene" path="res://src/ui/titlebar/AppTitleBar.tscn" id="1_title_bar"]
-[ext_resource type="Script" path="res://src/ui/WindowResizeHandle.cs" id="2_resize_handle"]
+[ext_resource type="PackedScene" path="res://src/ui/window/AppTitleBar.tscn" id="1_title_bar"]
+[ext_resource type="Script" path="res://src/ui/window/WindowResizeHandle.cs" id="2_resize_handle"]
 [ext_resource type="Script" path="res://src/ui/Root.cs" id="3_root"]
 [ext_resource type="Script" path="res://src/ui/viewport/MainViewportArea.cs" id="4_main_viewport"]
 [ext_resource type="Script" path="res://src/ui/viewport/ViewportBottomBar.cs" id="5_bottom_bar"]
