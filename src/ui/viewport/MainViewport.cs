@@ -2,21 +2,32 @@
 
 using Godot;
 
-// TODO: This will need to display a camera view of the world
-public partial class MainViewport : ColorRect
+public partial class MainViewport : SubViewportContainer
 {
-    private static readonly Color ViewportBackground = new(
-        0.0901961f,
-        0.0980392f,
-        0.113725f,
-        1.0f
-    );
+    private static readonly Vector3 InitialCameraPosition = new(10.0f, 10.0f, 10.0f);
+    private static readonly Vector3 InitialCameraTarget = Vector3.Zero;
 
     public MainViewport()
     {
         Name = "Perspective";
-        Color = ViewportBackground;
+        Stretch = true;
         SizeFlagsHorizontal = SizeFlags.ExpandFill;
         SizeFlagsVertical = SizeFlags.ExpandFill;
+
+        SubViewport renderViewport = new()
+        {
+            Name = "RenderViewport",
+            RenderTargetUpdateMode = SubViewport.UpdateMode.WhenParentVisible,
+        };
+        AddChild(renderViewport);
+
+        Camera3D camera = new()
+        {
+            Name = "Camera",
+            Projection = Camera3D.ProjectionType.Perspective,
+            Current = true,
+        };
+        camera.LookAtFromPosition(InitialCameraPosition, InitialCameraTarget, Vector3.Up);
+        renderViewport.AddChild(camera);
     }
 }

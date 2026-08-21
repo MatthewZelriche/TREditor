@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="PackedScene" path="res://src/ui/window/AppTitleBar.tscn" id="1_title_bar"]
 [ext_resource type="Script" path="res://src/ui/window/WindowResizeHandle.cs" id="2_resize_handle"]
@@ -57,8 +57,15 @@ border_color = Color(0.0862745, 0.0941176, 0.109804, 1)
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_selection_mode"]
 
+[sub_resource type="Environment" id="Environment_world"]
+background_mode = 1
+background_color = Color(0.0901961, 0.0980392, 0.113725, 1)
+
 [node name="Root" type="Node"]
 script = ExtResource("3_root")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_world")
 
 [node name="MapRoot" type="Node3D" parent="."]
 unique_name_in_owner = true
