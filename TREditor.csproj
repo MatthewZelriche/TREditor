@@ -7,11 +7,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="addons\TilingContainer\tests\**" />
+    <Compile Remove="tests\**" />
     <None Remove="addons\TilingContainer\tests\**" />
+    <None Remove="tests\**" />
     <Compile Remove="vendor\**" />
     <None Remove="vendor\**" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="vendor\TRMesh\tr-mesh.csproj" />
+    <InternalsVisibleTo Include="TREditor.Tests" />
   </ItemGroup>
 </Project>

@@ -2,6 +2,8 @@
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TREditor", "TREditor.csproj", "{CB4FCE99-82E3-4BEE-BD4D-52DAEE1F24F3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TREditor.Tests", "tests\TREditor.Tests\TREditor.Tests.csproj", "{31ED610D-896C-4A88-AFA8-9CE75385EC72}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 	Debug|Any CPU = Debug|Any CPU
@@ -15,5 +17,11 @@ Global
 		{CB4FCE99-82E3-4BEE-BD4D-52DAEE1F24F3}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
 		{CB4FCE99-82E3-4BEE-BD4D-52DAEE1F24F3}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
 		{CB4FCE99-82E3-4BEE-BD4D-52DAEE1F24F3}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+		{31ED610D-896C-4A88-AFA8-9CE75385EC72}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31ED610D-896C-4A88-AFA8-9CE75385EC72}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31ED610D-896C-4A88-AFA8-9CE75385EC72}.ExportDebug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31ED610D-896C-4A88-AFA8-9CE75385EC72}.ExportDebug|Any CPU.Build.0 = Debug|Any CPU
+		{31ED610D-896C-4A88-AFA8-9CE75385EC72}.ExportRelease|Any CPU.ActiveCfg = Release|Any CPU
+		{31ED610D-896C-4A88-AFA8-9CE75385EC72}.ExportRelease|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
