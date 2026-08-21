@@ -87,19 +87,19 @@ offset_bottom = 74.0
 grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBox_toolbar_background")
 
-[node name="ToolbarMargin" type="MarginContainer" parent="ToolbarStrip"]
+[node name="ToolbarMargin" type="MarginContainer" parent="UI/ToolbarStrip"]
 layout_mode = 2
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 5
 
-[node name="SelectionModes" type="HBoxContainer" parent="ToolbarStrip/ToolbarMargin"]
+[node name="SelectionModes" type="HBoxContainer" parent="UI/ToolbarStrip/ToolbarMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="ObjectButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="ObjectButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(68, 28)
 layout_mode = 2
 focus_mode = 0
@@ -117,12 +117,12 @@ button_pressed = true
 button_group = SubResource("ButtonGroup_selection_mode")
 text = "Object"
 
-[node name="ObjectModeGap" type="Control" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="ObjectModeGap" type="Control" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(2, 0)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="AllButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="AllButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(42, 28)
 layout_mode = 2
 focus_mode = 0
@@ -139,7 +139,7 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_selection_mode")
 text = "All"
 
-[node name="VertexButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="VertexButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(56, 28)
 layout_mode = 2
 focus_mode = 0
@@ -156,7 +156,7 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_selection_mode")
 text = "Vertex"
 
-[node name="EdgeButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="EdgeButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(48, 28)
 layout_mode = 2
 focus_mode = 0
@@ -173,7 +173,7 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_selection_mode")
 text = "Edge"
 
-[node name="FaceButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="FaceButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(48, 28)
 layout_mode = 2
 focus_mode = 0
@@ -190,12 +190,12 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_selection_mode")
 text = "Face"
 
-[node name="ToolbarSpacer" type="Control" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="ToolbarSpacer" type="Control" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="SidebarToggleButton" type="Button" parent="ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="SidebarToggleButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 focus_mode = 0
@@ -269,18 +269,18 @@ grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBox_bottom_bar")
 script = ExtResource("5_bottom_bar")
 
-[node name="BarMargin" type="MarginContainer" parent="BottomBar"]
+[node name="BarMargin" type="MarginContainer" parent="UI/BottomBar"]
 layout_mode = 2
 theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 3
 theme_override_constants/margin_right = 4
 theme_override_constants/margin_bottom = 6
 
-[node name="Controls" type="HBoxContainer" parent="BottomBar/BarMargin"]
+[node name="Controls" type="HBoxContainer" parent="UI/BottomBar/BarMargin"]
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="GridSnapButton" type="MenuButton" parent="BottomBar/BarMargin/Controls"]
+[node name="GridSnapButton" type="MenuButton" parent="UI/BottomBar/BarMargin/Controls"]
 custom_minimum_size = Vector2(70, 23)
 layout_mode = 2
 focus_mode = 0
@@ -294,7 +294,7 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_hover")
 text = "Grid 16"
 
-[node name="AngleSnapButton" type="MenuButton" parent="BottomBar/BarMargin/Controls"]
+[node name="AngleSnapButton" type="MenuButton" parent="UI/BottomBar/BarMargin/Controls"]
 custom_minimum_size = Vector2(78, 23)
 layout_mode = 2
 focus_mode = 0
@@ -308,7 +308,7 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_hover")
 text = "Angle Off"
 
-[node name="SpaceButton" type="MenuButton" parent="BottomBar/BarMargin/Controls"]
+[node name="SpaceButton" type="MenuButton" parent="UI/BottomBar/BarMargin/Controls"]
 custom_minimum_size = Vector2(58, 23)
 layout_mode = 2
 focus_mode = 0
