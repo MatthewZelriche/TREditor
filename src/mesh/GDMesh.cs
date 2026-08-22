@@ -12,9 +12,9 @@ public partial class GDMesh : Resource
 
     public ArrayMesh ArrayMesh { get; } = new();
 
-    public bool Dirty { get; private set; } = true;
+    public MeshSurface Surface { get; private set; } = new();
 
-    public int LastSkippedFaceCount { get; private set; }
+    public bool Dirty { get; private set; } = true;
 
     public GDMesh()
         : this(new SpatialMesh()) { }
@@ -32,26 +32,25 @@ public partial class GDMesh : Resource
         if (!Dirty)
             return false;
 
-        _surfaceBuilder.Build(SpatialMesh);
+        Surface = _surfaceBuilder.Build(SpatialMesh);
 
         var arrays = new Godot.Collections.Array();
         arrays.Resize((int)Mesh.ArrayType.Max);
-        arrays[(int)Mesh.ArrayType.Vertex] = ConvertVertices(_surfaceBuilder.Vertices);
-        arrays[(int)Mesh.ArrayType.Normal] = ConvertVertices(_surfaceBuilder.Normals);
-        arrays[(int)Mesh.ArrayType.TexUV] = ConvertUvs(_surfaceBuilder.Uvs);
-        arrays[(int)Mesh.ArrayType.Index] = _surfaceBuilder.Indices.ToArray();
+        arrays[(int)Mesh.ArrayType.Vertex] = ConvertVertices(Surface.Vertices);
+        arrays[(int)Mesh.ArrayType.Normal] = ConvertVertices(Surface.Normals);
+        arrays[(int)Mesh.ArrayType.TexUV] = ConvertUvs(Surface.Uvs);
+        arrays[(int)Mesh.ArrayType.Index] = Surface.ElementIndices.ToArray();
 
         ArrayMesh.ClearSurfaces();
-        if (_surfaceBuilder.Indices.Count != 0)
+        if (Surface.ElementIndices.Count != 0)
             ArrayMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
 
-        LastSkippedFaceCount = _surfaceBuilder.SkippedFaceCount;
         Dirty = false;
 
-        if (LastSkippedFaceCount != 0)
+        if (Surface.SkippedFaceCount != 0)
         {
             GD.PushWarning(
-                $"GDMesh skipped {LastSkippedFaceCount} face(s) that could not be triangulated."
+                $"GDMesh skipped {Surface.SkippedFaceCount} face(s) that could not be triangulated."
             );
         }
 

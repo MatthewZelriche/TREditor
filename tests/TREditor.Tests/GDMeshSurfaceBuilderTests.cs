@@ -17,15 +17,15 @@ public class GDMeshSurfaceBuilderTests
         mesh.AddFace([v0, v1, v2, v3], uvs);
 
         var builder = new GDMeshSurfaceBuilder();
-        builder.Build(mesh);
+        MeshSurface surface = builder.Build(mesh);
 
-        Assert.Equal(4, builder.Vertices.Count);
-        Assert.Equal(4, builder.Normals.Count);
-        Assert.Equal(4, builder.Uvs.Count);
-        Assert.Equal([0, 1, 2, 0, 3, 1], builder.Indices);
-        Assert.Equal([uvs[0], uvs[2], uvs[1], uvs[3]], builder.Uvs);
-        AssertClockwise(builder);
-        Assert.Equal(0, builder.SkippedFaceCount);
+        Assert.Equal(4, surface.Vertices.Count);
+        Assert.Equal(4, surface.Normals.Count);
+        Assert.Equal(4, surface.Uvs.Count);
+        Assert.Equal([0, 1, 2, 0, 3, 1], surface.ElementIndices);
+        Assert.Equal([uvs[0], uvs[2], uvs[1], uvs[3]], surface.Uvs);
+        AssertClockwise(surface);
+        Assert.Equal(0, surface.SkippedFaceCount);
     }
 
     [Fact]
@@ -34,11 +34,18 @@ public class GDMeshSurfaceBuilderTests
         using SpatialMesh mesh = SpatialMeshBuilder.CreateAabb(Vector3.Zero, Vector3.One);
         var builder = new GDMeshSurfaceBuilder();
 
-        builder.Build(mesh);
+        MeshSurface surface = builder.Build(mesh);
 
-        Assert.Equal(24, builder.Vertices.Count);
-        Assert.Equal(36, builder.Indices.Count);
-        AssertClockwise(builder);
+        Assert.Equal(24, surface.Vertices.Count);
+        Assert.Equal(36, surface.ElementIndices.Count);
+        Assert.Equal(surface.ElementIndices.Count / 3, surface.FaceSlots.Count);
+        Assert.Equal(12, surface.FaceSlots.Count);
+        Assert.Equal(6, surface.FaceSlots.Distinct().Count());
+        Assert.All(
+            surface.FaceSlots.GroupBy(slot => slot),
+            slots => Assert.Equal(2, slots.Count())
+        );
+        AssertClockwise(surface);
     }
 
     [Fact]
@@ -60,25 +67,25 @@ public class GDMeshSurfaceBuilderTests
         );
 
         var builder = new GDMeshSurfaceBuilder();
-        builder.Build(mesh);
+        MeshSurface surface = builder.Build(mesh);
 
-        Assert.Equal(3, builder.Vertices.Count);
-        Assert.Equal(3, builder.Indices.Count);
-        Assert.Equal(1, builder.SkippedFaceCount);
-        AssertClockwise(builder);
+        Assert.Equal(3, surface.Vertices.Count);
+        Assert.Equal(3, surface.ElementIndices.Count);
+        Assert.Equal(1, surface.SkippedFaceCount);
+        AssertClockwise(surface);
     }
 
-    static void AssertClockwise(GDMeshSurfaceBuilder builder)
+    static void AssertClockwise(MeshSurface surface)
     {
-        for (int i = 0; i < builder.Indices.Count; i += 3)
+        for (int i = 0; i < surface.ElementIndices.Count; i += 3)
         {
-            int ia = builder.Indices[i];
-            int ib = builder.Indices[i + 1];
-            int ic = builder.Indices[i + 2];
-            Vector3 a = builder.Vertices[ia];
-            Vector3 b = builder.Vertices[ib];
-            Vector3 c = builder.Vertices[ic];
-            Vector3 normal = builder.Normals[ia];
+            int ia = surface.ElementIndices[i];
+            int ib = surface.ElementIndices[i + 1];
+            int ic = surface.ElementIndices[i + 2];
+            Vector3 a = surface.Vertices[ia];
+            Vector3 b = surface.Vertices[ib];
+            Vector3 c = surface.Vertices[ic];
+            Vector3 normal = surface.Normals[ia];
             float signedArea = Vector3.Dot(Vector3.Cross(b - a, c - a), normal);
             Assert.True(signedArea < 0f, $"Triangle at index {i} is not clockwise.");
         }
