@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Godot;
 using TRMesh.Mesh;
 
@@ -8,7 +9,38 @@ public partial class GDMesh : Resource
 {
     readonly GDMeshSurfaceBuilder _surfaceBuilder = new();
 
-    public SpatialMesh SpatialMesh { get; }
+    public SpatialMesh SpatialMesh { get; private set; }
+
+    [Export]
+    public byte[] MeshData
+    {
+        get
+        {
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+            SpatialMesh.Serialize(writer);
+            writer.Flush();
+            return stream.ToArray();
+        }
+        set
+        {
+            SpatialMesh replacement;
+            if (value is null || value.Length == 0)
+            {
+                replacement = new SpatialMesh();
+            }
+            else
+            {
+                using var stream = new MemoryStream(value, writable: false);
+                using var reader = new BinaryReader(stream);
+                replacement = SpatialMesh.Deserialize(reader);
+            }
+
+            SpatialMesh.Dispose();
+            SpatialMesh = replacement;
+            MarkDirty();
+        }
+    }
 
     public ArrayMesh ArrayMesh { get; } = new();
 
