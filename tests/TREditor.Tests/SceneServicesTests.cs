@@ -69,6 +69,34 @@ public sealed class SceneServicesTests
     }
 
     [Fact]
+    public void AttachReplaysExistingObjectsInRegistrationOrder()
+    {
+        using var scene = new Scene();
+        Scene.MeshObject firstObject = scene.Add("First", Transform3D.Identity, null!);
+        Scene.MeshObject secondObject = scene.Add("Second", Transform3D.Identity, null!);
+        var calls = new List<string>();
+        var firstService = new RecordingSceneService("first", calls);
+        var secondService = new RecordingSceneService("second", calls);
+        var services = new SceneServices(firstService, secondService);
+
+        services.Attach(scene);
+
+        Assert.Equal(
+            [
+                "first:attach",
+                "second:attach",
+                $"first:add:{firstObject.Id.Value}",
+                $"second:add:{firstObject.Id.Value}",
+                $"first:add:{secondObject.Id.Value}",
+                $"second:add:{secondObject.Id.Value}",
+            ],
+            calls
+        );
+
+        services.Detach();
+    }
+
+    [Fact]
     public void CanAttachToANewSceneAfterDetach()
     {
         using var oldScene = new Scene();

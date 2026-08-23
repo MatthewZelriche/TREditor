@@ -39,6 +39,9 @@ public sealed class SceneServices
         {
             for (; attachedServiceCount < _services.Count; attachedServiceCount++)
                 _services[attachedServiceCount].Attach(scene);
+
+            foreach (Scene.MeshObject meshObject in scene.Objects.Values)
+                OnObjectAdded(meshObject);
         }
         catch
         {
