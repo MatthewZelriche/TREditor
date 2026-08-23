@@ -4,3 +4,6 @@
 [submodule "vendor/TRMesh"]
 	path = vendor/TRMesh
 	url = https://github.com/MatthewZelriche/TRMesh.git
+[submodule ".gdUnit4"]
+	path = .gdUnit4
+	url = https://github.com/godot-gdunit-labs/gdUnit4.git

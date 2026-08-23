@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <MaxCpuCount>1</MaxCpuCount>
+    <TestSessionTimeout>180000</TestSessionTimeout>
+    <TreatNoTestsAsError>true</TreatNoTestsAsError>
+  </RunConfiguration>
+  <GdUnit4>
+    <CaptureStdOut>true</CaptureStdOut>
+    <Parameters>--headless</Parameters>
+    <DisplayName>FullyQualifiedName</DisplayName>
+    <CompileProcessTimeout>60000</CompileProcessTimeout>
+    <GodotConnectTimeout>60000</GodotConnectTimeout>
+  </GdUnit4>
+</RunSettings>

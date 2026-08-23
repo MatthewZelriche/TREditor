@@ -14,7 +14,14 @@
     <None Remove="vendor\**" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="gdUnit4.api" Version="5.1.0-rc5" />
     <ProjectReference Include="vendor\TRMesh\tr-mesh.csproj" />
     <InternalsVisibleTo Include="TREditor.Tests" />
+    <InternalsVisibleTo Include="TREditor.GodotTests" />
   </ItemGroup>
+  <Target Name="EnsureGdUnit4Installed"
+          BeforeTargets="PrepareForBuild"
+          Condition="!Exists('$(MSBuildProjectDirectory)\addons\gdUnit4\plugin.cfg')">
+    <Error Text="GdUnit4 is not initialized. Follow the setup instructions in BUILD.md." />
+  </Target>
 </Project>
