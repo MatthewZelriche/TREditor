@@ -21,6 +21,7 @@ public class ApplicationTests
         {
             Node3D mapRoot = AutoFree(new Node3D());
             using var application = new Application(mapRoot);
+            application.NewScene();
             string scenePath = ProjectSettings.GlobalizePath(ScenePath);
             var cubeTransform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3));
             var cylinderTransform = new Transform3D(Basis.Identity, new Vector3(-4, 5, -6));

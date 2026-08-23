@@ -1,5 +1,7 @@
 using System;
 using Godot;
+using TRMesh.Mesh;
+using NumericsVector3 = System.Numerics.Vector3;
 
 public sealed class Application : IDisposable
 {
@@ -11,9 +13,22 @@ public sealed class Application : IDisposable
     public Application(Node3D mapRoot)
     {
         ArgumentNullException.ThrowIfNull(mapRoot);
+        var initialScene = new Scene();
+        try
+        {
+            _services = new SceneServices(
+                initialScene,
+                new RenderService(initialScene, mapRoot)
+            );
+        }
+        catch
+        {
+            initialScene.Dispose();
+            throw;
+        }
 
-        _services = new SceneServices();
-        NewScene();
+        _currentScene = initialScene;
+        SetUpSceneForDebug();
     }
 
     public Scene? CurrentScene => _currentScene;
@@ -31,9 +46,8 @@ public sealed class Application : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        DetachAndDisposeCurrentScene();
         Scene loadedScene = SceneSerializer.Load(path);
-        AttachScene(loadedScene, path);
+        ReplaceScene(loadedScene, path);
     }
 
     public void SaveScene()
@@ -73,29 +87,24 @@ public sealed class Application : IDisposable
             return;
 
         _disposed = true;
-        DetachAndDisposeCurrentScene();
+        try
+        {
+            _services.Dispose();
+        }
+        finally
+        {
+            _currentScene?.Dispose();
+            _currentScene = null;
+            _currentFilePath = null;
+        }
     }
 
     private void ReplaceScene(Scene scene, string? path)
     {
+        Scene? previousScene = _currentScene;
         try
         {
-            DetachAndDisposeCurrentScene();
-        }
-        catch
-        {
-            scene.Dispose();
-            throw;
-        }
-
-        AttachScene(scene, path);
-    }
-
-    private void AttachScene(Scene scene, string? path)
-    {
-        try
-        {
-            _services.Attach(scene);
+            _services.SetScene(scene);
         }
         catch
         {
@@ -105,19 +114,37 @@ public sealed class Application : IDisposable
 
         _currentScene = scene;
         _currentFilePath = path;
+        previousScene?.Dispose();
     }
 
-    private void DetachAndDisposeCurrentScene()
+    // TODO: Delete this when Primitive Creation is hooked up
+    private void SetUpSceneForDebug()
     {
-        try
-        {
-            _services.Detach();
-        }
-        finally
-        {
-            _currentScene?.Dispose();
-            _currentScene = null;
-            _currentFilePath = null;
-        }
+        Scene scene = _currentScene
+            ?? throw new InvalidOperationException("A scene must exist before adding debug geometry.");
+        var cubeTransform = new Transform3D(
+            Basis.Identity,
+            new Vector3(-1.5f, 0.0f, 0.0f)
+        );
+        var cylinderTransform = new Transform3D(
+            Basis.Identity,
+            new Vector3(1.5f, 0.0f, 0.0f)
+        );
+
+        scene.Add(
+            "Debug Cube",
+            cubeTransform,
+            new GDMesh(
+                SpatialMeshBuilder.CreateAabb(
+                    new NumericsVector3(-1.0f, -1.0f, -1.0f),
+                    new NumericsVector3(2.0f, 2.0f, 2.0f)
+                )
+            )
+        );
+        scene.Add(
+            "Debug Cylinder",
+            cylinderTransform,
+            new GDMesh(SpatialMeshBuilder.CreateCylinder(2.5f, 1.75f, 16))
+        );
     }
 }

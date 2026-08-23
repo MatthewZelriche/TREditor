@@ -1,80 +1,111 @@
 using System;
 using System.Collections.Generic;
 
-public sealed class SceneServices
+public sealed class SceneServices : IDisposable
 {
     private readonly IReadOnlyList<ISceneService> _services;
-    private Scene? _scene;
+    private Scene _scene;
+    private bool _disposed;
 
-    public SceneServices(params ISceneService[] services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        var serviceCopy = new ISceneService[services.Length];
-        for (int index = 0; index < services.Length; index++)
-        {
-            serviceCopy[index] = services[index]
-                ?? throw new ArgumentException("The service list cannot contain null entries.", nameof(services));
-        }
-
-        _services = serviceCopy;
-    }
-
-    public bool IsAttached => _scene is not null;
-
-    public void Attach(Scene scene)
+    public SceneServices(Scene scene, params ISceneService[] services)
     {
         ArgumentNullException.ThrowIfNull(scene);
-        if (_scene is not null)
-            throw new InvalidOperationException("Scene services are already attached to a scene.");
+        ArgumentNullException.ThrowIfNull(services);
+
+        var serviceCopy = (ISceneService[])services.Clone();
+        for (int index = 0; index < serviceCopy.Length; index++)
+        {
+            _ = serviceCopy[index]
+                ?? throw new ArgumentException(
+                    "The service list cannot contain null entries.",
+                    nameof(services)
+                );
+        }
 
         _scene = scene;
-        scene.ObjectAdded += OnObjectAdded;
-        scene.ObjectRemoved += OnObjectRemoved;
-        scene.ObjectGeometryChanged += OnObjectGeometryChanged;
-        scene.ObjectTransformChanged += OnObjectTransformChanged;
+        _services = serviceCopy;
 
-        int attachedServiceCount = 0;
         try
         {
-            for (; attachedServiceCount < _services.Count; attachedServiceCount++)
-                _services[attachedServiceCount].Attach(scene);
+            foreach (ISceneService service in _services)
+                service.SetScene(scene);
 
-            foreach (Scene.MeshObject meshObject in scene.Objects.Values)
-                OnObjectAdded(meshObject);
+            Subscribe(scene);
+            ReplayObjects(scene, _services.Count);
         }
-        catch
+        catch (Exception initializationException)
         {
-            Unsubscribe(scene);
-            _scene = null;
-
-            for (int index = attachedServiceCount - 1; index >= 0; index--)
-                _services[index].Detach();
-
+            DisposeAfterFailure(initializationException);
             throw;
         }
     }
 
-    public void Detach()
+    public Scene CurrentScene => _scene;
+
+    public void SetScene(Scene scene)
     {
-        Scene? scene = _scene;
-        if (scene is null)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(scene);
+        if (ReferenceEquals(_scene, scene))
             return;
 
-        Unsubscribe(scene);
-        _scene = null;
+        // A partial transition cannot be recovered reliably across arbitrary services.
+        // Any failure permanently disposes the complete collection.
+        Unsubscribe(_scene);
 
-        foreach (ISceneService service in _services)
-            service.Detach();
+        try
+        {
+            foreach (ISceneService service in _services)
+                service.SetScene(scene);
+
+            _scene = scene;
+            Subscribe(scene);
+            ReplayObjects(scene, _services.Count);
+        }
+        catch (Exception transitionException)
+        {
+            DisposeAfterFailure(transitionException);
+            throw;
+        }
     }
 
     public void Flush()
     {
-        if (_scene is null)
-            return;
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         foreach (ISceneService service in _services)
             service.Flush();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        Unsubscribe(_scene);
+
+        List<Exception>? disposalExceptions = null;
+        foreach (ISceneService service in _services)
+        {
+            try
+            {
+                service.Dispose();
+            }
+            catch (Exception exception)
+            {
+                disposalExceptions ??= [];
+                disposalExceptions.Add(exception);
+            }
+        }
+
+        if (disposalExceptions is not null)
+        {
+            throw new AggregateException(
+                "One or more scene services could not be disposed.",
+                disposalExceptions
+            );
+        }
     }
 
     private void OnObjectAdded(Scene.MeshObject meshObject)
@@ -101,11 +132,44 @@ public sealed class SceneServices
             service.OnObjectTransformChanged(id);
     }
 
+    private void ReplayObjects(Scene scene, int serviceCount)
+    {
+        foreach (Scene.MeshObject meshObject in scene.Objects.Values)
+        {
+            for (int index = 0; index < serviceCount; index++)
+                _services[index].OnObjectAdded(meshObject);
+        }
+    }
+
+    private void Subscribe(Scene scene)
+    {
+        scene.ObjectAdded += OnObjectAdded;
+        scene.ObjectRemoved += OnObjectRemoved;
+        scene.ObjectGeometryChanged += OnObjectGeometryChanged;
+        scene.ObjectTransformChanged += OnObjectTransformChanged;
+    }
+
     private void Unsubscribe(Scene scene)
     {
         scene.ObjectAdded -= OnObjectAdded;
         scene.ObjectRemoved -= OnObjectRemoved;
         scene.ObjectGeometryChanged -= OnObjectGeometryChanged;
         scene.ObjectTransformChanged -= OnObjectTransformChanged;
+    }
+
+    private void DisposeAfterFailure(Exception originalException)
+    {
+        try
+        {
+            Dispose();
+        }
+        catch (Exception disposalException)
+        {
+            throw new AggregateException(
+                "Scene services failed and could not be completely disposed.",
+                originalException,
+                disposalException
+            );
+        }
     }
 }

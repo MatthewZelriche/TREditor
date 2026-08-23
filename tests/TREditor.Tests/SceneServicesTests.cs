@@ -11,9 +11,8 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var first = new RecordingSceneService("first", calls);
         var second = new RecordingSceneService("second", calls);
-        var services = new SceneServices(first, second);
+        using var services = new SceneServices(scene, first, second);
 
-        services.Attach(scene);
         Assert.Same(scene, first.Scene);
         Assert.Same(scene, second.Scene);
         Scene.MeshObject meshObject = scene.Add("Object", Transform3D.Identity, null!);
@@ -24,12 +23,12 @@ public sealed class SceneServicesTests
         scene.MarkGeometryChanged(meshObject.Id);
         services.Flush();
         scene.Remove(meshObject.Id);
-        services.Detach();
+        services.Dispose();
 
         Assert.Equal(
             [
-                "first:attach",
-                "second:attach",
+                "first:set-scene",
+                "second:set-scene",
                 $"first:add:{meshObject.Id.Value}",
                 $"second:add:{meshObject.Id.Value}",
                 $"first:transform:{meshObject.Id.Value}",
@@ -40,36 +39,33 @@ public sealed class SceneServicesTests
                 "second:flush",
                 $"first:remove:{meshObject.Id.Value}",
                 $"second:remove:{meshObject.Id.Value}",
-                "first:detach",
-                "second:detach",
+                "first:dispose",
+                "second:dispose",
             ],
             calls
         );
-        Assert.False(services.IsAttached);
     }
 
     [Fact]
-    public void DetachUnsubscribesFromTheScene()
+    public void DisposeUnsubscribesFromTheScene()
     {
         using var scene = new Scene();
         var calls = new List<string>();
         var service = new RecordingSceneService("service", calls);
-        var services = new SceneServices(service);
-        services.Attach(scene);
-        services.Detach();
+        var services = new SceneServices(scene, service);
+        services.Dispose();
         calls.Clear();
 
         Scene.MeshObject meshObject = scene.Add("Object", Transform3D.Identity, null!);
         scene.SetTransform(meshObject.Id, Transform3D.Identity);
         scene.MarkGeometryChanged(meshObject.Id);
         scene.Remove(meshObject.Id);
-        services.Flush();
 
         Assert.Empty(calls);
     }
 
     [Fact]
-    public void AttachReplaysExistingObjectsInRegistrationOrder()
+    public void ConstructionReplaysExistingObjectsInRegistrationOrder()
     {
         using var scene = new Scene();
         Scene.MeshObject firstObject = scene.Add("First", Transform3D.Identity, null!);
@@ -77,14 +73,12 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var firstService = new RecordingSceneService("first", calls);
         var secondService = new RecordingSceneService("second", calls);
-        var services = new SceneServices(firstService, secondService);
-
-        services.Attach(scene);
+        using var services = new SceneServices(scene, firstService, secondService);
 
         Assert.Equal(
             [
-                "first:attach",
-                "second:attach",
+                "first:set-scene",
+                "second:set-scene",
                 $"first:add:{firstObject.Id.Value}",
                 $"second:add:{firstObject.Id.Value}",
                 $"first:add:{secondObject.Id.Value}",
@@ -92,30 +86,68 @@ public sealed class SceneServicesTests
             ],
             calls
         );
-
-        services.Detach();
     }
 
     [Fact]
-    public void CanAttachToANewSceneAfterDetach()
+    public void SetSceneUnsubscribesFromTheOldSceneAndReplaysTheNewScene()
+    {
+        using var oldScene = new Scene();
+        using var newScene = new Scene();
+        Scene.MeshObject existingObject = newScene.Add("Existing", Transform3D.Identity, null!);
+        var calls = new List<string>();
+        var service = new RecordingSceneService("service", calls);
+        using var services = new SceneServices(oldScene, service);
+
+        calls.Clear();
+        services.SetScene(newScene);
+        oldScene.Add("Old", Transform3D.Identity, null!);
+        Scene.MeshObject addedObject = newScene.Add("New", Transform3D.Identity, null!);
+
+        Assert.Equal(
+            [
+                "service:set-scene",
+                $"service:add:{existingObject.Id.Value}",
+                $"service:add:{addedObject.Id.Value}",
+            ],
+            calls
+        );
+        Assert.Same(newScene, service.Scene);
+        Assert.Same(newScene, services.CurrentScene);
+    }
+
+    [Fact]
+    public void SetSceneFailurePermanentlyDisposesTheServiceCollection()
     {
         using var oldScene = new Scene();
         using var newScene = new Scene();
         var calls = new List<string>();
-        var service = new RecordingSceneService("service", calls);
-        var services = new SceneServices(service);
-        services.Attach(oldScene);
-        services.Detach();
-        services.Attach(newScene);
+        var first = new RecordingSceneService("first", calls);
+        var failing = new RecordingSceneService("failing", calls);
+        var services = new SceneServices(oldScene, first, failing);
         calls.Clear();
+        failing.ThrowOnSetScene = true;
 
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+            () => services.SetScene(newScene)
+        );
+
+        Assert.Equal("SetScene failed.", exception.Message);
+        Assert.Equal(
+            [
+                "first:set-scene",
+                "failing:set-scene",
+                "first:dispose",
+                "failing:dispose",
+            ],
+            calls
+        );
+
+        calls.Clear();
         oldScene.Add("Old", Transform3D.Identity, null!);
         newScene.Add("New", Transform3D.Identity, null!);
-
-        Assert.Equal(["service:add:0"], calls);
-        Assert.Same(newScene, service.Scene);
-
-        services.Detach();
+        Assert.Empty(calls);
+        Assert.Throws<ObjectDisposedException>(() => services.Flush());
+        Assert.Throws<ObjectDisposedException>(() => services.SetScene(oldScene));
     }
 
     private sealed class RecordingSceneService(
@@ -125,15 +157,20 @@ public sealed class SceneServicesTests
     {
         public Scene? Scene { get; private set; }
 
-        public void Attach(Scene scene)
+        public bool ThrowOnSetScene { get; set; }
+
+        public void SetScene(Scene scene)
         {
+            calls.Add($"{name}:set-scene");
+            if (ThrowOnSetScene)
+                throw new InvalidOperationException("SetScene failed.");
+
             Scene = scene;
-            calls.Add($"{name}:attach");
         }
 
-        public void Detach()
+        public void Dispose()
         {
-            calls.Add($"{name}:detach");
+            calls.Add($"{name}:dispose");
             Scene = null;
         }
 

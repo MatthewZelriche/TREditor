@@ -70,6 +70,10 @@ environment = SubResource("Environment_world")
 [node name="MapRoot" type="Node3D" parent="."]
 unique_name_in_owner = true
 
+[node name="KeyLight" type="DirectionalLight3D" parent="MapRoot"]
+rotation_degrees = Vector3(-45, -30, 0)
+shadow_enabled = true
+
 [node name="OpenSceneDialog" type="FileDialog" parent="."]
 unique_name_in_owner = true
 title = "Open Scene"
