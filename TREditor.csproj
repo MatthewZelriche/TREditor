@@ -5,6 +5,12 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <TestFramework>GdUnit4</TestFramework>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="addons\TilingContainer\tests\**" />
     <Compile Remove="tests\**" />
@@ -17,7 +23,11 @@
     <PackageReference Include="gdUnit4.api" Version="5.1.0-rc5" />
     <ProjectReference Include="vendor\TRMesh\tr-mesh.csproj" />
     <InternalsVisibleTo Include="TREditor.Tests" />
-    <InternalsVisibleTo Include="TREditor.GodotTests" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <Compile Include="tests\TREditor.GodotTests\*.cs" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" PrivateAssets="all" />
+    <PackageReference Include="gdUnit4.test.adapter" Version="3.1.1" PrivateAssets="all" />
   </ItemGroup>
   <Target Name="EnsureGdUnit4Installed"
           BeforeTargets="PrepareForBuild"
