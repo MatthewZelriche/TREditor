@@ -21,6 +21,7 @@ public class ApplicationTests
         {
             Node3D mapRoot = AutoFree(new Node3D());
             using var application = new Application(mapRoot);
+            string scenePath = ProjectSettings.GlobalizePath(ScenePath);
             var cubeTransform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3));
             var cylinderTransform = new Transform3D(Basis.Identity, new Vector3(-4, 5, -6));
             Scene source = application.CurrentScene!;
@@ -36,16 +37,16 @@ public class ApplicationTests
                 new GDMesh(SpatialMeshBuilder.CreateCylinder(2f, 1f, 8))
             );
 
-            application.SaveSceneAs(ScenePath);
+            application.SaveSceneAs(scenePath);
             application.NewScene();
             AssertThat(application.CurrentScene?.Objects.Count ?? -1).IsEqual(0);
             AssertThat(application.CurrentFilePath).IsNull();
 
-            application.OpenScene(ScenePath);
+            application.OpenScene(scenePath);
 
             Scene loaded = application.CurrentScene!;
             AssertThat(loaded).IsNotNull();
-            AssertThat(application.CurrentFilePath).IsEqual(ScenePath);
+            AssertThat(application.CurrentFilePath).IsEqual(scenePath);
             AssertThat(loaded.Objects.Count).IsEqual(2);
 
             Scene.MeshObject cube = loaded.Objects.Values.Single(value => value.Name == "Cube");

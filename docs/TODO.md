@@ -1,0 +1,96 @@
+## Menu Bar
+
+### File
+- [x] New
+- [x] Open...
+- [x] Save
+- [x] Save As...
+- [x] Quit
+
+### Edit
+- [ ] Undo
+- [ ] Redo
+
+### Settings
+- [ ] Keybindings...
+- [ ] Preferences...
+
+### About
+- [ ] Open Source Licenses...
+- [ ] About TrembleEd...
+
+
+## Views
+- [ ] Implement the main View area via TilingContainer, allow for arbitrary splitting of main view area into subviews
+- [ ] Perspective 3D View
+- [ ] Orthographic 3D View
+- [ ] Orthographic 2D View
+- [ ] Display Wireframe Overlay
+
+## Mesh Operations
+
+- [ ] Translation gizmo for all three component types
+- [ ] Create new Primitive
+
+### Vertices
+- [ ] Merge
+  - Merges N vertices into either a centroid position or at First/Last vertex. Default Last.
+- [ ] Bevel
+  - Bevel N selected vertices. Newly bevelled default distance is in the range of [Current Grid Snap, Shortest Maximum Bevel Distance for any selected vertex]
+- [ ] Select Vertex Loop
+  - Select two vertices or more vertices in sequence. Selects the entire loop  of vertices beloning to those selected vertices
+
+### Edges
+- [ ] Dissolve
+  - Dissolves N selected edges by repeatedly deleting those edge and merging the faces between them into a single face. 
+- [ ] Collapse
+  - Collapses N edges by merging each edge's two vertices into a single vertex at the midpoint
+- [ ] Merge
+  - Merge 2 edges together. 
+- [ ] Bevel
+  - Bevel N Edges. Provides configurable options for: 1. Steps (number of new edges to create), 2. Shape (How angled from 0 - 90 degrees), 3. Width (How thick the bevel will be).
+- [ ] Extend
+  - Extends an open edge outward in the planar direction of where the edge is pointed. Default extend length: Grid Snap. Configurable more or less. 
+- [ ] Bridge Edges
+  - Bridge N (?) edges together, optionally with interpolation and a number of intermediate steps with controls to configure the resulting shape/number of steps.
+- [ ] Edge Loop Selection
+  - With zero or more edges selected, double click an edge to select the entire loop it is a part of. 
+- [ ] Edge Ring Selection
+  - Same as above - but selects an edge ring (edges not connected but share faces)
+
+### Faces 
+- [ ] Bridge Faces
+  - Bridge 2 Faces together, optionally with interpolation and a number of intermediate steps with controls to configure the resulting shape/number of steps. Faces must have the same number of edges.
+- [ ] Thicken Face
+  - Thickens an open face (a plane) with a desired thickness
+- [ ] Combine Faces
+  - Combine N faces together by dissolving the edges between them.
+- [ ] Collapse Faces
+  - Collapse N faces together into a single midpoint vertex
+- [ ] Subdivide Faces
+- [ ] Extrude Face
+- [ ] Inset Bevel Face Island
+- [ ] Select Face Loop
+- [ ] Grow/Shrink Selection
+
+
+## Selections
+- [ ] Mesh Object Selection
+- [ ] Mesh Component Selection (Free, can select or multi-select combinations of component types)
+- [ ] Single-Component Mesh Selection (Select Vertices, Edges, or Faces only)
+- [ ] X-Ray Selection
+- [ ] Multi-selection
+- [ ] Box-Selection
+- [ ] Select All, Select None, Select Inverse (Specific Components on a Mesh, must occur in "Single-Component Selection Mode")
+- [ ] Grid Snapping
+- [ ] Angle Snapping
+- [ ] Move Pivot
+- [ ] Reset Pivot Location
+
+## Edge Cut Tool
+
+
+## UVs/Texturing
+
+
+## Overlays/Decals

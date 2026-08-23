@@ -70,6 +70,18 @@ environment = SubResource("Environment_world")
 [node name="MapRoot" type="Node3D" parent="."]
 unique_name_in_owner = true
 
+[node name="OpenSceneDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
+title = "Open Scene"
+
+[node name="SaveSceneDialog" type="FileDialog" parent="."]
+unique_name_in_owner = true
+title = "Save Scene As"
+
+[node name="FileErrorDialog" type="AcceptDialog" parent="."]
+unique_name_in_owner = true
+title = "File Error"
+
 [node name="UI" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 15
