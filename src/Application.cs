@@ -14,15 +14,22 @@ public sealed class Application : IDisposable
     {
         ArgumentNullException.ThrowIfNull(mapRoot);
         var initialScene = new Scene();
+        RenderService? renderService = null;
+        PickingService? pickingService = null;
         try
         {
+            renderService = new RenderService(initialScene, mapRoot);
+            pickingService = new PickingService(initialScene, mapRoot);
             _services = new SceneServices(
                 initialScene,
-                new RenderService(initialScene, mapRoot)
+                renderService,
+                pickingService
             );
         }
         catch
         {
+            pickingService?.Dispose();
+            renderService?.Dispose();
             initialScene.Dispose();
             throw;
         }
