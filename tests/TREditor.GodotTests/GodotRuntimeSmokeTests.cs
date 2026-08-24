@@ -13,8 +13,9 @@ public class GodotRuntimeSmokeTests
     {
         using var mesh = new GDMesh();
 
-        AssertThat(mesh.ArrayMesh).IsNotNull();
         AssertThat(mesh.SpatialMesh).IsNotNull();
+        AssertThat(mesh.Surface).IsNotNull();
+        AssertBool(mesh.Dirty).IsTrue();
         AssertBool(GdUnit4CSharpApi.IsApiLoaded()).IsTrue();
     }
 }

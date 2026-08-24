@@ -1,3 +1,4 @@
+using System;
 using GdUnit4;
 using Godot;
 using TRMesh.Mesh;
@@ -32,11 +33,18 @@ public class RenderServiceTests
         var services = new SceneServices(firstScene, renderService);
 
         Node3D originalRenderRoot = mapRoot.GetNode<Node3D>("Render");
+        MeshInstance3D firstInstance = originalRenderRoot.GetNode<MeshInstance3D>(
+            "MeshObject_0"
+        );
+        if (firstInstance.Mesh is not ArrayMesh firstArrayMesh)
+            throw new InvalidOperationException("Render entry did not create an ArrayMesh.");
+
         services.SetScene(secondScene);
 
         AssertThat(mapRoot.GetChildCount()).IsEqual(1);
         AssertThat(mapRoot.GetNode<Node3D>("Render")).IsSame(originalRenderRoot);
         AssertThat(originalRenderRoot.GetChildCount()).IsEqual(1);
+        AssertBool(GodotObject.IsInstanceValid(firstArrayMesh)).IsFalse();
 
         services.Dispose();
         AssertBool(mapRoot.HasNode("Render")).IsFalse();
@@ -65,15 +73,17 @@ public class RenderServiceTests
             MeshInstance3D instance = renderRoot.GetNode<MeshInstance3D>(
                 $"MeshObject_{meshObject.Id.Value}"
             );
+            if (instance.Mesh is not ArrayMesh arrayMesh)
+                throw new InvalidOperationException("Render entry did not create an ArrayMesh.");
+
             AssertThat(renderRoot.GetChildCount()).IsEqual(1);
-            AssertThat(instance.Mesh).IsSame(mesh.ArrayMesh);
             AssertThat(instance.Transform).IsEqual(initialTransform);
             AssertBool(mesh.Dirty).IsTrue();
 
             services.Flush();
 
             AssertBool(mesh.Dirty).IsFalse();
-            AssertThat(mesh.ArrayMesh.GetSurfaceCount()).IsEqual(1);
+            AssertThat(arrayMesh.GetSurfaceCount()).IsEqual(1);
             AssertThat(mesh.Surface.ElementIndices.Count).IsEqual(36);
 
             scene.MarkGeometryChanged(meshObject.Id);
@@ -92,6 +102,7 @@ public class RenderServiceTests
 
             scene.Remove(meshObject.Id);
             AssertThat(renderRoot.GetChildCount()).IsEqual(0);
+            AssertBool(GodotObject.IsInstanceValid(arrayMesh)).IsFalse();
         }
         finally
         {
