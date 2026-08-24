@@ -21,8 +21,9 @@
 
 
 ## Views
-- [ ] Implement the main View area via TilingContainer, allow for arbitrary splitting of main view area into subviews
-- [ ] Perspective 3D View
+- [x] Implement the main View area via TilingContainer, allow for arbitrary splitting of main view area into subviews
+- [x] Camera movement controls for the views
+- [x] Perspective 3D View
 - [ ] Orthographic 3D View
 - [ ] Orthographic 2D View
 - [ ] Display Wireframe Overlay
