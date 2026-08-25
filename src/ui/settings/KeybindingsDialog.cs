@@ -15,14 +15,14 @@ public partial class KeybindingsDialog : Window
     private string? _capturingActionName;
     private (string ActionName, InputEventKey Binding)? _pendingReplacement;
     private Label? _statusLabel;
-    private ConfirmationDialog? _conflictDialog;
+    private AppConfirmDialog? _conflictDialog;
 
-    internal ConfirmationDialog ConflictDialog => _conflictDialog!;
+    internal AppConfirmDialog ConflictDialog => _conflictDialog!;
 
     public override void _Ready()
     {
         _statusLabel = GetNode<Label>("%StatusLabel");
-        _conflictDialog = GetNode<ConfirmationDialog>("%ConflictDialog");
+        _conflictDialog = GetNode<AppConfirmDialog>("%ConflictDialog");
 
         AddBindingButton(EditorInputActions.CameraMoveForward, "%MoveForwardButton");
         AddBindingButton(EditorInputActions.CameraMoveBackward, "%MoveBackwardButton");

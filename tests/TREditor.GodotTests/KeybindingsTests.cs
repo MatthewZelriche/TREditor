@@ -105,6 +105,12 @@ public class KeybindingsTests
         );
 
         AssertBool(dialog.Visible).IsTrue();
+        AssertBool(dialog.Borderless).IsTrue();
+        AssertBool(dialog.Unresizable).IsFalse();
+        WindowTitleBar titleBar = dialog.GetNode<WindowTitleBar>("WindowTitleBar");
+        AssertBool(titleBar.GetNode<Button>("%MinimizeButton").Visible).IsFalse();
+        AssertBool(titleBar.GetNode<Button>("%MaximizeButton").Visible).IsFalse();
+        AssertBool(dialog.MaximizeDisabled).IsTrue();
         dialog.Hide();
     }
 
@@ -141,7 +147,9 @@ public class KeybindingsTests
             dialog.BeginCapture(EditorInputActions.CameraMoveBackward);
             dialog._Input(controlI);
             AssertBool(dialog.ConflictDialog.Visible).IsTrue();
-            dialog.ConflictDialog.EmitSignal(AcceptDialog.SignalName.Confirmed);
+            dialog
+                .ConflictDialog.GetNode<Button>("%ConfirmButton")
+                .EmitSignal(Button.SignalName.Pressed);
 
             AssertThat(keybindings.GetBinding(EditorInputActions.CameraMoveForward)).IsNull();
             AssertBool(

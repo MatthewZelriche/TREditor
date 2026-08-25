@@ -151,13 +151,16 @@ public partial class WindowTitleBar : PanelContainer
 
         _windowDragPending = false;
 
-        if (!DisplayServer.HasFeature(DisplayServer.Feature.WindowDrag))
+        if (
+            _window is null
+            || !DisplayServer.HasFeature(DisplayServer.Feature.WindowDrag)
+        )
             return;
 
         if (_isMaximized)
             RestoreWindowForDrag();
 
-        DisplayServer.WindowStartDrag();
+        DisplayServer.WindowStartDrag(_window.GetWindowId());
         AcceptEvent();
     }
 
@@ -276,4 +279,5 @@ public partial class WindowTitleBar : PanelContainer
         _maximizeButton.Disabled = _window.MaximizeDisabled;
         _minimizeButton.Disabled = _window.MinimizeDisabled;
     }
+
 }

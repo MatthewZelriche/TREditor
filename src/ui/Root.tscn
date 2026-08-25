@@ -1,7 +1,7 @@
 [gd_scene load_steps=16 format=3]
 
 [ext_resource type="PackedScene" path="res://src/ui/window/WindowTitleBar.tscn" id="1_title_bar"]
-[ext_resource type="Script" path="res://src/ui/window/WindowResizeHandle.cs" id="2_resize_handle"]
+[ext_resource type="PackedScene" path="res://src/ui/window/WindowResizeHandles.tscn" id="2_resize_handles"]
 [ext_resource type="Script" path="res://src/ui/Root.cs" id="3_root"]
 [ext_resource type="Script" path="res://src/ui/viewport/MainViewportArea.cs" id="4_main_viewport"]
 [ext_resource type="Script" path="res://src/ui/viewport/ViewportBottomBar.cs" id="5_bottom_bar"]
@@ -355,96 +355,10 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_hover")
 text = "Local"
 
-[node name="TopResizeHandle" type="Control" parent="UI"]
+[node name="WindowResizeHandles" parent="UI" instance=ExtResource("2_resize_handles")]
 layout_mode = 1
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = 6.0
-offset_right = -6.0
-offset_bottom = 6.0
+anchor_bottom = 1.0
 grow_horizontal = 2
-mouse_default_cursor_shape = 9
-script = ExtResource("2_resize_handle")
-ResizeEdge = 1
-
-[node name="BottomResizeHandle" type="Control" parent="UI"]
-layout_mode = 1
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 6.0
-offset_top = -6.0
-offset_right = -6.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_default_cursor_shape = 9
-script = ExtResource("2_resize_handle")
-ResizeEdge = 6
-
-[node name="LeftResizeHandle" type="Control" parent="UI"]
-layout_mode = 1
-anchor_bottom = 1.0
-offset_top = 6.0
-offset_right = 6.0
-offset_bottom = -6.0
 grow_vertical = 2
-mouse_default_cursor_shape = 10
-script = ExtResource("2_resize_handle")
-ResizeEdge = 3
-
-[node name="RightResizeHandle" type="Control" parent="UI"]
-layout_mode = 1
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -6.0
-offset_top = 6.0
-offset_bottom = -6.0
-grow_horizontal = 0
-grow_vertical = 2
-mouse_default_cursor_shape = 10
-script = ExtResource("2_resize_handle")
-ResizeEdge = 4
-
-[node name="TopLeftResizeHandle" type="Control" parent="UI"]
-layout_mode = 1
-offset_right = 6.0
-offset_bottom = 6.0
-mouse_default_cursor_shape = 11
-script = ExtResource("2_resize_handle")
-ResizeEdge = 0
-
-[node name="TopRightResizeHandle" type="Control" parent="UI"]
-layout_mode = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -6.0
-offset_bottom = 6.0
-grow_horizontal = 0
-mouse_default_cursor_shape = 12
-script = ExtResource("2_resize_handle")
-ResizeEdge = 2
-
-[node name="BottomLeftResizeHandle" type="Control" parent="UI"]
-layout_mode = 1
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_right = 6.0
-offset_top = -6.0
-grow_vertical = 0
-mouse_default_cursor_shape = 12
-script = ExtResource("2_resize_handle")
-ResizeEdge = 5
-
-[node name="BottomRightResizeHandle" type="Control" parent="UI"]
-layout_mode = 1
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -6.0
-offset_top = -6.0
-grow_horizontal = 0
-grow_vertical = 0
-mouse_default_cursor_shape = 11
-script = ExtResource("2_resize_handle")
-ResizeEdge = 7

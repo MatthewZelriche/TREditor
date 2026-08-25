@@ -10,6 +10,7 @@ public partial class WindowResizeHandle : Control
     public override void _Ready()
     {
         MouseFilter = DisplayServer.HasFeature(DisplayServer.Feature.WindowDrag)
+            && !GetWindow().Unresizable
             ? MouseFilterEnum.Stop
             : MouseFilterEnum.Ignore;
     }
@@ -21,12 +22,14 @@ public partial class WindowResizeHandle : Control
             || mouseButton.ButtonIndex != MouseButton.Left
             || !mouseButton.Pressed
             || !DisplayServer.HasFeature(DisplayServer.Feature.WindowDrag)
+            || GetWindow().Unresizable
         )
         {
             return;
         }
 
-        DisplayServer.WindowStartResize(ResizeEdge);
+        Window window = GetWindow();
+        DisplayServer.WindowStartResize(ResizeEdge, window.GetWindowId());
         AcceptEvent();
     }
 }

@@ -1,0 +1,133 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/ui/window/AppConfirmDialog.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://src/ui/window/WindowTitleBar.tscn" id="2_title_bar"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_dialog"]
+bg_color = Color(0.0705882, 0.0784314, 0.0901961, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.215686, 0.235294, 0.270588, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_normal"]
+bg_color = Color(0.12549, 0.137255, 0.160784, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.215686, 0.235294, 0.270588, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_hover"]
+bg_color = Color(0.160784, 0.172549, 0.196078, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.176471, 0.435294, 0.439216, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_button_pressed"]
+bg_color = Color(0.176471, 0.435294, 0.439216, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.105882, 0.321569, 0.333333, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxEmpty" id="StyleBox_button_focus"]
+
+[node name="AppConfirmDialog" type="Window"]
+visible = false
+title = "Confirm"
+initial_position = 2
+size = Vector2i(420, 190)
+min_size = Vector2i(360, 160)
+exclusive = true
+transient = true
+borderless = true
+unresizable = true
+minimize_disabled = true
+maximize_disabled = true
+script = ExtResource("1_script")
+
+[node name="Background" type="PanelContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBox_dialog")
+
+[node name="ContentMargin" type="MarginContainer" parent="Background"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 52
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 16
+
+[node name="Contents" type="VBoxContainer" parent="Background/ContentMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="MessageLabel" type="Label" parent="Background/ContentMargin/Contents"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.819608, 0.811765, 0.847059, 1)
+theme_override_font_sizes/font_size = 13
+text = "Are you sure?"
+autowrap_mode = 2
+vertical_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Background/ContentMargin/Contents"]
+layout_mode = 2
+alignment = 2
+theme_override_constants/separation = 8
+
+[node name="CancelButton" type="Button" parent="Background/ContentMargin/Contents/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 28)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.819608, 0.811765, 0.847059, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBox_button_normal")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/focus = SubResource("StyleBox_button_focus")
+text = "Cancel"
+
+[node name="ConfirmButton" type="Button" parent="Background/ContentMargin/Contents/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 28)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.929412, 0.956863, 0.945098, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBox_button_normal")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+theme_override_styles/focus = SubResource("StyleBox_button_hover")
+text = "OK"
+
+[node name="WindowTitleBar" parent="." instance=ExtResource("2_title_bar")]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 36.0
+grow_horizontal = 2
+Resizable = false
+ShowMinimizeButton = false
+ShowMaximizeButton = false

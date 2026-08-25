@@ -1,6 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/ui/settings/KeybindingsDialog.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://src/ui/window/WindowTitleBar.tscn" id="2_title_bar"]
+[ext_resource type="PackedScene" path="res://src/ui/window/WindowResizeHandles.tscn" id="3_resize_handles"]
+[ext_resource type="PackedScene" path="res://src/ui/window/AppConfirmDialog.tscn" id="4_confirm_dialog"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_dialog"]
 bg_color = Color(0.0705882, 0.0784314, 0.0901961, 1)
@@ -51,10 +54,12 @@ visible = false
 title = "Keybindings"
 initial_position = 2
 size = Vector2i(460, 330)
-min_size = Vector2i(420, 300)
+min_size = Vector2i(420, 320)
 exclusive = true
 transient = true
-unresizable = true
+borderless = true
+minimize_disabled = true
+maximize_disabled = true
 script = ExtResource("1_script")
 
 [node name="Background" type="PanelContainer" parent="."]
@@ -68,19 +73,13 @@ theme_override_styles/panel = SubResource("StyleBox_dialog")
 [node name="Margin" type="MarginContainer" parent="Background"]
 layout_mode = 2
 theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 16
+theme_override_constants/margin_top = 52
 theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 16
 
 [node name="Contents" type="VBoxContainer" parent="Background/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 9
-
-[node name="Heading" type="Label" parent="Background/Margin/Contents"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.909804, 0.913725, 0.929412, 1)
-theme_override_font_sizes/font_size = 18
-text = "Keybindings"
 
 [node name="Instructions" type="Label" parent="Background/Margin/Contents"]
 layout_mode = 2
@@ -233,11 +232,22 @@ theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
 text = "Close"
 
-[node name="ConflictDialog" type="ConfirmationDialog" parent="."]
+[node name="WindowTitleBar" parent="." instance=ExtResource("2_title_bar")]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 36.0
+grow_horizontal = 2
+ShowMinimizeButton = false
+ShowMaximizeButton = false
+
+[node name="WindowResizeHandles" parent="." instance=ExtResource("3_resize_handles")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ConflictDialog" parent="." instance=ExtResource("4_confirm_dialog")]
 unique_name_in_owner = true
 title = "Replace Keybinding?"
-initial_position = 2
-size = Vector2i(400, 170)
-exclusive = true
-ok_button_text = "Replace"
-cancel_button_text = "Cancel"
+ConfirmButtonText = "Replace"
