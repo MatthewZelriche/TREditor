@@ -6,6 +6,7 @@ using NumericsVector3 = System.Numerics.Vector3;
 public sealed class Application : IDisposable
 {
     private readonly SceneServices _services;
+    private readonly CommandHistory _commandHistory = new();
     private Scene? _currentScene;
     private string? _currentFilePath;
     private bool _disposed;
@@ -35,12 +36,42 @@ public sealed class Application : IDisposable
         }
 
         _currentScene = initialScene;
+        _commandHistory.Changed += OnCommandHistoryChanged;
         SetUpSceneForDebug();
     }
 
     public Scene? CurrentScene => _currentScene;
 
     public string? CurrentFilePath => _currentFilePath;
+
+    public bool CanUndo => _commandHistory.CanUndo;
+
+    public bool CanRedo => _commandHistory.CanRedo;
+
+    public string? UndoDisplayName => _commandHistory.UndoDisplayName;
+
+    public string? RedoDisplayName => _commandHistory.RedoDisplayName;
+
+    // Raised after a successful execute, undo, redo, or a non-empty clear of command history.
+    public event Action? CommandHistoryChanged;
+
+    public void ExecuteCommand(IEditorCommand command)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _commandHistory.Execute(command);
+    }
+
+    public bool Undo()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _commandHistory.Undo();
+    }
+
+    public bool Redo()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _commandHistory.Redo();
+    }
 
     public void NewScene()
     {
@@ -96,6 +127,11 @@ public sealed class Application : IDisposable
         _disposed = true;
         try
         {
+            // Release retained commands before services or the current scene are disposed so
+            // disposable commands can still touch scene-owned state during cleanup.
+            _commandHistory.Changed -= OnCommandHistoryChanged;
+            CommandHistoryChanged = null;
+            _commandHistory.Dispose();
             _services.Dispose();
         }
         finally
@@ -105,6 +141,8 @@ public sealed class Application : IDisposable
             _currentFilePath = null;
         }
     }
+
+    private void OnCommandHistoryChanged() => CommandHistoryChanged?.Invoke();
 
     private void ReplaceScene(Scene scene, string? path)
     {
@@ -121,6 +159,9 @@ public sealed class Application : IDisposable
 
         _currentScene = scene;
         _currentFilePath = path;
+        // Clear before disposing the previous scene so discarded commands can release state that
+        // still refers to it. Failures above leave the existing history intact.
+        _commandHistory.Clear();
         previousScene?.Dispose();
     }
 

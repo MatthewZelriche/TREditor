@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using GdUnit4;
 using Godot;
@@ -69,9 +71,253 @@ public class ApplicationTests
         }
     }
 
+    [TestCase]
+    [RequireGodotRuntime]
+    public void ApplicationExecutesUndoesAndRedoesCommands()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var application = new Application(mapRoot);
+        var document = new List<string>();
+        int changedCount = 0;
+        application.CommandHistoryChanged += () => changedCount++;
+
+        application.ExecuteCommand(new AppendCommand(document, "first"));
+        application.ExecuteCommand(new AppendCommand(document, "second"));
+
+        AssertThat(string.Join(",", document)).IsEqual("first,second");
+        AssertThat(changedCount).IsEqual(2);
+        AssertBool(application.CanUndo).IsTrue();
+        AssertBool(application.CanRedo).IsFalse();
+        AssertThat(application.UndoDisplayName).IsEqual("Append second");
+        AssertThat(application.RedoDisplayName).IsNull();
+
+        AssertBool(application.Undo()).IsTrue();
+        AssertThat(string.Join(",", document)).IsEqual("first");
+        AssertThat(application.UndoDisplayName).IsEqual("Append first");
+        AssertThat(application.RedoDisplayName).IsEqual("Append second");
+
+        AssertBool(application.Redo()).IsTrue();
+        AssertThat(string.Join(",", document)).IsEqual("first,second");
+        AssertThat(changedCount).IsEqual(4);
+        AssertBool(application.CanRedo).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void SaveAndSaveAsPreserveCommandHistory()
+    {
+        RemoveSceneFile();
+        try
+        {
+            Node3D mapRoot = AutoFree(new Node3D());
+            using var application = new Application(mapRoot);
+            application.NewScene();
+            string scenePath = ProjectSettings.GlobalizePath(ScenePath);
+            var document = new List<string>();
+            application.ExecuteCommand(new AppendCommand(document, "edit"));
+            AssertBool(application.Undo()).IsTrue();
+            int changedCount = 0;
+            application.CommandHistoryChanged += () => changedCount++;
+
+            application.SaveSceneAs(scenePath);
+            application.SaveScene();
+
+            AssertThat(changedCount).IsEqual(0);
+            AssertBool(application.CanUndo).IsFalse();
+            AssertBool(application.CanRedo).IsTrue();
+            AssertThat(application.RedoDisplayName).IsEqual("Append edit");
+            AssertThat(document.Count).IsEqual(0);
+        }
+        finally
+        {
+            RemoveSceneFile();
+        }
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void NewAndOpenClearHistoryOnlyAfterSuccessfulReplacement()
+    {
+        RemoveSceneFile();
+        try
+        {
+            Node3D mapRoot = AutoFree(new Node3D());
+            using var application = new Application(mapRoot);
+            application.NewScene();
+            string scenePath = ProjectSettings.GlobalizePath(ScenePath);
+            application.SaveSceneAs(scenePath);
+
+            Scene previousScene = application.CurrentScene!;
+            var disposeLog = new List<string>();
+            application.ExecuteCommand(
+                new SceneAwareCommand("Edit", previousScene, disposeLog)
+            );
+            AssertBool(application.CanUndo).IsTrue();
+
+            application.NewScene();
+
+            AssertBool(application.CanUndo).IsFalse();
+            AssertBool(application.CanRedo).IsFalse();
+            AssertThat(string.Join(",", disposeLog)).IsEqual("dispose-while-alive:Edit");
+            AssertBool(IsSceneDisposed(previousScene)).IsTrue();
+
+            application.ExecuteCommand(new AppendCommand([], "before-open"));
+            AssertBool(application.CanUndo).IsTrue();
+            application.OpenScene(scenePath);
+
+            AssertBool(application.CanUndo).IsFalse();
+            AssertBool(application.CanRedo).IsFalse();
+            AssertThat(application.CurrentFilePath).IsEqual(scenePath);
+        }
+        finally
+        {
+            RemoveSceneFile();
+        }
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void FailedOpenPreservesCommandHistory()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var application = new Application(mapRoot);
+        application.NewScene();
+        var document = new List<string>();
+        application.ExecuteCommand(new AppendCommand(document, "kept"));
+        Scene sceneBeforeFailure = application.CurrentScene!;
+        int changedCount = 0;
+        application.CommandHistoryChanged += () => changedCount++;
+
+        Exception? failure = null;
+        try
+        {
+            application.OpenScene(
+                ProjectSettings.GlobalizePath("user://application_missing_scene.res")
+            );
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        AssertThat(failure).IsNotNull();
+        AssertThat(changedCount).IsEqual(0);
+        AssertBool(application.CanUndo).IsTrue();
+        AssertThat(application.UndoDisplayName).IsEqual("Append kept");
+        AssertBool(ReferenceEquals(sceneBeforeFailure, application.CurrentScene)).IsTrue();
+        AssertThat(string.Join(",", document)).IsEqual("kept");
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void FailedExecuteCommandLeavesHistoryUnchanged()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var application = new Application(mapRoot);
+        application.ExecuteCommand(new AppendCommand([], "applied"));
+        int changedCount = 0;
+        application.CommandHistoryChanged += () => changedCount++;
+        var failing = new FailingCommand();
+
+        Exception? failure = null;
+        try
+        {
+            application.ExecuteCommand(failing);
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+
+        AssertThat(failure).IsNotNull();
+        AssertThat(changedCount).IsEqual(0);
+        AssertThat(application.UndoDisplayName).IsEqual("Append applied");
+        AssertBool(application.CanRedo).IsFalse();
+        AssertThat(failing.DisposeCount).IsEqual(0);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void ApplicationDisposalReleasesCommandsBeforeTheCurrentScene()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        var application = new Application(mapRoot);
+        application.NewScene();
+        Scene scene = application.CurrentScene!;
+        var disposeLog = new List<string>();
+        application.ExecuteCommand(new SceneAwareCommand("Owned", scene, disposeLog));
+
+        application.Dispose();
+
+        AssertThat(string.Join(",", disposeLog)).IsEqual("dispose-while-alive:Owned");
+        AssertBool(IsSceneDisposed(scene)).IsTrue();
+    }
+
+    private static bool IsSceneDisposed(Scene scene)
+    {
+        try
+        {
+            scene.MarkGeometryChanged(new MeshObjectId(0));
+            return false;
+        }
+        catch (ObjectDisposedException)
+        {
+            return true;
+        }
+    }
+
     private static void RemoveSceneFile()
     {
         if (Godot.FileAccess.FileExists(ScenePath))
             DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(ScenePath));
+    }
+
+    private sealed class AppendCommand(List<string> document, string value) : IEditorCommand
+    {
+        public string DisplayName => $"Append {value}";
+
+        public void Execute() => document.Add(value);
+
+        public void Undo() => document.RemoveAt(document.Count - 1);
+    }
+
+    private sealed class FailingCommand : IEditorCommand, IDisposable
+    {
+        public string DisplayName => "Failing";
+
+        public int DisposeCount { get; private set; }
+
+        public void Execute() =>
+            throw new InvalidOperationException("Failing could not be executed.");
+
+        public void Undo()
+        {
+        }
+
+        public void Dispose() => DisposeCount++;
+    }
+
+    private sealed class SceneAwareCommand(
+        string displayName,
+        Scene scene,
+        List<string> disposeLog
+    ) : IEditorCommand, IDisposable
+    {
+        public string DisplayName => displayName;
+
+        public void Execute()
+        {
+        }
+
+        public void Undo()
+        {
+        }
+
+        public void Dispose()
+        {
+            // Throws ObjectDisposedException if the history released this command after the scene.
+            scene.MarkGeometryChanged(new MeshObjectId(0));
+            disposeLog.Add($"dispose-while-alive:{displayName}");
+        }
     }
 }
