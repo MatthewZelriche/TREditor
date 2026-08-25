@@ -88,8 +88,14 @@ public partial class MainViewport : SubViewportContainer
 
         Move(
             new Vector2(
-                GetAxis(Key.A, Key.D),
-                GetAxis(Key.S, Key.W)
+                Input.GetAxis(
+                    EditorInputActions.CameraMoveLeft,
+                    EditorInputActions.CameraMoveRight
+                ),
+                Input.GetAxis(
+                    EditorInputActions.CameraMoveBackward,
+                    EditorInputActions.CameraMoveForward
+                )
             ),
             delta
         );
@@ -140,16 +146,6 @@ public partial class MainViewport : SubViewportContainer
     }
 
     internal void StopNavigation() => EndNavigation();
-
-    private static float GetAxis(Key negative, Key positive)
-    {
-        float value = 0.0f;
-        if (Input.IsPhysicalKeyPressed(negative))
-            value -= 1.0f;
-        if (Input.IsPhysicalKeyPressed(positive))
-            value += 1.0f;
-        return value;
-    }
 
     private void BeginNavigation()
     {

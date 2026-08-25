@@ -9,18 +9,29 @@ public partial class Root : Node
     private const string SceneFilter = "*.res;TREditor Scene";
 
     private Application? _application;
+    private KeybindingManager? _keybindings;
     private AppTitleBar? _titleBar;
+    private KeybindingsDialog? _keybindingsDialog;
     private FileDialog? _openSceneDialog;
     private FileDialog? _saveSceneDialog;
     private AcceptDialog? _fileErrorDialog;
 
     internal Application? CurrentApplication => _application;
 
+    internal KeybindingManager? CurrentKeybindings => _keybindings;
+
+    public override void _EnterTree()
+    {
+        _keybindings = new KeybindingManager();
+        _keybindings.Load();
+    }
+
     public override void _Ready()
     {
         GetWindow().MinSize = MinimumWindowSize;
         _application = new Application(GetNode<Node3D>("%MapRoot"));
         _titleBar = GetNode<AppTitleBar>("UI/AppTitleBar");
+        _keybindingsDialog = GetNode<KeybindingsDialog>("%KeybindingsDialog");
         _openSceneDialog = GetNode<FileDialog>("%OpenSceneDialog");
         _saveSceneDialog = GetNode<FileDialog>("%SaveSceneDialog");
         _fileErrorDialog = GetNode<AcceptDialog>("%FileErrorDialog");
@@ -50,8 +61,11 @@ public partial class Root : Node
             _saveSceneDialog.FileSelected -= OnSaveSceneSelected;
 
         _application?.Dispose();
+        _keybindings?.Dispose();
         _application = null;
+        _keybindings = null;
         _titleBar = null;
+        _keybindingsDialog = null;
         _openSceneDialog = null;
         _saveSceneDialog = null;
         _fileErrorDialog = null;
@@ -92,6 +106,10 @@ public partial class Root : Node
                 break;
             case AppTitleBar.AppMenuAction.Quit:
                 GetTree().Quit();
+                break;
+            case AppTitleBar.AppMenuAction.Keybindings:
+                if (_keybindings is not null)
+                    _keybindingsDialog?.ShowDialog(_keybindings);
                 break;
         }
     }

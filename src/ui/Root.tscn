@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="PackedScene" path="res://src/ui/window/AppTitleBar.tscn" id="1_title_bar"]
 [ext_resource type="Script" path="res://src/ui/window/WindowResizeHandle.cs" id="2_resize_handle"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://src/ui/viewport/MainViewportArea.cs" id="4_main_viewport"]
 [ext_resource type="Script" path="res://src/ui/viewport/ViewportBottomBar.cs" id="5_bottom_bar"]
 [ext_resource type="PackedScene" path="res://src/ui/sidebar/ToolSettingsSidebar.tscn" id="6_tool_settings_sidebar"]
+[ext_resource type="PackedScene" path="res://src/ui/settings/KeybindingsDialog.tscn" id="7_keybindings_dialog"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_toolbar_background"]
 bg_color = Color(0.117647, 0.12549, 0.141176, 1)
@@ -85,6 +86,9 @@ title = "Save Scene As"
 [node name="FileErrorDialog" type="AcceptDialog" parent="."]
 unique_name_in_owner = true
 title = "File Error"
+
+[node name="KeybindingsDialog" parent="." instance=ExtResource("7_keybindings_dialog")]
+unique_name_in_owner = true
 
 [node name="UI" type="Control" parent="."]
 layout_mode = 3
