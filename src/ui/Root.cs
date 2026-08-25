@@ -10,7 +10,7 @@ public partial class Root : Node
 
     private Application? _application;
     private KeybindingManager? _keybindings;
-    private AppTitleBar? _titleBar;
+    private AppMenuBar? _menuBar;
     private KeybindingsDialog? _keybindingsDialog;
     private FileDialog? _openSceneDialog;
     private FileDialog? _saveSceneDialog;
@@ -30,7 +30,7 @@ public partial class Root : Node
     {
         GetWindow().MinSize = MinimumWindowSize;
         _application = new Application(GetNode<Node3D>("%MapRoot"));
-        _titleBar = GetNode<AppTitleBar>("UI/AppTitleBar");
+        _menuBar = GetNode<AppMenuBar>("UI/AppMenuBar");
         _keybindingsDialog = GetNode<KeybindingsDialog>("%KeybindingsDialog");
         _openSceneDialog = GetNode<FileDialog>("%OpenSceneDialog");
         _saveSceneDialog = GetNode<FileDialog>("%SaveSceneDialog");
@@ -39,7 +39,7 @@ public partial class Root : Node
         ConfigureFileDialog(_openSceneDialog, FileDialog.FileModeEnum.OpenFile);
         ConfigureFileDialog(_saveSceneDialog, FileDialog.FileModeEnum.SaveFile);
 
-        _titleBar.MenuActionRequested += OnMenuActionRequested;
+        _menuBar.MenuActionRequested += OnMenuActionRequested;
         _openSceneDialog.FileSelected += OnOpenSceneSelected;
         _saveSceneDialog.FileSelected += OnSaveSceneSelected;
     }
@@ -51,8 +51,8 @@ public partial class Root : Node
 
     public override void _ExitTree()
     {
-        if (_titleBar is not null)
-            _titleBar.MenuActionRequested -= OnMenuActionRequested;
+        if (_menuBar is not null)
+            _menuBar.MenuActionRequested -= OnMenuActionRequested;
 
         if (_openSceneDialog is not null)
             _openSceneDialog.FileSelected -= OnOpenSceneSelected;
@@ -64,7 +64,7 @@ public partial class Root : Node
         _keybindings?.Dispose();
         _application = null;
         _keybindings = null;
-        _titleBar = null;
+        _menuBar = null;
         _keybindingsDialog = null;
         _openSceneDialog = null;
         _saveSceneDialog = null;
@@ -87,27 +87,27 @@ public partial class Root : Node
         if (_application is null)
             return;
 
-        switch ((AppTitleBar.AppMenuAction)actionId)
+        switch ((AppMenuBar.AppMenuAction)actionId)
         {
-            case AppTitleBar.AppMenuAction.NewDocument:
+            case AppMenuBar.AppMenuAction.NewDocument:
                 ExecuteFileAction("New scene", _application.NewScene);
                 break;
-            case AppTitleBar.AppMenuAction.OpenDocument:
+            case AppMenuBar.AppMenuAction.OpenDocument:
                 _openSceneDialog?.PopupFileDialog();
                 break;
-            case AppTitleBar.AppMenuAction.SaveDocument:
+            case AppMenuBar.AppMenuAction.SaveDocument:
                 if (_application.CurrentFilePath is null)
                     ShowSaveSceneDialog();
                 else
                     ExecuteFileAction("Save scene", _application.SaveScene);
                 break;
-            case AppTitleBar.AppMenuAction.SaveDocumentAs:
+            case AppMenuBar.AppMenuAction.SaveDocumentAs:
                 ShowSaveSceneDialog();
                 break;
-            case AppTitleBar.AppMenuAction.Quit:
+            case AppMenuBar.AppMenuAction.Quit:
                 GetTree().Quit();
                 break;
-            case AppTitleBar.AppMenuAction.Keybindings:
+            case AppMenuBar.AppMenuAction.Keybindings:
                 if (_keybindings is not null)
                     _keybindingsDialog?.ShowDialog(_keybindings);
                 break;

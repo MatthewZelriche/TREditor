@@ -1,12 +1,13 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
-[ext_resource type="PackedScene" path="res://src/ui/window/AppTitleBar.tscn" id="1_title_bar"]
+[ext_resource type="PackedScene" path="res://src/ui/window/WindowTitleBar.tscn" id="1_title_bar"]
 [ext_resource type="Script" path="res://src/ui/window/WindowResizeHandle.cs" id="2_resize_handle"]
 [ext_resource type="Script" path="res://src/ui/Root.cs" id="3_root"]
 [ext_resource type="Script" path="res://src/ui/viewport/MainViewportArea.cs" id="4_main_viewport"]
 [ext_resource type="Script" path="res://src/ui/viewport/ViewportBottomBar.cs" id="5_bottom_bar"]
 [ext_resource type="PackedScene" path="res://src/ui/sidebar/ToolSettingsSidebar.tscn" id="6_tool_settings_sidebar"]
 [ext_resource type="PackedScene" path="res://src/ui/settings/KeybindingsDialog.tscn" id="7_keybindings_dialog"]
+[ext_resource type="PackedScene" path="res://src/ui/window/AppMenuBar.tscn" id="8_app_menu_bar"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_toolbar_background"]
 bg_color = Color(0.117647, 0.12549, 0.141176, 1)
@@ -98,12 +99,17 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="AppTitleBar" parent="UI" instance=ExtResource("1_title_bar")]
+[node name="WindowTitleBar" parent="UI" instance=ExtResource("1_title_bar")]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 36.0
 grow_horizontal = 2
+
+[node name="AppMenuBar" parent="UI" instance=ExtResource("8_app_menu_bar")]
+layout_mode = 1
+offset_left = 8.0
+offset_bottom = 36.0
 
 [node name="ToolbarStrip" type="PanelContainer" parent="UI"]
 layout_mode = 1

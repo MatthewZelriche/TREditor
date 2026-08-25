@@ -1,0 +1,106 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/ui/window/AppMenuBar.cs" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_menu_normal"]
+bg_color = Color(0, 0, 0, 0)
+content_margin_left = 9.0
+content_margin_top = 5.0
+content_margin_right = 9.0
+content_margin_bottom = 5.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_menu_hover"]
+bg_color = Color(0.156863, 0.176471, 0.207843, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+content_margin_left = 9.0
+content_margin_top = 5.0
+content_margin_right = 9.0
+content_margin_bottom = 5.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_menu_pressed"]
+bg_color = Color(0.2, 0.223529, 0.258824, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+content_margin_left = 9.0
+content_margin_top = 5.0
+content_margin_right = 9.0
+content_margin_bottom = 5.0
+
+[node name="AppMenuBar" type="CenterContainer"]
+custom_minimum_size = Vector2(0, 36)
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="MainMenu" type="MenuBar" parent="."]
+layout_mode = 2
+mouse_filter = 0
+theme_override_colors/font_color = Color(0.847059, 0.858824, 0.886275, 1)
+theme_override_colors/font_hover_color = Color(0.94902, 0.956863, 0.972549, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0)
+theme_override_constants/h_separation = 0
+theme_override_constants/outline_size = 0
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBox_menu_normal")
+theme_override_styles/hover = SubResource("StyleBox_menu_hover")
+theme_override_styles/pressed = SubResource("StyleBox_menu_pressed")
+prefer_global_menu = false
+
+[node name="FileMenu" type="PopupMenu" parent="MainMenu"]
+unique_name_in_owner = true
+title = "File"
+item_count = 7
+item_0/text = "New"
+item_0/id = 100
+item_1/text = "Open..."
+item_1/id = 101
+item_2/separator = true
+item_3/text = "Save"
+item_3/id = 102
+item_4/text = "Save As..."
+item_4/id = 103
+item_5/separator = true
+item_6/text = "Quit"
+item_6/id = 104
+prefer_native_menu = false
+
+[node name="EditMenu" type="PopupMenu" parent="MainMenu"]
+unique_name_in_owner = true
+title = "Edit"
+item_count = 2
+item_0/text = "Undo"
+item_0/id = 200
+item_1/text = "Redo"
+item_1/id = 201
+prefer_native_menu = false
+
+[node name="SettingsMenu" type="PopupMenu" parent="MainMenu"]
+unique_name_in_owner = true
+title = "Settings"
+item_count = 2
+item_0/text = "Keybindings..."
+item_0/id = 300
+item_1/text = "Preferences..."
+item_1/id = 301
+prefer_native_menu = false
+
+[node name="AboutMenu" type="PopupMenu" parent="MainMenu"]
+unique_name_in_owner = true
+title = "About"
+item_count = 3
+item_0/text = "Open Source Licenses..."
+item_0/id = 400
+item_1/separator = true
+item_2/text = "About TrembleEd..."
+item_2/id = 401
+prefer_native_menu = false
+
+[connection signal="id_pressed" from="MainMenu/AboutMenu" to="." method="OnMenuIdPressed"]
+[connection signal="id_pressed" from="MainMenu/EditMenu" to="." method="OnMenuIdPressed"]
+[connection signal="id_pressed" from="MainMenu/FileMenu" to="." method="OnMenuIdPressed"]
+[connection signal="id_pressed" from="MainMenu/SettingsMenu" to="." method="OnMenuIdPressed"]

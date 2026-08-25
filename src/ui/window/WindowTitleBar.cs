@@ -1,39 +1,16 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
 using Godot;
 
-public partial class AppTitleBar : PanelContainer
+public partial class WindowTitleBar : PanelContainer
 {
     private const int WindowDragThreshold = 4;
 
-    public enum AppMenuAction
-    {
-        NewDocument = 100,
-        OpenDocument = 101,
-        SaveDocument = 102,
-        SaveDocumentAs = 103,
-        Quit = 104,
-
-        Undo = 200,
-        Redo = 201,
-
-        Keybindings = 300,
-        Preferences = 301,
-
-        OpenSourceLicenses = 400,
-        About = 401,
-    }
-
-    [Signal]
-    public delegate void MenuActionRequestedEventHandler(int actionId);
-
-    private readonly Dictionary<AppMenuAction, (PopupMenu Menu, int Index)> _menuItems = [];
-
     private string _titleOverride = string.Empty;
-    private Texture2D? _applicationIcon;
-    private bool _showWindowControls = true;
+    private bool _showTitle = true;
+    private bool _resizable = true;
+    private bool _showMinimizeButton = true;
+    private bool _showMaximizeButton = true;
     private bool _isMaximized;
     private bool _hasRestoreBounds;
     private Vector2I _restorePosition;
@@ -42,13 +19,9 @@ public partial class AppTitleBar : PanelContainer
     private Vector2I _windowDragStart;
 
     private Window? _window;
-    private TextureRect? _icon;
     private Label? _titleLabel;
-    private Control? _dragRegion;
-    private HBoxContainer? _windowControls;
     private Button? _minimizeButton;
     private Button? _maximizeButton;
-    private Button? _closeButton;
 
     [Export]
     public string TitleOverride
@@ -62,47 +35,62 @@ public partial class AppTitleBar : PanelContainer
     }
 
     [Export]
-    public Texture2D? ApplicationIcon
+    public bool ShowTitle
     {
-        get => _applicationIcon;
+        get => _showTitle;
         set
         {
-            _applicationIcon = value;
-            RefreshApplicationIcon();
+            _showTitle = value;
+            RefreshControlVisibility();
         }
     }
 
     [Export]
-    public bool ShowWindowControls
+    public bool Resizable
     {
-        get => _showWindowControls;
+        get => _resizable;
         set
         {
-            _showWindowControls = value;
-            RefreshWindowControlsVisibility();
+            _resizable = value;
+            ApplyWindowConfiguration();
+        }
+    }
+
+    [Export]
+    public bool ShowMinimizeButton
+    {
+        get => _showMinimizeButton;
+        set
+        {
+            _showMinimizeButton = value;
+            ApplyWindowConfiguration();
+        }
+    }
+
+    [Export]
+    public bool ShowMaximizeButton
+    {
+        get => _showMaximizeButton;
+        set
+        {
+            _showMaximizeButton = value;
+            ApplyWindowConfiguration();
         }
     }
 
     public override void _Ready()
     {
         _window = GetWindow();
-        _icon = GetNode<TextureRect>("%ApplicationIcon");
-        _titleLabel = GetNode<Label>("%ApplicationTitle");
-        _dragRegion = GetNode<Control>("%DragRegion");
-        _windowControls = GetNode<HBoxContainer>("%WindowControls");
+        _titleLabel = GetNode<Label>("%WindowTitle");
         _minimizeButton = GetNode<Button>("%MinimizeButton");
         _maximizeButton = GetNode<Button>("%MaximizeButton");
-        _closeButton = GetNode<Button>("%CloseButton");
-
-        IndexMenuItems();
-        ConfigureMenuAccelerators();
+        _isMaximized = _window.Mode == Window.ModeEnum.Maximized;
 
         _window.TitleChanged += RefreshTitle;
         _window.SizeChanged += RefreshWindowState;
 
         RefreshTitle();
-        RefreshApplicationIcon();
-        RefreshWindowControlsVisibility();
+        ApplyWindowConfiguration();
         RefreshWindowState();
     }
 
@@ -114,78 +102,19 @@ public partial class AppTitleBar : PanelContainer
             _window.SizeChanged -= RefreshWindowState;
         }
 
-        _menuItems.Clear();
+        _window = null;
+        _titleLabel = null;
+        _minimizeButton = null;
+        _maximizeButton = null;
     }
 
-    public void SetMenuActionDisabled(AppMenuAction action, bool disabled)
-    {
-        if (_menuItems.TryGetValue(action, out var item))
-        {
-            item.Menu.SetItemDisabled(item.Index, disabled);
-        }
-    }
-
-    private void IndexMenuItems()
-    {
-        _menuItems.Clear();
-
-        IndexMenuItems(GetNode<PopupMenu>("%FileMenu"));
-        IndexMenuItems(GetNode<PopupMenu>("%EditMenu"));
-        IndexMenuItems(GetNode<PopupMenu>("%SettingsMenu"));
-        IndexMenuItems(GetNode<PopupMenu>("%AboutMenu"));
-    }
-
-    private void IndexMenuItems(PopupMenu menu)
-    {
-        for (int index = 0; index < menu.ItemCount; index++)
-        {
-            int id = menu.GetItemId(index);
-            if (Enum.IsDefined(typeof(AppMenuAction), id))
-            {
-                _menuItems.Add((AppMenuAction)id, (menu, index));
-            }
-        }
-    }
-
-    private void ConfigureMenuAccelerators()
-    {
-        Key control = (Key)KeyModifierMask.MaskCtrl;
-        Key controlShift = (Key)(KeyModifierMask.MaskCtrl | KeyModifierMask.MaskShift);
-
-        SetMenuActionAccelerator(AppMenuAction.NewDocument, control | Key.N);
-        SetMenuActionAccelerator(AppMenuAction.OpenDocument, control | Key.O);
-        SetMenuActionAccelerator(AppMenuAction.SaveDocument, control | Key.S);
-        SetMenuActionAccelerator(AppMenuAction.SaveDocumentAs, controlShift | Key.S);
-        SetMenuActionAccelerator(AppMenuAction.Undo, control | Key.Z);
-        SetMenuActionAccelerator(AppMenuAction.Redo, control | Key.Y);
-    }
-
-    private void SetMenuActionAccelerator(AppMenuAction action, Key accelerator)
-    {
-        if (_menuItems.TryGetValue(action, out var item))
-        {
-            item.Menu.SetItemAccelerator(item.Index, accelerator);
-        }
-    }
-
-    // Wired from .tscn
-    private void OnMenuIdPressed(long id)
-    {
-        if (Enum.IsDefined(typeof(AppMenuAction), (int)id))
-        {
-            EmitSignal(SignalName.MenuActionRequested, (int)id);
-        }
-    }
-
-    // Handles clicks on drag area to window drag or maximize
+    // Wired from .tscn.
     private void OnDragRegionGuiInput(InputEvent @event)
     {
         if (@event is InputEventMouseButton mouseButton)
         {
             if (mouseButton.ButtonIndex != MouseButton.Left)
-            {
                 return;
-            }
 
             if (!mouseButton.Pressed)
             {
@@ -218,21 +147,15 @@ public partial class AppTitleBar : PanelContainer
 
         Vector2I dragDistance = DisplayServer.MouseGetPosition() - _windowDragStart;
         if (dragDistance.LengthSquared() < WindowDragThreshold * WindowDragThreshold)
-        {
             return;
-        }
 
         _windowDragPending = false;
 
         if (!DisplayServer.HasFeature(DisplayServer.Feature.WindowDrag))
-        {
             return;
-        }
 
         if (_isMaximized)
-        {
             RestoreWindowForDrag();
-        }
 
         DisplayServer.WindowStartDrag();
         AcceptEvent();
@@ -241,17 +164,13 @@ public partial class AppTitleBar : PanelContainer
     private void MinimizeWindow()
     {
         if (_window is not null && !_window.MinimizeDisabled)
-        {
             _window.Mode = Window.ModeEnum.Minimized;
-        }
     }
 
     private void ToggleMaximizeWindow()
     {
         if (_window is null || _window.MaximizeDisabled)
-        {
             return;
-        }
 
         if (_isMaximized)
         {
@@ -270,9 +189,7 @@ public partial class AppTitleBar : PanelContainer
     private void RestoreWindow()
     {
         if (_window is null)
-        {
             return;
-        }
 
         _isMaximized = false;
         _window.Mode = Window.ModeEnum.Windowed;
@@ -289,9 +206,7 @@ public partial class AppTitleBar : PanelContainer
     private void RestoreWindowForDrag()
     {
         if (_window is null)
-        {
             return;
-        }
 
         Vector2 pointerInWindow = GetViewport().GetMousePosition();
         Vector2I pointerOnScreen = DisplayServer.MouseGetPosition();
@@ -313,17 +228,12 @@ public partial class AppTitleBar : PanelContainer
         RefreshWindowState();
     }
 
-    private void RequestClose()
-    {
-        _window?.EmitSignal(Window.SignalName.CloseRequested);
-    }
+    private void RequestClose() => _window?.EmitSignal(Window.SignalName.CloseRequested);
 
     private void RefreshTitle()
     {
         if (_titleLabel is null)
-        {
             return;
-        }
 
         string windowTitle = _window?.Title ?? string.Empty;
         _titleLabel.Text = string.IsNullOrWhiteSpace(_titleOverride)
@@ -331,42 +241,39 @@ public partial class AppTitleBar : PanelContainer
             : _titleOverride;
     }
 
-    private void RefreshApplicationIcon()
+    private void ApplyWindowConfiguration()
     {
-        if (_icon is null)
+        if (_window is not null)
         {
-            return;
+            _window.Unresizable = !_resizable;
+            _window.MinimizeDisabled = !_resizable || !_showMinimizeButton;
+            _window.MaximizeDisabled = !_resizable || !_showMaximizeButton;
         }
 
-        _icon.Texture = _applicationIcon;
-        _icon.Visible = _applicationIcon is not null;
+        RefreshControlVisibility();
+        RefreshWindowState();
     }
 
-    private void RefreshWindowControlsVisibility()
+    private void RefreshControlVisibility()
     {
-        if (_windowControls is not null)
-        {
-            _windowControls.Visible = _showWindowControls;
-        }
+        if (_titleLabel is not null)
+            _titleLabel.Visible = _showTitle;
+
+        if (_minimizeButton is not null)
+            _minimizeButton.Visible = _resizable && _showMinimizeButton;
+
+        if (_maximizeButton is not null)
+            _maximizeButton.Visible = _resizable && _showMaximizeButton;
     }
 
     private void RefreshWindowState()
     {
-        if (
-            _window is null
-            || _minimizeButton is null
-            || _maximizeButton is null
-            || _closeButton is null
-        )
-        {
+        if (_window is null || _minimizeButton is null || _maximizeButton is null)
             return;
-        }
 
-        bool isMaximized = _isMaximized;
-        _maximizeButton.Text = isMaximized ? "❐" : "□";
-        _maximizeButton.TooltipText = isMaximized ? "Restore" : "Maximize";
+        _maximizeButton.Text = _isMaximized ? "❐" : "□";
+        _maximizeButton.TooltipText = _isMaximized ? "Restore" : "Maximize";
         _maximizeButton.Disabled = _window.MaximizeDisabled;
         _minimizeButton.Disabled = _window.MinimizeDisabled;
-        _closeButton.Disabled = false;
     }
 }

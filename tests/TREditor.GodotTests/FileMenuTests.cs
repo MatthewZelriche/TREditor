@@ -22,33 +22,33 @@ public class FileMenuTests
 
             Application application = root.CurrentApplication!;
             AssertThat(application).IsNotNull();
-            AppTitleBar titleBar = root.GetNode<AppTitleBar>("UI/AppTitleBar");
-            PopupMenu fileMenu = titleBar.GetNode<PopupMenu>("%FileMenu");
+            AppMenuBar menuBar = root.GetNode<AppMenuBar>("UI/AppMenuBar");
+            PopupMenu fileMenu = menuBar.GetNode<PopupMenu>("%FileMenu");
             FileDialog openDialog = root.GetNode<FileDialog>("%OpenSceneDialog");
             FileDialog saveDialog = root.GetNode<FileDialog>("%SaveSceneDialog");
             openDialog.UseNativeDialog = false;
             saveDialog.UseNativeDialog = false;
 
             Scene initialScene = application.CurrentScene!;
-            EmitFileAction(fileMenu, AppTitleBar.AppMenuAction.NewDocument);
+            EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.NewDocument);
             AssertBool(ReferenceEquals(initialScene, application.CurrentScene)).IsFalse();
 
-            EmitFileAction(fileMenu, AppTitleBar.AppMenuAction.OpenDocument);
+            EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.OpenDocument);
             AssertBool(openDialog.Visible).IsTrue();
             openDialog.Hide();
 
-            EmitFileAction(fileMenu, AppTitleBar.AppMenuAction.SaveDocument);
+            EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.SaveDocument);
             AssertBool(saveDialog.Visible).IsTrue();
             saveDialog.Hide();
 
-            EmitFileAction(fileMenu, AppTitleBar.AppMenuAction.SaveDocumentAs);
+            EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.SaveDocumentAs);
             AssertBool(saveDialog.Visible).IsTrue();
             saveDialog.Hide();
 
             string scenePath = ProjectSettings.GlobalizePath(ScenePath);
             application.SaveSceneAs(scenePath);
             DirAccess.RemoveAbsolute(scenePath);
-            EmitFileAction(fileMenu, AppTitleBar.AppMenuAction.SaveDocument);
+            EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.SaveDocument);
             AssertBool(Godot.FileAccess.FileExists(scenePath)).IsTrue();
         }
         finally
@@ -59,7 +59,7 @@ public class FileMenuTests
 
     private static void EmitFileAction(
         PopupMenu fileMenu,
-        AppTitleBar.AppMenuAction action
+        AppMenuBar.AppMenuAction action
     ) => fileMenu.EmitSignal(PopupMenu.SignalName.IdPressed, (long)action);
 
     private static void RemoveSceneFile()

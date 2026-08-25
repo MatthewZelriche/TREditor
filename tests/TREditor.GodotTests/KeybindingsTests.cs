@@ -94,14 +94,14 @@ public class KeybindingsTests
         Root root = AutoFree(rootScene.Instantiate<Root>());
         ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
 
-        AppTitleBar titleBar = root.GetNode<AppTitleBar>("UI/AppTitleBar");
-        PopupMenu settingsMenu = titleBar.GetNode<PopupMenu>("%SettingsMenu");
+        AppMenuBar menuBar = root.GetNode<AppMenuBar>("UI/AppMenuBar");
+        PopupMenu settingsMenu = menuBar.GetNode<PopupMenu>("%SettingsMenu");
         KeybindingsDialog dialog = root.GetNode<KeybindingsDialog>("%KeybindingsDialog");
 
         AssertBool(dialog.Visible).IsFalse();
         settingsMenu.EmitSignal(
             PopupMenu.SignalName.IdPressed,
-            (long)AppTitleBar.AppMenuAction.Keybindings
+            (long)AppMenuBar.AppMenuAction.Keybindings
         );
 
         AssertBool(dialog.Visible).IsTrue();
