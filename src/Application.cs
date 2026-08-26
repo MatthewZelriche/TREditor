@@ -7,6 +7,7 @@ public sealed class Application : IDisposable
 {
     private readonly SceneServices _services;
     private readonly CommandHistory _commandHistory = new();
+    private readonly SelectionModeState _selectionMode = new();
     private Scene? _currentScene;
     private string? _currentFilePath;
     private bool _disposed;
@@ -43,6 +44,8 @@ public sealed class Application : IDisposable
     public Scene? CurrentScene => _currentScene;
 
     public string? CurrentFilePath => _currentFilePath;
+
+    public SelectionModeState SelectionMode => _selectionMode;
 
     public bool CanUndo => _commandHistory.CanUndo;
 
@@ -131,6 +134,7 @@ public sealed class Application : IDisposable
             // disposable commands can still touch scene-owned state during cleanup.
             _commandHistory.Changed -= OnCommandHistoryChanged;
             CommandHistoryChanged = null;
+            _selectionMode.ClearChangedListeners();
             _commandHistory.Dispose();
             _services.Dispose();
         }

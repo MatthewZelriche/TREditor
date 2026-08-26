@@ -36,6 +36,11 @@ public partial class Root : Node
         _saveSceneDialog = GetNode<FileDialog>("%SaveSceneDialog");
         _fileErrorDialog = GetNode<AcceptDialog>("%FileErrorDialog");
 
+        GetNode<SelectionModeToolbar>("UI/ToolbarStrip/ToolbarMargin/SelectionModes")
+            .Bind(_application.SelectionMode);
+        GetNode<ToolsToolbar>("UI/Toolbar/ToolbarMargin/Tools")
+            .Bind(_application.SelectionMode);
+
         ConfigureFileDialog(_openSceneDialog, FileDialog.FileModeEnum.OpenFile);
         ConfigureFileDialog(_saveSceneDialog, FileDialog.FileModeEnum.SaveFile);
 

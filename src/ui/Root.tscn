@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" path="res://src/ui/sidebar/ToolSettingsSidebar.tscn" id="6_tool_settings_sidebar"]
 [ext_resource type="PackedScene" path="res://src/ui/settings/KeybindingsDialog.tscn" id="7_keybindings_dialog"]
 [ext_resource type="PackedScene" path="res://src/ui/window/AppMenuBar.tscn" id="8_app_menu_bar"]
+[ext_resource type="Script" path="res://src/ui/SelectionModeToolbar.cs" id="9_selection_mode_toolbar"]
+[ext_resource type="Script" path="res://src/ui/ToolsToolbar.cs" id="10_tools_toolbar"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_toolbar_background"]
 bg_color = Color(0.117647, 0.12549, 0.141176, 1)
@@ -56,8 +58,6 @@ bg_color = Color(0.117647, 0.12549, 0.141176, 1)
 border_width_top = 1
 border_width_bottom = 1
 border_color = Color(0.0862745, 0.0941176, 0.109804, 1)
-
-[sub_resource type="ButtonGroup" id="ButtonGroup_selection_mode"]
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -131,6 +131,7 @@ theme_override_constants/margin_bottom = 5
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
+script = ExtResource("9_selection_mode_toolbar")
 
 [node name="ObjectButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
 custom_minimum_size = Vector2(68, 28)
@@ -147,7 +148,6 @@ theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
 theme_override_styles/hover_pressed = SubResource("StyleBox_mode_pressed")
 toggle_mode = true
 button_pressed = true
-button_group = SubResource("ButtonGroup_selection_mode")
 text = "Object"
 
 [node name="ObjectModeGap" type="Control" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
@@ -169,7 +169,6 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
 theme_override_styles/hover_pressed = SubResource("StyleBox_mode_pressed")
 toggle_mode = true
-button_group = SubResource("ButtonGroup_selection_mode")
 text = "All"
 
 [node name="VertexButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
@@ -186,7 +185,6 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
 theme_override_styles/hover_pressed = SubResource("StyleBox_mode_pressed")
 toggle_mode = true
-button_group = SubResource("ButtonGroup_selection_mode")
 text = "Vertex"
 
 [node name="EdgeButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
@@ -203,7 +201,6 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
 theme_override_styles/hover_pressed = SubResource("StyleBox_mode_pressed")
 toggle_mode = true
-button_group = SubResource("ButtonGroup_selection_mode")
 text = "Edge"
 
 [node name="FaceButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
@@ -220,15 +217,50 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
 theme_override_styles/hover_pressed = SubResource("StyleBox_mode_pressed")
 toggle_mode = true
-button_group = SubResource("ButtonGroup_selection_mode")
 text = "Face"
 
-[node name="ToolbarSpacer" type="Control" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="Toolbar" type="PanelContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 74.0
+offset_bottom = 112.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBox_toolbar_background")
+
+[node name="ToolbarMargin" type="MarginContainer" parent="UI/Toolbar"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 5
+
+[node name="Tools" type="HBoxContainer" parent="UI/Toolbar/ToolbarMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+script = ExtResource("10_tools_toolbar")
+
+[node name="NewPrimitiveButton" type="Button" parent="UI/Toolbar/ToolbarMargin/Tools"]
+custom_minimum_size = Vector2(108, 28)
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.819608, 0.811765, 0.847059, 1)
+theme_override_colors/font_hover_color = Color(0.909804, 0.913725, 0.929412, 1)
+theme_override_colors/font_pressed_color = Color(0.929412, 0.956863, 0.945098, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBox_mode_normal")
+theme_override_styles/hover = SubResource("StyleBox_mode_hover")
+theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
+text = "New Primitive"
+
+[node name="ToolbarSpacer" type="Control" parent="UI/Toolbar/ToolbarMargin/Tools"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="SidebarToggleButton" type="Button" parent="UI/ToolbarStrip/ToolbarMargin/SelectionModes"]
+[node name="SidebarToggleButton" type="Button" parent="UI/Toolbar/ToolbarMargin/Tools"]
 custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 focus_mode = 0
@@ -243,12 +275,11 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_hover")
 text = ">"
 
-[node name="ViewportGap" type="ColorRect" parent="UI"]
-layout_mode = 1
+[node name="ViewportGap" type="ColorRect" parent="UI"]layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_top = 74.0
-offset_bottom = 76.0
+offset_top = 112.0
+offset_bottom = 114.0
 grow_horizontal = 2
 mouse_filter = 2
 color = Color(0.0196078, 0.0235294, 0.0313725, 1)
@@ -258,7 +289,7 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 76.0
+offset_top = 114.0
 offset_right = -222.0
 offset_bottom = -34.0
 grow_horizontal = 2
@@ -272,12 +303,12 @@ anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -222.0
-offset_top = 76.0
+offset_top = 114.0
 offset_bottom = -34.0
 grow_horizontal = 0
 grow_vertical = 2
 AdjacentContentPath = NodePath("../MainViewportArea")
-ToggleButtonPath = NodePath("../ToolbarStrip/ToolbarMargin/SelectionModes/SidebarToggleButton")
+ToggleButtonPath = NodePath("../Toolbar/ToolbarMargin/Tools/SidebarToggleButton")
 
 [node name="BottomBarGap" type="ColorRect" parent="UI"]
 layout_mode = 1
