@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-public sealed class Scene : IDisposable
+public sealed class Scene : IDisposable, IEditorDocumentReader
 {
     // Exists to enforce that only Scene class instances can access MeshObject.SetTransform
     private static readonly object TransformGuard = new();
@@ -11,14 +11,37 @@ public sealed class Scene : IDisposable
     int _nextObjectId;
     bool _disposed;
 
-    public IReadOnlyDictionary<MeshObjectId, MeshObject> Objects => _objects;
+    internal IReadOnlyDictionary<MeshObjectId, MeshObject> Objects => _objects;
 
-    public event Action<MeshObject>? ObjectAdded;
-    public event Action<MeshObject>? ObjectRemoved;
-    public event Action<MeshObjectId>? ObjectGeometryChanged;
-    public event Action<MeshObjectId>? ObjectTransformChanged;
+    public int ObjectCount => _objects.Count;
 
-    public MeshObject Add(string name, Transform3D transform, GDMesh mesh)
+    internal event Action<MeshObject>? ObjectAdded;
+    internal event Action<MeshObject>? ObjectRemoved;
+    internal event Action<MeshObjectId>? ObjectGeometryChanged;
+    internal event Action<MeshObjectId>? ObjectTransformChanged;
+
+    public bool TryGetMeshTransform(MeshObjectId id, out Transform3D transform)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_objects.TryGetValue(id, out MeshObject? meshObject))
+        {
+            transform = default;
+            return false;
+        }
+
+        transform = meshObject.Transform;
+        return true;
+    }
+
+    public IReadOnlyList<MeshObjectId> GetObjectIds()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var ids = new MeshObjectId[_objects.Count];
+        _objects.Keys.CopyTo(ids, 0);
+        return ids;
+    }
+
+    internal MeshObject Add(string name, Transform3D transform, GDMesh mesh)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(name);
@@ -31,7 +54,7 @@ public sealed class Scene : IDisposable
         return meshObject;
     }
 
-    public bool Remove(MeshObjectId id)
+    internal bool Remove(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_objects.Remove(id, out MeshObject? meshObject))
@@ -49,7 +72,7 @@ public sealed class Scene : IDisposable
         return true;
     }
 
-    public bool SetTransform(MeshObjectId id, Transform3D transform)
+    internal bool SetTransform(MeshObjectId id, Transform3D transform)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_objects.TryGetValue(id, out MeshObject? meshObject))
@@ -60,7 +83,7 @@ public sealed class Scene : IDisposable
         return true;
     }
 
-    public bool MarkGeometryChanged(MeshObjectId id)
+    internal bool MarkGeometryChanged(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_objects.ContainsKey(id))

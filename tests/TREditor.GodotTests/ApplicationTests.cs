@@ -42,7 +42,7 @@ public class ApplicationTests
 
             application.SaveSceneAs(scenePath);
             application.NewScene();
-            AssertThat(application.CurrentScene?.Objects.Count ?? -1).IsEqual(0);
+            AssertThat(application.Document?.ObjectCount ?? -1).IsEqual(0);
             AssertThat(application.CurrentFilePath).IsNull();
 
             application.OpenScene(scenePath);
@@ -50,7 +50,7 @@ public class ApplicationTests
             Scene loaded = application.CurrentScene!;
             AssertThat(loaded).IsNotNull();
             AssertThat(application.CurrentFilePath).IsEqual(scenePath);
-            AssertThat(loaded.Objects.Count).IsEqual(2);
+            AssertThat(application.Document!.ObjectCount).IsEqual(2);
 
             Scene.MeshObject cube = loaded.Objects.Values.Single(value => value.Name == "Cube");
             AssertThat(cube.Transform).IsEqual(cubeTransform);
@@ -69,6 +69,33 @@ public class ApplicationTests
         {
             RemoveSceneFile();
         }
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void DocumentReaderFollowsSceneReplacement()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var application = new Application(mapRoot);
+        Scene initialScene = application.CurrentScene!;
+        var transform = new Transform3D(Basis.Identity, new Vector3(7, 8, 9));
+        Scene.MeshObject added = initialScene.Add(
+            "Tracked",
+            transform,
+            new GDMesh(SpatialMeshBuilder.CreateAabb(NumericsVector3.Zero, NumericsVector3.One))
+        );
+
+        IEditorDocumentReader readerBefore = application.Document!;
+        AssertBool(readerBefore.TryGetMeshTransform(added.Id, out Transform3D readTransform)).IsTrue();
+        AssertThat(readTransform).IsEqual(transform);
+
+        application.NewScene();
+
+        IEditorDocumentReader readerAfter = application.Document!;
+        AssertBool(ReferenceEquals(readerBefore, readerAfter)).IsFalse();
+        AssertThat(readerAfter.ObjectCount).IsEqual(0);
+        AssertBool(readerAfter.TryGetMeshTransform(added.Id, out _)).IsFalse();
+        AssertThat(readTransform).IsEqual(transform);
     }
 
     [TestCase]

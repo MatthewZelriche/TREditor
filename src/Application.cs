@@ -41,7 +41,10 @@ public sealed class Application : IDisposable
         SetUpSceneForDebug();
     }
 
-    public Scene? CurrentScene => _currentScene;
+    // Tool- and UI-facing document access. Only value snapshots leave this boundary.
+    public IEditorDocumentReader? Document => _currentScene;
+
+    internal Scene? CurrentScene => _currentScene;
 
     public string? CurrentFilePath => _currentFilePath;
 
