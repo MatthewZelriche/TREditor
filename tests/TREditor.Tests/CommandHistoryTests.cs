@@ -1,12 +1,16 @@
 namespace TREditor.Tests;
 
-public sealed class CommandHistoryTests
+public sealed class CommandHistoryTests : IDisposable
 {
+    private readonly Scene _scene = new();
+
+    public void Dispose() => _scene.Dispose();
+
     [Fact]
     public void ExecuteAppliesTheCommandAndUndoRedoReplayIt()
     {
         var document = new List<string>();
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         int changedCount = 0;
         history.Changed += () => changedCount++;
 
@@ -38,7 +42,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void UndoAndRedoOnAnEmptyHistoryReturnFalseWithoutNotifying()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         int changedCount = 0;
         history.Changed += () => changedCount++;
 
@@ -56,7 +60,7 @@ public sealed class CommandHistoryTests
     public void ExecutingAfterUndoInvalidatesAndDisposesTheRedoStack()
     {
         var log = new List<string>();
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         var undone = new TestCommand("Undone", log);
         var replacement = new TestCommand("Replacement", log);
 
@@ -75,7 +79,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void FailedExecuteLeavesTheHistoryUnchangedAndTheCommandUnowned()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         var applied = new TestCommand("Applied");
         var failing = new TestCommand("Failing") { ThrowOnExecute = true };
         history.Execute(applied);
@@ -96,7 +100,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void FailedUndoKeepsTheCommandOnTheUndoStack()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         var failing = new TestCommand("Failing");
         history.Execute(failing);
         failing.ThrowOnUndo = true;
@@ -119,7 +123,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void FailedRedoKeepsTheCommandOnTheRedoStack()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         var failing = new TestCommand("Failing");
         history.Execute(failing);
         Assert.True(history.Undo());
@@ -144,7 +148,7 @@ public sealed class CommandHistoryTests
     public void ReachingCapacityEvictsAndDisposesTheOldestCommands()
     {
         var log = new List<string>();
-        using var history = new CommandHistory(2);
+        using var history = CreateHistory(2);
 
         history.Execute(new TestCommand("First", log));
         history.Execute(new TestCommand("Second", log));
@@ -169,7 +173,7 @@ public sealed class CommandHistoryTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new CommandHistory(0));
         Assert.Throws<ArgumentOutOfRangeException>(() => new CommandHistory(-1));
 
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
 
         Assert.Equal(100, history.Capacity);
         Assert.Equal(CommandHistory.DefaultCapacity, history.Capacity);
@@ -179,7 +183,7 @@ public sealed class CommandHistoryTests
     public void ClearDisposesEveryRetainedCommandAndNotifiesOnce()
     {
         var log = new List<string>();
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         history.Execute(new TestCommand("Undoable", log));
         history.Execute(new TestCommand("Redoable", log));
         Assert.True(history.Undo());
@@ -197,7 +201,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void ClearingAnEmptyHistoryDoesNotNotify()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         int changedCount = 0;
         history.Changed += () => changedCount++;
 
@@ -210,7 +214,7 @@ public sealed class CommandHistoryTests
     public void DisposeReleasesRetainedCommandsAndBlocksFurtherUse()
     {
         var log = new List<string>();
-        var history = new CommandHistory();
+        var history = CreateHistory();
         var undoable = new TestCommand("Undoable", log);
         var redoable = new TestCommand("Redoable", log);
         history.Execute(undoable);
@@ -236,7 +240,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void HistoryOperationsAreRejectedWhileACommandExecutes()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         var reentrant = new TestCommand("Reentrant");
         List<Exception?> reentrantExceptions = [];
         reentrant.DuringExecute = () => reentrantExceptions = CaptureReentrantOperations(history);
@@ -252,7 +256,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void HistoryOperationsAreRejectedWhileACommandUndoes()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
         var reentrant = new TestCommand("Reentrant");
         history.Execute(reentrant);
         List<Exception?> reentrantExceptions = [];
@@ -269,7 +273,7 @@ public sealed class CommandHistoryTests
     [Fact]
     public void CommandsWithoutDisposalAreRetainedAndReplayed()
     {
-        using var history = new CommandHistory(1);
+        using var history = CreateHistory(1);
         var evicted = new PlainCommand("Evicted");
         var retained = new PlainCommand("Retained");
 
@@ -287,9 +291,16 @@ public sealed class CommandHistoryTests
     [Fact]
     public void ExecuteRejectsNullCommands()
     {
-        using var history = new CommandHistory();
+        using var history = CreateHistory();
 
         Assert.Throws<ArgumentNullException>(() => history.Execute(null!));
+    }
+
+    private CommandHistory CreateHistory(int capacity = CommandHistory.DefaultCapacity)
+    {
+        var history = new CommandHistory(capacity);
+        history.SetScene(_scene);
+        return history;
     }
 
     private static List<Exception?> CaptureReentrantOperations(CommandHistory history) =>
@@ -304,9 +315,9 @@ public sealed class CommandHistoryTests
     {
         public string DisplayName => $"Append {value}";
 
-        public void Execute() => document.Add(value);
+        public void Execute(Scene scene) => document.Add(value);
 
-        public void Undo() => document.RemoveAt(document.Count - 1);
+        public void Undo(Scene scene) => document.RemoveAt(document.Count - 1);
     }
 
     private sealed class PlainCommand(string displayName) : IEditorCommand
@@ -317,9 +328,9 @@ public sealed class CommandHistoryTests
 
         public int UndoCount { get; private set; }
 
-        public void Execute() => ExecuteCount++;
+        public void Execute(Scene scene) => ExecuteCount++;
 
-        public void Undo() => UndoCount++;
+        public void Undo(Scene scene) => UndoCount++;
     }
 
     private sealed class TestCommand(string displayName, List<string>? log = null)
@@ -341,7 +352,7 @@ public sealed class CommandHistoryTests
 
         public Action? DuringUndo { get; set; }
 
-        public void Execute()
+        public void Execute(Scene scene)
         {
             DuringExecute?.Invoke();
             if (ThrowOnExecute)
@@ -351,7 +362,7 @@ public sealed class CommandHistoryTests
             log?.Add($"execute:{displayName}");
         }
 
-        public void Undo()
+        public void Undo(Scene scene)
         {
             DuringUndo?.Invoke();
             if (ThrowOnUndo)

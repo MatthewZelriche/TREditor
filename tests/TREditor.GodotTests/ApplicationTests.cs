@@ -73,6 +73,57 @@ public class ApplicationTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public void DocumentCommandsMutateTheSceneAndAreReversible()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var application = new Application(mapRoot);
+        Scene scene = application.CurrentScene!;
+        var before = new Transform3D(Basis.Identity, new Vector3(1, 1, 1));
+        var after = new Transform3D(Basis.Identity, new Vector3(4, 5, 6));
+        Scene.MeshObject target = scene.Add(
+            "Movable",
+            before,
+            new GDMesh(SpatialMeshBuilder.CreateAabb(NumericsVector3.Zero, NumericsVector3.One))
+        );
+
+        application.Commands.Submit(new MoveCommand(target.Id, before, after));
+
+        AssertBool(application.Document!.TryGetMeshTransform(target.Id, out Transform3D moved)).IsTrue();
+        AssertThat(moved).IsEqual(after);
+        AssertBool(application.CanUndo).IsTrue();
+
+        AssertBool(application.Undo()).IsTrue();
+        AssertBool(application.Document!.TryGetMeshTransform(target.Id, out Transform3D undone)).IsTrue();
+        AssertThat(undone).IsEqual(before);
+
+        AssertBool(application.Redo()).IsTrue();
+        AssertBool(application.Document!.TryGetMeshTransform(target.Id, out Transform3D redone)).IsTrue();
+        AssertThat(redone).IsEqual(after);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void SceneReplacementRetargetsTheDocumentCommandRoute()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var application = new Application(mapRoot);
+        Scene previousScene = application.CurrentScene!;
+        Scene.MeshObject stale = previousScene.Add(
+            "Stale",
+            Transform3D.Identity,
+            new GDMesh(SpatialMeshBuilder.CreateAabb(NumericsVector3.Zero, NumericsVector3.One))
+        );
+
+        application.NewScene();
+
+        AssertThrown(() => application.Commands.Submit(
+            new MoveCommand(stale.Id, Transform3D.Identity, Transform3D.Identity)
+        )).IsInstanceOf<InvalidOperationException>();
+        AssertBool(application.CanUndo).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public void DocumentReaderFollowsSceneReplacement()
     {
         Node3D mapRoot = AutoFree(new Node3D());
@@ -108,8 +159,8 @@ public class ApplicationTests
         int changedCount = 0;
         application.CommandHistoryChanged += () => changedCount++;
 
-        application.ExecuteCommand(new AppendCommand(document, "first"));
-        application.ExecuteCommand(new AppendCommand(document, "second"));
+        application.Commands.Submit(new AppendCommand(document, "first"));
+        application.Commands.Submit(new AppendCommand(document, "second"));
 
         AssertThat(string.Join(",", document)).IsEqual("first,second");
         AssertThat(changedCount).IsEqual(2);
@@ -141,7 +192,7 @@ public class ApplicationTests
             application.NewScene();
             string scenePath = ProjectSettings.GlobalizePath(ScenePath);
             var document = new List<string>();
-            application.ExecuteCommand(new AppendCommand(document, "edit"));
+            application.Commands.Submit(new AppendCommand(document, "edit"));
             AssertBool(application.Undo()).IsTrue();
             int changedCount = 0;
             application.CommandHistoryChanged += () => changedCount++;
@@ -176,7 +227,7 @@ public class ApplicationTests
 
             Scene previousScene = application.CurrentScene!;
             var disposeLog = new List<string>();
-            application.ExecuteCommand(
+            application.Commands.Submit(
                 new SceneAwareCommand("Edit", previousScene, disposeLog)
             );
             AssertBool(application.CanUndo).IsTrue();
@@ -188,7 +239,7 @@ public class ApplicationTests
             AssertThat(string.Join(",", disposeLog)).IsEqual("dispose-while-alive:Edit");
             AssertBool(IsSceneDisposed(previousScene)).IsTrue();
 
-            application.ExecuteCommand(new AppendCommand([], "before-open"));
+            application.Commands.Submit(new AppendCommand([], "before-open"));
             AssertBool(application.CanUndo).IsTrue();
             application.OpenScene(scenePath);
 
@@ -210,7 +261,7 @@ public class ApplicationTests
         using var application = new Application(mapRoot);
         application.NewScene();
         var document = new List<string>();
-        application.ExecuteCommand(new AppendCommand(document, "kept"));
+        application.Commands.Submit(new AppendCommand(document, "kept"));
         Scene sceneBeforeFailure = application.CurrentScene!;
         int changedCount = 0;
         application.CommandHistoryChanged += () => changedCount++;
@@ -241,7 +292,7 @@ public class ApplicationTests
     {
         Node3D mapRoot = AutoFree(new Node3D());
         using var application = new Application(mapRoot);
-        application.ExecuteCommand(new AppendCommand([], "applied"));
+        application.Commands.Submit(new AppendCommand([], "applied"));
         int changedCount = 0;
         application.CommandHistoryChanged += () => changedCount++;
         var failing = new FailingCommand();
@@ -249,7 +300,7 @@ public class ApplicationTests
         Exception? failure = null;
         try
         {
-            application.ExecuteCommand(failing);
+            application.Commands.Submit(failing);
         }
         catch (Exception exception)
         {
@@ -272,7 +323,7 @@ public class ApplicationTests
         application.NewScene();
         Scene scene = application.CurrentScene!;
         var disposeLog = new List<string>();
-        application.ExecuteCommand(new SceneAwareCommand("Owned", scene, disposeLog));
+        application.Commands.Submit(new SceneAwareCommand("Owned", scene, disposeLog));
 
         application.Dispose();
 
@@ -303,9 +354,25 @@ public class ApplicationTests
     {
         public string DisplayName => $"Append {value}";
 
-        public void Execute() => document.Add(value);
+        public void Execute(Scene scene) => document.Add(value);
 
-        public void Undo() => document.RemoveAt(document.Count - 1);
+        public void Undo(Scene scene) => document.RemoveAt(document.Count - 1);
+    }
+
+    private sealed class MoveCommand(MeshObjectId id, Transform3D before, Transform3D after)
+        : IEditorCommand
+    {
+        public string DisplayName => "Move";
+
+        public void Execute(Scene scene) => Apply(scene, after);
+
+        public void Undo(Scene scene) => Apply(scene, before);
+
+        private void Apply(Scene scene, Transform3D transform)
+        {
+            if (!scene.SetTransform(id, transform))
+                throw new InvalidOperationException("The target object no longer exists.");
+        }
     }
 
     private sealed class FailingCommand : IEditorCommand, IDisposable
@@ -314,10 +381,10 @@ public class ApplicationTests
 
         public int DisposeCount { get; private set; }
 
-        public void Execute() =>
+        public void Execute(Scene scene) =>
             throw new InvalidOperationException("Failing could not be executed.");
 
-        public void Undo()
+        public void Undo(Scene scene)
         {
         }
 
@@ -332,11 +399,11 @@ public class ApplicationTests
     {
         public string DisplayName => displayName;
 
-        public void Execute()
+        public void Execute(Scene scene)
         {
         }
 
-        public void Undo()
+        public void Undo(Scene scene)
         {
         }
 

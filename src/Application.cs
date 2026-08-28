@@ -37,6 +37,7 @@ public sealed class Application : IDisposable
         }
 
         _currentScene = initialScene;
+        _commandHistory.SetScene(initialScene);
         _commandHistory.Changed += OnCommandHistoryChanged;
         SetUpSceneForDebug();
     }
@@ -45,6 +46,9 @@ public sealed class Application : IDisposable
     public IEditorDocumentReader? Document => _currentScene;
 
     internal Scene? CurrentScene => _currentScene;
+
+    // The only production route from authoring code to the document.
+    public IEditorCommandSink Commands => _commandHistory;
 
     public string? CurrentFilePath => _currentFilePath;
 
@@ -60,12 +64,6 @@ public sealed class Application : IDisposable
 
     // Raised after a successful execute, undo, redo, or a non-empty clear of command history.
     public event Action? CommandHistoryChanged;
-
-    public void ExecuteCommand(IEditorCommand command)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        _commandHistory.Execute(command);
-    }
 
     public bool Undo()
     {
@@ -169,6 +167,8 @@ public sealed class Application : IDisposable
         // Clear before disposing the previous scene so discarded commands can release state that
         // still refers to it. Failures above leave the existing history intact.
         _commandHistory.Clear();
+        // Retarget only after the old history is gone so a discarded command cannot reach the new scene.
+        _commandHistory.SetScene(scene);
         previousScene?.Dispose();
     }
 
