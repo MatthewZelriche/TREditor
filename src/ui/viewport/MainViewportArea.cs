@@ -6,6 +6,9 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
 {
     private readonly List<MainViewport> _viewports = [];
     private MainViewport? _activeViewport;
+    // TODO: Not sure how I feel about having a back-reference to Application, but
+    // we will leave it this way for now. There is probably a cleaner architecture possible
+    // in the future.
     private Application? _application;
 
     public MainViewportArea()
@@ -25,6 +28,9 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
     {
         ArgumentNullException.ThrowIfNull(application);
         _application = application;
+        // Panes created before the binding still need their tool overlays.
+        foreach (MainViewport viewport in _viewports)
+            application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
     }
 
     public override void _Ready()
@@ -46,6 +52,8 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
         viewport.ToolMouseDown += OnToolMouseDown;
         viewport.ToolMouseDrag += OnToolMouseDrag;
         viewport.ToolMouseUp += OnToolMouseUp;
+        viewport.ToolInteractionCancelled += OnToolInteractionCancelled;
+        _application?.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
         if (_activeViewport is null)
             SetActiveViewport(viewport);
     }
@@ -62,6 +70,8 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
         viewport.ToolMouseUp -= OnToolMouseUp;
         viewport.StopNavigation();
         viewport.StopToolDrag();
+        viewport.ToolInteractionCancelled -= OnToolInteractionCancelled;
+        _application?.UnregisterToolViewport(viewport.Camera);
         _viewports.Remove(viewport);
 
         if (ReferenceEquals(_activeViewport, viewport))
@@ -79,6 +89,8 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
 
     private void OnToolMouseUp(EditorMouseInput input) =>
         _application?.HandleToolMouseUp(input);
+
+    private void OnToolInteractionCancelled() => _application?.CancelActiveInteraction();
 
     private void SetActiveViewport(MainViewport? viewport)
     {

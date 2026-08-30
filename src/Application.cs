@@ -8,6 +8,7 @@ public sealed class Application : IDisposable
     private readonly SceneServices _services;
     private readonly EditorToolContext _toolContext;
     private readonly EditorToolRegistry _toolRegistry;
+    private readonly TranslateGizmoCoordinator _gizmos;
     private readonly CommandHistory _commandHistory = new();
     private readonly SelectionModeState _selectionMode = new();
     private readonly SelectionState _selectionState = new();
@@ -22,15 +23,18 @@ public sealed class Application : IDisposable
         var initialScene = new Scene();
         RenderService? renderService = null;
         PickingService? pickingService = null;
+        TranslateGizmoCoordinator? gizmos = null;
         try
         {
+            gizmos = new TranslateGizmoCoordinator(mapRoot, _selectionState, _previewState);
             renderService = new RenderService(initialScene, mapRoot, _previewState);
             pickingService = new PickingService(initialScene, mapRoot, _previewState);
             _services = new SceneServices(
                 initialScene,
                 _previewState,
                 renderService,
-                pickingService
+                pickingService,
+                gizmos
             );
             _toolContext = new EditorToolContext(
                 () => _currentScene,
@@ -40,9 +44,11 @@ public sealed class Application : IDisposable
                 _previewState
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
+            _gizmos = gizmos;
         }
         catch
         {
+            gizmos?.Dispose();
             pickingService?.Dispose();
             renderService?.Dispose();
             initialScene.Dispose();
@@ -65,6 +71,12 @@ public sealed class Application : IDisposable
     // The one place tools are registered and activated. UI binds to the registry, not to tool types.
     public EditorToolRegistry Tools => _toolRegistry;
 
+    // The editor-owned translate gizmos. Viewports register with it and the translate tool drives it;
+    // nothing else needs to know a gizmo library is involved.
+    internal TranslateGizmoCoordinator Gizmos => _gizmos;
+
+    internal SelectionState Selection => _selectionState;
+
     // The only production route from authoring code to the document.
     public IEditorCommandSink Commands => _commandHistory;
 
@@ -86,13 +98,44 @@ public sealed class Application : IDisposable
     public bool Undo()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        CancelActiveInteraction();
         return _commandHistory.Undo();
     }
 
     public bool Redo()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        CancelActiveInteraction();
         return _commandHistory.Redo();
+    }
+
+    // Registers a viewport's camera and 3D overlay root so it gets its own gizmos. The viewport area
+    // calls this as panes enter and leave; neither it nor the pane knows which overlays appear.
+    internal void RegisterToolViewport(Camera3D camera, Node3D toolOverlayRoot)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _gizmos.RegisterViewport(camera, toolOverlayRoot);
+    }
+
+    internal void UnregisterToolViewport(Camera3D camera)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _gizmos.UnregisterViewport(camera);
+    }
+
+    // Abandons whatever interaction is in flight without committing. Used when the pointer is taken
+    // away from a tool and before history operations replace what the tool was working on.
+    internal void CancelActiveInteraction()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        try
+        {
+            _toolRegistry.CancelActiveTool();
+        }
+        finally
+        {
+            _gizmos.CancelAndSynchronize();
+        }
     }
 
     public void NewScene()
@@ -172,6 +215,7 @@ public sealed class Application : IDisposable
             // disposable commands can still touch scene-owned state during cleanup.
             _commandHistory.Changed -= OnCommandHistoryChanged;
             CommandHistoryChanged = null;
+            _toolRegistry.CancelActiveTool();
             _selectionMode.ClearChangedListeners();
             _selectionState.Clear();
             _selectionState.ClearChangedListeners();
@@ -191,6 +235,9 @@ public sealed class Application : IDisposable
     private void ReplaceScene(Scene scene, string? path)
     {
         Scene? previousScene = _currentScene;
+        // Nothing a tool was interacting with survives the document it belonged to.
+        CancelActiveInteraction();
+
         try
         {
             _services.SetScene(scene);

@@ -18,6 +18,11 @@
     <None Remove="tests\**" />
     <Compile Remove="vendor\**" />
     <None Remove="vendor\**" />
+    <!-- The pinned Gizmo3D node is compiled from the submodule, along with the helper extensions it
+         needs for engine APIs that have no C# binding. Its editor plugin loader and demo sources stay
+         excluded, so the upstream addon is never enabled. -->
+    <Compile Include="vendor\Gizmo3D\addons\Gizmo3DSharp\Gizmo3D.cs" />
+    <Compile Include="vendor\Gizmo3D\addons\Gizmo3DSharp\GizmoHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="gdUnit4.api" Version="5.1.0-rc5" />

@@ -2,3 +2,8 @@ root = true
 
 [*]
 charset = utf-8
+
+# The pinned Gizmo3D sources are compiled as-is and are not written against this project's nullable
+# settings. Their warnings are not actionable here because the submodule is never edited in place.
+[vendor/Gizmo3D/**.cs]
+dotnet_diagnostic.CS8618.severity = none

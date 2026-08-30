@@ -11,6 +11,7 @@ public partial class MainViewport : SubViewportContainer
     private static readonly Vector3 InitialCameraTarget = Vector3.Zero;
 
     private readonly Camera3D _camera;
+    private readonly Node3D _toolOverlayRoot;
     private float _pitch;
     private float _yaw;
     private bool _isNavigating;
@@ -41,6 +42,11 @@ public partial class MainViewport : SubViewportContainer
         _pitch = _camera.Rotation.X;
         _yaw = _camera.Rotation.Y;
         renderViewport.AddChild(_camera);
+
+        // A generic home for 3D overlays that belong to this pane. The viewport neither creates nor
+        // knows about the specific overlays a tool registers here.
+        _toolOverlayRoot = new Node3D { Name = "ToolOverlay" };
+        renderViewport.AddChild(_toolOverlayRoot);
     }
 
     public event Action<MainViewport>? ActivationRequested;
@@ -53,11 +59,17 @@ public partial class MainViewport : SubViewportContainer
 
     public event Action<EditorMouseInput>? ToolMouseUp;
 
+    // Raised when a drag is taken away from the tool rather than completed, so its owner can cancel
+    // the interaction. Losing window focus, camera navigation, and pane removal all end this way.
+    public event Action? ToolInteractionCancelled;
+
     public float LookSensitivity { get; set; } = 0.0025f;
 
     public float MovementSpeed { get; set; } = 10.0f;
 
     internal Camera3D Camera => _camera;
+
+    internal Node3D ToolOverlayRoot => _toolOverlayRoot;
 
     internal bool IsNavigating => _isNavigating;
 
@@ -188,7 +200,14 @@ public partial class MainViewport : SubViewportContainer
 
     // Drops an in-progress drag without raising mouse up. The active tool is cancelled by whoever
     // owns it; the viewport only forgets that it was dragging.
-    internal void StopToolDrag() => _isToolDragging = false;
+    internal void StopToolDrag()
+    {
+        if (!_isToolDragging)
+            return;
+
+        _isToolDragging = false;
+        ToolInteractionCancelled?.Invoke();
+    }
 
     private void BeginToolDrag(InputEventMouseButton mouseButton)
     {
