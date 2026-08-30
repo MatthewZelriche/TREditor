@@ -12,15 +12,18 @@ public sealed class PickingService : ISceneService
     private readonly Dictionary<MeshObjectId, PickingEntry> _entries = [];
     private readonly Dictionary<ulong, MeshObjectId> _colliderIds = [];
     private readonly HashSet<MeshObjectId> _dirtyMeshes = [];
+    private readonly PreviewState _previews;
     private Scene _scene;
     private bool _disposed;
 
-    public PickingService(Scene scene, Node3D mapRoot)
+    public PickingService(Scene scene, Node3D mapRoot, PreviewState previews)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(mapRoot);
+        ArgumentNullException.ThrowIfNull(previews);
 
         _scene = scene;
+        _previews = previews;
         _mapRoot = mapRoot;
         _pickingRoot = new Node3D { Name = "Picking" };
         try
@@ -61,7 +64,7 @@ public sealed class PickingService : ISceneService
         ArgumentNullException.ThrowIfNull(meshObject);
         ArgumentNullException.ThrowIfNull(meshObject.Mesh);
 
-        var entry = new PickingEntry(meshObject, _pickingRoot);
+        var entry = new PickingEntry(meshObject, _pickingRoot, EffectiveTransform(meshObject));
         try
         {
             _entries.Add(meshObject.Id, entry);
@@ -109,9 +112,16 @@ public sealed class PickingService : ISceneService
             && _entries.TryGetValue(id, out PickingEntry? entry)
         )
         {
-            entry.Body.Transform = meshObject.Transform;
+            entry.Body.Transform = EffectiveTransform(meshObject);
         }
     }
+
+    // Colliders follow previews so a raycast hits an object where it is drawn, not where it was
+    // last committed.
+    private Transform3D EffectiveTransform(Scene.MeshObject meshObject) =>
+        _previews.TryGetTransform(meshObject.Id, out Transform3D preview)
+            ? preview
+            : meshObject.Transform;
 
     public void Flush()
     {
@@ -191,7 +201,11 @@ public sealed class PickingService : ISceneService
     {
         private bool _disposed;
 
-        public PickingEntry(Scene.MeshObject meshObject, Node3D pickingRoot)
+        public PickingEntry(
+            Scene.MeshObject meshObject,
+            Node3D pickingRoot,
+            Transform3D transform
+        )
         {
             Shape = new ConcavePolygonShape3D();
             CollisionShape = new CollisionShape3D { Shape = Shape };
@@ -200,7 +214,7 @@ public sealed class PickingService : ISceneService
                 Name = $"MeshObject_{meshObject.Id.Value}",
                 CollisionLayer = PickingCollisionLayer,
                 CollisionMask = 0,
-                Transform = meshObject.Transform,
+                Transform = transform,
             };
 
             try

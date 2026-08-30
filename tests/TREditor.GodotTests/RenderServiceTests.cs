@@ -29,8 +29,9 @@ public class RenderServiceTests
             Transform3D.Identity,
             new GDMesh(SpatialMeshBuilder.CreateCylinder(1.0f, 1.0f, 8))
         );
-        var renderService = new RenderService(firstScene, mapRoot);
-        var services = new SceneServices(firstScene, renderService);
+        var previews = new PreviewState();
+        var renderService = new RenderService(firstScene, mapRoot, previews);
+        var services = new SceneServices(firstScene, previews, renderService);
 
         Node3D originalRenderRoot = mapRoot.GetNode<Node3D>("Render");
         MeshInstance3D firstInstance = originalRenderRoot.GetNode<MeshInstance3D>(
@@ -52,12 +53,68 @@ public class RenderServiceTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public void RenderServiceShowsPreviewsUntilTheyAreCleared()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var scene = new Scene();
+        using var replacementScene = new Scene();
+        var previews = new PreviewState();
+        var renderService = new RenderService(scene, mapRoot, previews);
+        var services = new SceneServices(scene, previews, renderService);
+        var initialTransform = new Transform3D(Basis.Identity, new Vector3(1.0f, 0.0f, 0.0f));
+        Scene.MeshObject meshObject = scene.Add(
+            "Cube",
+            initialTransform,
+            new GDMesh(
+                SpatialMeshBuilder.CreateAabb(NumericsVector3.Zero, NumericsVector3.One)
+            )
+        );
+
+        try
+        {
+            MeshInstance3D instance = mapRoot
+                .GetNode<Node3D>("Render")
+                .GetNode<MeshInstance3D>($"MeshObject_{meshObject.Id.Value}");
+            AssertThat(instance.Transform).IsEqual(initialTransform);
+
+            var firstPreview = new Transform3D(Basis.Identity, new Vector3(2.0f, 0.0f, 0.0f));
+            previews.SetTransform(meshObject.Id, firstPreview);
+            AssertThat(instance.Transform).IsEqual(firstPreview);
+
+            var secondPreview = new Transform3D(Basis.Identity, new Vector3(3.0f, 0.0f, 0.0f));
+            previews.SetTransform(meshObject.Id, secondPreview);
+            AssertThat(instance.Transform).IsEqual(secondPreview);
+
+            // A command landing mid-drag updates the document without disturbing the preview.
+            var committedTransform = new Transform3D(
+                Basis.Identity,
+                new Vector3(0.0f, 5.0f, 0.0f)
+            );
+            scene.SetTransform(meshObject.Id, committedTransform);
+            AssertThat(instance.Transform).IsEqual(secondPreview);
+
+            previews.ClearTransform(meshObject.Id);
+            AssertThat(instance.Transform).IsEqual(committedTransform);
+
+            previews.SetTransform(meshObject.Id, firstPreview);
+            services.SetScene(replacementScene);
+            AssertBool(previews.TryGetTransform(meshObject.Id, out _)).IsFalse();
+        }
+        finally
+        {
+            services.Dispose();
+        }
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public void RenderServiceTracksSceneObjectsAndBatchesGeometryRebuilds()
     {
         Node3D mapRoot = AutoFree(new Node3D());
         using var scene = new Scene();
-        var renderService = new RenderService(scene, mapRoot);
-        var services = new SceneServices(scene, renderService);
+        var previews = new PreviewState();
+        var renderService = new RenderService(scene, mapRoot, previews);
+        var services = new SceneServices(scene, previews, renderService);
         var initialTransform = new Transform3D(
             Basis.Identity,
             new Vector3(1.0f, 2.0f, 3.0f)

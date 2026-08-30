@@ -28,8 +28,9 @@ public class PickingServiceTests
                 )
             )
         );
-        var pickingService = new PickingService(scene, mapRoot);
-        var services = new SceneServices(scene, pickingService);
+        var previews = new PreviewState();
+        var pickingService = new PickingService(scene, mapRoot, previews);
+        var services = new SceneServices(scene, previews, pickingService);
 
         try
         {
@@ -69,5 +70,64 @@ public class PickingServiceTests
         }
 
         AssertBool(mapRoot.HasNode("Picking")).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task PickingServiceFollowsPreviewTransforms()
+    {
+        var tree = (SceneTree)Engine.GetMainLoop();
+        Node3D mapRoot = AutoFree(new Node3D());
+        tree.Root.AddChild(mapRoot);
+        using var scene = new Scene();
+        Scene.MeshObject meshObject = scene.Add(
+            "Cube",
+            Transform3D.Identity,
+            new GDMesh(
+                SpatialMeshBuilder.CreateAabb(
+                    new NumericsVector3(-1.0f, -1.0f, -1.0f),
+                    new NumericsVector3(2.0f, 2.0f, 2.0f)
+                )
+            )
+        );
+        var previews = new PreviewState();
+        var pickingService = new PickingService(scene, mapRoot, previews);
+        var services = new SceneServices(scene, previews, pickingService);
+
+        try
+        {
+            services.Flush();
+            using PhysicsRayQueryParameters3D originalRay =
+                PhysicsRayQueryParameters3D.Create(
+                    new Vector3(0.0f, 0.0f, 3.0f),
+                    new Vector3(0.0f, 0.0f, -3.0f)
+                );
+            using PhysicsRayQueryParameters3D previewRay =
+                PhysicsRayQueryParameters3D.Create(
+                    new Vector3(4.0f, 0.0f, 3.0f),
+                    new Vector3(4.0f, 0.0f, -3.0f)
+                );
+
+            previews.SetTransform(
+                meshObject.Id,
+                new Transform3D(Basis.Identity, new Vector3(4.0f, 0.0f, 0.0f))
+            );
+            await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
+
+            AssertThat(pickingService.Raycast(previewRay)?.Value ?? -1)
+                .IsEqual(meshObject.Id.Value);
+            AssertBool(pickingService.Raycast(originalRay) is null).IsTrue();
+
+            previews.ClearTransform(meshObject.Id);
+            await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
+
+            AssertThat(pickingService.Raycast(originalRay)?.Value ?? -1)
+                .IsEqual(meshObject.Id.Value);
+            AssertBool(pickingService.Raycast(previewRay) is null).IsTrue();
+        }
+        finally
+        {
+            services.Dispose();
+        }
     }
 }

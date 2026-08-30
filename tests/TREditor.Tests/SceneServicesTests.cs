@@ -11,7 +11,7 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var first = new RecordingSceneService("first", calls);
         var second = new RecordingSceneService("second", calls);
-        using var services = new SceneServices(scene, first, second);
+        using var services = new SceneServices(scene, new PreviewState(), first, second);
 
         Assert.Same(scene, first.Scene);
         Assert.Same(scene, second.Scene);
@@ -52,7 +52,7 @@ public sealed class SceneServicesTests
         using var scene = new Scene();
         var calls = new List<string>();
         var service = new RecordingSceneService("service", calls);
-        var services = new SceneServices(scene, service);
+        var services = new SceneServices(scene, new PreviewState(), service);
         services.Dispose();
         calls.Clear();
 
@@ -73,7 +73,12 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var firstService = new RecordingSceneService("first", calls);
         var secondService = new RecordingSceneService("second", calls);
-        using var services = new SceneServices(scene, firstService, secondService);
+        using var services = new SceneServices(
+            scene,
+            new PreviewState(),
+            firstService,
+            secondService
+        );
 
         Assert.Equal(
             [
@@ -96,7 +101,7 @@ public sealed class SceneServicesTests
         Scene.MeshObject existingObject = newScene.Add("Existing", Transform3D.Identity, null!);
         var calls = new List<string>();
         var service = new RecordingSceneService("service", calls);
-        using var services = new SceneServices(oldScene, service);
+        using var services = new SceneServices(oldScene, new PreviewState(), service);
 
         calls.Clear();
         services.SetScene(newScene);
@@ -123,7 +128,7 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var first = new RecordingSceneService("first", calls);
         var failing = new RecordingSceneService("failing", calls);
-        var services = new SceneServices(oldScene, first, failing);
+        var services = new SceneServices(oldScene, new PreviewState(), first, failing);
         calls.Clear();
         failing.ThrowOnSetScene = true;
 

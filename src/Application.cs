@@ -6,8 +6,11 @@ using NumericsVector3 = System.Numerics.Vector3;
 public sealed class Application : IDisposable
 {
     private readonly SceneServices _services;
+    private readonly EditorToolContext _toolContext;
     private readonly CommandHistory _commandHistory = new();
     private readonly SelectionModeState _selectionMode = new();
+    private readonly SelectionState _selectionState = new();
+    private readonly PreviewState _previewState = new();
     private Scene? _currentScene;
     private string? _currentFilePath;
     private bool _disposed;
@@ -20,12 +23,20 @@ public sealed class Application : IDisposable
         PickingService? pickingService = null;
         try
         {
-            renderService = new RenderService(initialScene, mapRoot);
-            pickingService = new PickingService(initialScene, mapRoot);
+            renderService = new RenderService(initialScene, mapRoot, _previewState);
+            pickingService = new PickingService(initialScene, mapRoot, _previewState);
             _services = new SceneServices(
                 initialScene,
+                _previewState,
                 renderService,
                 pickingService
+            );
+            _toolContext = new EditorToolContext(
+                () => _currentScene,
+                _commandHistory,
+                pickingService,
+                _selectionState,
+                _previewState
             );
         }
         catch
@@ -46,6 +57,8 @@ public sealed class Application : IDisposable
     public IEditorDocumentReader? Document => _currentScene;
 
     internal Scene? CurrentScene => _currentScene;
+
+    public IEditorToolContext ToolContext => _toolContext;
 
     // The only production route from authoring code to the document.
     public IEditorCommandSink Commands => _commandHistory;
@@ -136,6 +149,8 @@ public sealed class Application : IDisposable
             _commandHistory.Changed -= OnCommandHistoryChanged;
             CommandHistoryChanged = null;
             _selectionMode.ClearChangedListeners();
+            _selectionState.Clear();
+            _selectionState.ClearChangedListeners();
             _commandHistory.Dispose();
             _services.Dispose();
         }
@@ -164,6 +179,8 @@ public sealed class Application : IDisposable
 
         _currentScene = scene;
         _currentFilePath = path;
+        // Transient editor state cannot outlive the document it referred to.
+        _selectionState.Clear();
         // Clear before disposing the previous scene so discarded commands can release state that
         // still refers to it. Failures above leave the existing history intact.
         _commandHistory.Clear();

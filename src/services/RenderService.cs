@@ -7,15 +7,18 @@ public sealed class RenderService : ISceneService
     private readonly Node3D _renderRoot;
     private readonly Dictionary<MeshObjectId, RenderEntry> _entries = [];
     private readonly HashSet<MeshObjectId> _dirtyMeshes = [];
+    private readonly PreviewState _previews;
     private Scene _scene;
     private bool _disposed;
 
-    public RenderService(Scene scene, Node3D mapRoot)
+    public RenderService(Scene scene, Node3D mapRoot, PreviewState previews)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(mapRoot);
+        ArgumentNullException.ThrowIfNull(previews);
 
         _scene = scene;
+        _previews = previews;
         _renderRoot = new Node3D { Name = "Render" };
         try
         {
@@ -55,7 +58,7 @@ public sealed class RenderService : ISceneService
         ArgumentNullException.ThrowIfNull(meshObject);
         ArgumentNullException.ThrowIfNull(meshObject.Mesh);
 
-        var entry = new RenderEntry(meshObject, _renderRoot);
+        var entry = new RenderEntry(meshObject, _renderRoot, EffectiveTransform(meshObject));
         try
         {
             _entries.Add(meshObject.Id, entry);
@@ -99,9 +102,16 @@ public sealed class RenderService : ISceneService
             && _entries.TryGetValue(id, out RenderEntry? entry)
         )
         {
-            entry.Instance.Transform = meshObject.Transform;
+            entry.Instance.Transform = EffectiveTransform(meshObject);
         }
     }
+
+    // An active preview wins over the committed transform, so a command that lands mid-drag
+    // updates the document without disturbing what the tool is showing.
+    private Transform3D EffectiveTransform(Scene.MeshObject meshObject) =>
+        _previews.TryGetTransform(meshObject.Id, out Transform3D preview)
+            ? preview
+            : meshObject.Transform;
 
     public void Flush()
     {
@@ -172,14 +182,14 @@ public sealed class RenderService : ISceneService
     {
         private bool _disposed;
 
-        public RenderEntry(Scene.MeshObject meshObject, Node3D renderRoot)
+        public RenderEntry(Scene.MeshObject meshObject, Node3D renderRoot, Transform3D transform)
         {
             ArrayMesh = new ArrayMesh();
             Instance = new MeshInstance3D
             {
                 Name = $"MeshObject_{meshObject.Id.Value}",
                 Mesh = ArrayMesh,
-                Transform = meshObject.Transform,
+                Transform = transform,
             };
 
             try

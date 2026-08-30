@@ -4,18 +4,24 @@ using System.Collections.Generic;
 public sealed class SceneServices : IDisposable
 {
     private readonly IReadOnlyList<ISceneService> _services;
+    private readonly PreviewState _previews;
     private Scene _scene;
     private bool _disposed;
 
-    public SceneServices(Scene scene, params ISceneService[] services)
+    // Preview state is named explicitly because it is a second source of transform notifications,
+    // not just another subscriber. It is also driven as an ordinary service, first in the list, so
+    // it discards previews before the services that render them react.
+    public SceneServices(Scene scene, PreviewState previews, params ISceneService[] services)
     {
         ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(previews);
         ArgumentNullException.ThrowIfNull(services);
 
-        var serviceCopy = (ISceneService[])services.Clone();
-        for (int index = 0; index < serviceCopy.Length; index++)
+        var serviceCopy = new ISceneService[services.Length + 1];
+        serviceCopy[0] = previews;
+        for (int index = 0; index < services.Length; index++)
         {
-            _ = serviceCopy[index]
+            serviceCopy[index + 1] = services[index]
                 ?? throw new ArgumentException(
                     "The service list cannot contain null entries.",
                     nameof(services)
@@ -23,7 +29,9 @@ public sealed class SceneServices : IDisposable
         }
 
         _scene = scene;
+        _previews = previews;
         _services = serviceCopy;
+        _previews.TransformChanged += OnObjectTransformChanged;
 
         try
         {
@@ -83,6 +91,7 @@ public sealed class SceneServices : IDisposable
             return;
 
         _disposed = true;
+        _previews.TransformChanged -= OnObjectTransformChanged;
         Unsubscribe(_scene);
 
         List<Exception>? disposalExceptions = null;
