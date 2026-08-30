@@ -31,6 +31,20 @@ git submodule update --init -- .gdUnit4
 When updating the pinned GdUnit4 version, keep the `gdUnit4.api` and `gdUnit4.test.adapter` package versions
 in the editor project aligned with `.gdUnit4/gdUnit4.csproj`.
 
+## Vendored dependencies
+
+A fresh checkout must initialize the vendored source submodules:
+
+```sh
+git submodule update --init -- vendor/TRMesh vendor/Gizmo3D addons/TilingContainer
+```
+
+`vendor/Gizmo3D` is pinned to an exact upstream revision of
+[Gizmo3D](https://github.com/chrisizeful/Gizmo3D). The `vendor` directory carries a `.gdignore`, so the
+vendored project is not scanned by Godot, and `vendor/**` is excluded from the editor project's default
+C# compilation. Update the pin deliberately with `git -C vendor/Gizmo3D checkout <revision>` followed by
+committing the changed gitlink.
+
 ## Build and test
 
 ```powershell

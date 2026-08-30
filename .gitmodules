@@ -7,3 +7,6 @@
 [submodule ".gdUnit4"]
 	path = .gdUnit4
 	url = https://github.com/godot-gdunit-labs/gdUnit4.git
+[submodule "vendor/Gizmo3D"]
+	path = vendor/Gizmo3D
+	url = https://github.com/chrisizeful/Gizmo3D.git
