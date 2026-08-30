@@ -14,6 +14,7 @@ public partial class MainViewport : SubViewportContainer
     private float _pitch;
     private float _yaw;
     private bool _isNavigating;
+    private bool _isToolDragging;
     private Input.MouseModeEnum _previousMouseMode;
 
     public MainViewport()
@@ -44,6 +45,14 @@ public partial class MainViewport : SubViewportContainer
 
     public event Action<MainViewport>? ActivationRequested;
 
+    // The left-button interaction phases a tool consumes. They are raised as plain viewport events;
+    // the viewport does not know which tool, if any, is listening.
+    public event Action<EditorMouseInput>? ToolMouseDown;
+
+    public event Action<EditorMouseInput>? ToolMouseDrag;
+
+    public event Action<EditorMouseInput>? ToolMouseUp;
+
     public float LookSensitivity { get; set; } = 0.0025f;
 
     public float MovementSpeed { get; set; } = 10.0f;
@@ -51,6 +60,8 @@ public partial class MainViewport : SubViewportContainer
     internal Camera3D Camera => _camera;
 
     internal bool IsNavigating => _isNavigating;
+
+    internal bool IsToolDragging => _isToolDragging;
 
     public override void _GuiInput(InputEvent @event) => HandleGuiInput(@event);
 
@@ -67,16 +78,34 @@ public partial class MainViewport : SubViewportContainer
                 EndNavigation();
                 GetViewport().SetInputAsHandled();
             }
+            else if (
+                mouseButton.ButtonIndex == MouseButton.Left
+                && !mouseButton.Pressed
+                && _isToolDragging
+            )
+            {
+                // Release is handled here rather than in GUI input so a drag that ends outside the
+                // viewport still completes the interaction.
+                EndToolDrag(mouseButton);
+                GetViewport().SetInputAsHandled();
+            }
 
             return;
         }
 
-        if (
-            _isNavigating
-            && @event is InputEventMouseMotion mouseMotion
-        )
+        if (@event is not InputEventMouseMotion mouseMotion)
+            return;
+
+        if (_isNavigating)
         {
             ApplyLook(-mouseMotion.Relative * LookSensitivity);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        if (_isToolDragging)
+        {
+            ToolMouseDrag?.Invoke(CreateToolInput(mouseMotion));
             GetViewport().SetInputAsHandled();
         }
     }
@@ -101,12 +130,19 @@ public partial class MainViewport : SubViewportContainer
         );
     }
 
-    public override void _ExitTree() => EndNavigation();
+    public override void _ExitTree()
+    {
+        EndNavigation();
+        StopToolDrag();
+    }
 
     public override void _Notification(int what)
     {
-        if (what == NotificationWMWindowFocusOut)
-            EndNavigation();
+        if (what != NotificationWMWindowFocusOut)
+            return;
+
+        EndNavigation();
+        StopToolDrag();
     }
 
     internal void HandleGuiInput(InputEvent @event)
@@ -125,7 +161,10 @@ public partial class MainViewport : SubViewportContainer
 
         ActivationRequested?.Invoke(this);
         if (mouseButton.ButtonIndex == MouseButton.Left)
+        {
+            BeginToolDrag(mouseButton);
             return;
+        }
 
         BeginNavigation();
         AcceptEvent();
@@ -147,11 +186,50 @@ public partial class MainViewport : SubViewportContainer
 
     internal void StopNavigation() => EndNavigation();
 
+    // Drops an in-progress drag without raising mouse up. The active tool is cancelled by whoever
+    // owns it; the viewport only forgets that it was dragging.
+    internal void StopToolDrag() => _isToolDragging = false;
+
+    private void BeginToolDrag(InputEventMouseButton mouseButton)
+    {
+        if (_isNavigating)
+            return;
+
+        _isToolDragging = true;
+        ToolMouseDown?.Invoke(CreateToolInput(mouseButton, mouseButton.Position));
+    }
+
+    private void EndToolDrag(InputEventMouseButton mouseButton)
+    {
+        _isToolDragging = false;
+        ToolMouseUp?.Invoke(CreateToolInput(mouseButton));
+    }
+
+    // Events delivered through _Input carry window coordinates, while a tool projects through this
+    // viewport's camera and needs positions local to the control.
+    private EditorMouseInput CreateToolInput(InputEventMouse mouseEvent) =>
+        CreateToolInput(mouseEvent, mouseEvent.Position - GlobalPosition);
+
+    private EditorMouseInput CreateToolInput(
+        InputEventWithModifiers modifiers,
+        Vector2 localPosition
+    ) =>
+        new(
+            _camera,
+            localPosition,
+            modifiers.ShiftPressed,
+            modifiers.CtrlPressed,
+            modifiers.AltPressed
+        );
+
     private void BeginNavigation()
     {
         if (_isNavigating)
             return;
 
+        // Camera navigation takes the mouse over, so an unfinished drag can never be completed and
+        // the viewport stops tracking it. Cancelling the tool itself belongs to the tool's owner.
+        StopToolDrag();
         _isNavigating = true;
         _previousMouseMode = Input.MouseMode;
         Input.MouseMode = Input.MouseModeEnum.Captured;

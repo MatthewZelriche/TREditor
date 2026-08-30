@@ -7,6 +7,7 @@ public sealed class Application : IDisposable
 {
     private readonly SceneServices _services;
     private readonly EditorToolContext _toolContext;
+    private readonly EditorToolRegistry _toolRegistry;
     private readonly CommandHistory _commandHistory = new();
     private readonly SelectionModeState _selectionMode = new();
     private readonly SelectionState _selectionState = new();
@@ -38,6 +39,7 @@ public sealed class Application : IDisposable
                 _selectionState,
                 _previewState
             );
+            _toolRegistry = new EditorToolRegistry(_toolContext);
         }
         catch
         {
@@ -59,6 +61,9 @@ public sealed class Application : IDisposable
     internal Scene? CurrentScene => _currentScene;
 
     public IEditorToolContext ToolContext => _toolContext;
+
+    // The one place tools are registered and activated. UI binds to the registry, not to tool types.
+    public EditorToolRegistry Tools => _toolRegistry;
 
     // The only production route from authoring code to the document.
     public IEditorCommandSink Commands => _commandHistory;
@@ -127,6 +132,25 @@ public sealed class Application : IDisposable
 
         SceneSerializer.Save(scene, path);
         _currentFilePath = path;
+    }
+
+    // Viewport input arrives here and goes no further than the active tool.
+    public void HandleToolMouseDown(EditorMouseInput input)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _toolRegistry.MouseDown(input);
+    }
+
+    public void HandleToolMouseDrag(EditorMouseInput input)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _toolRegistry.MouseDrag(input);
+    }
+
+    public void HandleToolMouseUp(EditorMouseInput input)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _toolRegistry.MouseUp(input);
     }
 
     public void Update(double delta)

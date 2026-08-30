@@ -40,6 +40,7 @@ public partial class Root : Node
             .Bind(_application.SelectionMode);
         GetNode<ToolsToolbar>("UI/Toolbar/ToolbarMargin/Tools")
             .Bind(_application.SelectionMode);
+        GetNode<MainViewportArea>("UI/MainViewportArea").Bind(_application);
 
         ConfigureFileDialog(_openSceneDialog, FileDialog.FileModeEnum.OpenFile);
         ConfigureFileDialog(_saveSceneDialog, FileDialog.FileModeEnum.SaveFile);

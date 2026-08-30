@@ -6,6 +6,7 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
 {
     private readonly List<MainViewport> _viewports = [];
     private MainViewport? _activeViewport;
+    private Application? _application;
 
     public MainViewportArea()
         : base(static () => new MainViewport())
@@ -17,6 +18,14 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
     public event Action<MainViewport?>? ActiveViewportChanged;
 
     public MainViewport? ActiveViewport => _activeViewport;
+
+    // Tool input from every pane reaches the same application, which decides what the active tool
+    // does with it. The area stays unaware of individual tools.
+    public void Bind(Application application)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        _application = application;
+    }
 
     public override void _Ready()
     {
@@ -34,6 +43,9 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
 
         _viewports.Add(viewport);
         viewport.ActivationRequested += OnViewportActivationRequested;
+        viewport.ToolMouseDown += OnToolMouseDown;
+        viewport.ToolMouseDrag += OnToolMouseDrag;
+        viewport.ToolMouseUp += OnToolMouseUp;
         if (_activeViewport is null)
             SetActiveViewport(viewport);
     }
@@ -45,7 +57,11 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
 
         MainViewport viewport = pane.Content;
         viewport.ActivationRequested -= OnViewportActivationRequested;
+        viewport.ToolMouseDown -= OnToolMouseDown;
+        viewport.ToolMouseDrag -= OnToolMouseDrag;
+        viewport.ToolMouseUp -= OnToolMouseUp;
         viewport.StopNavigation();
+        viewport.StopToolDrag();
         _viewports.Remove(viewport);
 
         if (ReferenceEquals(_activeViewport, viewport))
@@ -54,6 +70,15 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
 
     private void OnViewportActivationRequested(MainViewport viewport) =>
         SetActiveViewport(viewport);
+
+    private void OnToolMouseDown(EditorMouseInput input) =>
+        _application?.HandleToolMouseDown(input);
+
+    private void OnToolMouseDrag(EditorMouseInput input) =>
+        _application?.HandleToolMouseDrag(input);
+
+    private void OnToolMouseUp(EditorMouseInput input) =>
+        _application?.HandleToolMouseUp(input);
 
     private void SetActiveViewport(MainViewport? viewport)
     {
