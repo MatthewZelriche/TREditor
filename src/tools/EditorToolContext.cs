@@ -12,7 +12,8 @@ public sealed class EditorToolContext : IEditorToolContext
         IEditorCommandSink commands,
         PickingService picking,
         SelectionState selection,
-        PreviewState preview
+        PreviewState preview,
+        TranslateGizmoCoordinator translateGizmos
     )
     {
         ArgumentNullException.ThrowIfNull(documentAccessor);
@@ -20,12 +21,14 @@ public sealed class EditorToolContext : IEditorToolContext
         ArgumentNullException.ThrowIfNull(picking);
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(preview);
+        ArgumentNullException.ThrowIfNull(translateGizmos);
 
         _documentAccessor = documentAccessor;
         Commands = commands;
         Picking = picking;
         Selection = selection;
         Preview = preview;
+        TranslateGizmos = translateGizmos;
     }
 
     public IEditorDocumentReader Document =>
@@ -39,4 +42,6 @@ public sealed class EditorToolContext : IEditorToolContext
     public SelectionState Selection { get; }
 
     public PreviewState Preview { get; }
+
+    public TranslateGizmoCoordinator TranslateGizmos { get; }
 }

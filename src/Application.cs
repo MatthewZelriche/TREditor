@@ -8,7 +8,6 @@ public sealed class Application : IDisposable
     private readonly SceneServices _services;
     private readonly EditorToolContext _toolContext;
     private readonly EditorToolRegistry _toolRegistry;
-    private readonly TranslateGizmoCoordinator _gizmos;
     private readonly CommandHistory _commandHistory = new();
     private readonly SelectionModeState _selectionMode = new();
     private readonly SelectionState _selectionState = new();
@@ -41,10 +40,10 @@ public sealed class Application : IDisposable
                 _commandHistory,
                 pickingService,
                 _selectionState,
-                _previewState
+                _previewState,
+                gizmos
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
-            _gizmos = gizmos;
         }
         catch
         {
@@ -73,7 +72,7 @@ public sealed class Application : IDisposable
 
     // The editor-owned translate gizmos. Viewports register with it and the translate tool drives it;
     // nothing else needs to know a gizmo library is involved.
-    internal TranslateGizmoCoordinator Gizmos => _gizmos;
+    internal TranslateGizmoCoordinator Gizmos => _toolContext.TranslateGizmos;
 
     internal SelectionState Selection => _selectionState;
 
@@ -114,28 +113,22 @@ public sealed class Application : IDisposable
     internal void RegisterToolViewport(Camera3D camera, Node3D toolOverlayRoot)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _gizmos.RegisterViewport(camera, toolOverlayRoot);
+        _toolContext.TranslateGizmos.RegisterViewport(camera, toolOverlayRoot);
     }
 
     internal void UnregisterToolViewport(Camera3D camera)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _gizmos.UnregisterViewport(camera);
+        _toolContext.TranslateGizmos.UnregisterViewport(camera);
     }
 
     // Abandons whatever interaction is in flight without committing. Used when the pointer is taken
-    // away from a tool and before history operations replace what the tool was working on.
+    // away from a tool and before history operations replace what the tool was working on. Cleaning
+    // up gizmos and previews belongs to the tool that started using them, so this only cancels.
     internal void CancelActiveInteraction()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        try
-        {
-            _toolRegistry.CancelActiveTool();
-        }
-        finally
-        {
-            _gizmos.CancelAndSynchronize();
-        }
+        _toolRegistry.CancelActiveTool();
     }
 
     public void NewScene()

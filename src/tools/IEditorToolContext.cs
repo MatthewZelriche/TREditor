@@ -13,4 +13,8 @@ public interface IEditorToolContext
     // Transform previews for drag feedback. Tools get preview state rather than a service so a
     // preview reaches rendering and picking through one notification instead of per-service calls.
     PreviewState Preview { get; }
+
+    // Editor-owned translate gizmo hosts, reached by camera. Tools drive interaction through this
+    // coordinator rather than touching viewport-local Gizmo3D nodes.
+    TranslateGizmoCoordinator TranslateGizmos { get; }
 }

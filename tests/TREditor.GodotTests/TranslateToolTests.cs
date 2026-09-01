@@ -1,0 +1,351 @@
+using System;
+using System.Threading.Tasks;
+using GdUnit4;
+using Godot;
+using static GdUnit4.Assertions;
+
+namespace TREditor.GodotTests;
+
+[TestSuite]
+public class TranslateToolTests
+{
+    private static readonly Vector2 ViewportSize = new(640.0f, 480.0f);
+    private static readonly Vector3 CameraPosition = new(0.0f, 6.0f, 12.0f);
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task PressingTheGizmoDragsAndCommitsOneTranslate()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D start = fixture.TransformOf(fixture.CubeId);
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle);
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsTrue();
+        AssertThat(fixture.HistoryChanges).IsEqual(0);
+
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        await ProcessFrames(1);
+
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D preview))
+            .IsTrue();
+        AssertBool(preview.Origin.IsEqualApprox(start.Origin)).IsFalse();
+        // A drag is feedback only; the document keeps the committed transform until mouse up.
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertThat(fixture.HistoryChanges).IsEqual(0);
+
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        AssertThat(fixture.HistoryChanges).IsEqual(1);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Translate");
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(preview);
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
+
+        AssertBool(fixture.Application.Undo()).IsTrue();
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertBool(fixture.Application.Redo()).IsTrue();
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(preview);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task APressOffTheGizmoChangesSelectionWithoutTranslating()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D cubeStart = fixture.TransformOf(fixture.CubeId);
+
+        fixture.MouseDown(fixture.ScreenPositionOf(fixture.CylinderId));
+
+        AssertThat(fixture.Selection.Selected).IsEqual(fixture.CylinderId);
+        AssertThat(fixture.HistoryChanges).IsEqual(1);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Select Object");
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
+
+        // The press that changed the selection never becomes a drag.
+        await ProcessFrames(2);
+        fixture.MouseDrag(fixture.ScreenPositionOf(fixture.CylinderId) + new Vector2(70.0f, 0.0f));
+        fixture.MouseUp(fixture.ScreenPositionOf(fixture.CylinderId) + new Vector2(70.0f, 0.0f));
+
+        AssertThat(fixture.HistoryChanges).IsEqual(1);
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(cubeStart);
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CylinderId, out Transform3D _)).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task PressingTheSameObjectAgainAndEmptySpaceOnlyCommitsRealChanges()
+    {
+        using Fixture fixture = await Fixture.Create();
+        Vector2 cylinder = fixture.ScreenPositionOf(fixture.CylinderId);
+
+        fixture.MouseDown(cylinder);
+        AssertThat(fixture.Selection.Selected).IsEqual(fixture.CylinderId);
+        AssertThat(fixture.HistoryChanges).IsEqual(1);
+
+        // Re-picking the current selection is not a change, so it produces no command.
+        await ProcessFrames(2);
+        fixture.MouseDown(cylinder);
+        AssertThat(fixture.HistoryChanges).IsEqual(1);
+
+        fixture.MouseDown(new Vector2(4.0f, 4.0f));
+        AssertThat(fixture.Selection.Selected).IsNull();
+        AssertThat(fixture.HistoryChanges).IsEqual(2);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Clear Selection");
+
+        // Missing the scene with nothing selected clears nothing.
+        fixture.MouseDown(new Vector2(4.0f, 4.0f));
+        AssertThat(fixture.HistoryChanges).IsEqual(2);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task DragsFromAnotherCameraAndZeroMovementCommitNothing()
+    {
+        using Fixture fixture = await Fixture.Create();
+        MainViewport other = CreateViewport();
+        fixture.Application.RegisterToolViewport(other.Camera, other.ToolOverlayRoot);
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D start = fixture.TransformOf(fixture.CubeId);
+        Vector2 handle = fixture.FindHandle();
+        fixture.MouseDown(handle);
+
+        fixture.Tool.OnMouseDrag(
+            fixture.Context,
+            new EditorMouseInput(other.Camera, handle + new Vector2(70.0f, 0.0f))
+        );
+        fixture.Tool.OnMouseUp(
+            fixture.Context,
+            new EditorMouseInput(other.Camera, handle + new Vector2(70.0f, 0.0f))
+        );
+
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsTrue();
+
+        // Releasing where the drag started moved nothing, so there is nothing to record.
+        fixture.MouseUp(handle);
+
+        AssertThat(fixture.HistoryChanges).IsEqual(0);
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task RepeatedPreviewsAreDiscardedByCancel()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D start = fixture.TransformOf(fixture.CubeId);
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle);
+        fixture.MouseDrag(handle + new Vector2(30.0f, 0.0f));
+        fixture.MouseDrag(handle + new Vector2(60.0f, 0.0f));
+        await ProcessFrames(1);
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsTrue();
+
+        fixture.Application.CancelActiveInteraction();
+
+        AssertThat(fixture.HistoryChanges).IsEqual(0);
+        AssertThat(fixture.Selection.Selected).IsEqual(fixture.CubeId);
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
+        // The gizmo returns to the object it is still attached to.
+        AssertThat(fixture.Application.Gizmos.ProxyTransform.Origin).IsEqual(start.Origin);
+
+        // Cancelling again while idle is harmless, and so is a stray drag afterwards.
+        fixture.Application.CancelActiveInteraction();
+        fixture.MouseDrag(handle + new Vector2(90.0f, 0.0f));
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task AFailedCommandLeavesNoPreviewOrInteractionBehind()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D start = fixture.TransformOf(fixture.CubeId);
+        Vector2 handle = fixture.FindHandle();
+        var failing = new FailingCommandContext(fixture.Context);
+
+        fixture.Tool.OnMouseDown(failing, new EditorMouseInput(fixture.Camera, handle));
+        fixture.Tool.OnMouseDrag(
+            failing,
+            new EditorMouseInput(fixture.Camera, handle + new Vector2(70.0f, 0.0f))
+        );
+        await ProcessFrames(1);
+
+        AssertThrown(
+                () =>
+                    fixture.Tool.OnMouseUp(
+                        failing,
+                        new EditorMouseInput(fixture.Camera, handle + new Vector2(70.0f, 0.0f))
+                    )
+            )
+            .IsInstanceOf<InvalidOperationException>();
+
+        AssertThat(fixture.HistoryChanges).IsEqual(0);
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
+        AssertThat(fixture.Application.Gizmos.ProxyTransform.Origin).IsEqual(start.Origin);
+    }
+
+    private static MainViewport CreateViewport()
+    {
+        MainViewport viewport = AutoFree(
+            new MainViewport { Position = Vector2.Zero, Size = ViewportSize }
+        );
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(viewport);
+        viewport.Camera.LookAtFromPosition(CameraPosition, Vector3.Zero, Vector3.Up);
+        return viewport;
+    }
+
+    private static async Task ProcessFrames(int count)
+    {
+        var tree = (SceneTree)Engine.GetMainLoop();
+        for (int index = 0; index < count; index++)
+            await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+    }
+
+    // Everything a translate test needs: a running application with the debug scene, one registered
+    // viewport, and the tool under test driven exactly the way the viewport drives it.
+    private sealed class Fixture : IDisposable
+    {
+        private readonly MainViewport _viewport;
+
+        private Fixture(Application application, MainViewport viewport)
+        {
+            Application = application;
+            _viewport = viewport;
+            Tool = new TranslateTool();
+            // Commit 9 owns the production registration; the tests wire the same thing by hand so
+            // input arrives through the registry rather than by calling the tool directly.
+            application.Tools.Register(Tool);
+            application.Tools.Activate(TranslateTool.ToolId);
+            application.CommandHistoryChanged += () => HistoryChanges++;
+
+            foreach (MeshObjectId id in application.Document!.GetObjectIds())
+            {
+                application.Document.TryGetMeshTransform(id, out Transform3D transform);
+                if (transform.Origin.X < 0.0f)
+                    CubeId = id;
+                else
+                    CylinderId = id;
+            }
+        }
+
+        public Application Application { get; }
+
+        public TranslateTool Tool { get; }
+
+        public IEditorToolContext Context => Application.ToolContext;
+
+        public PreviewState Preview => Application.ToolContext.Preview;
+
+        public SelectionState Selection => Application.ToolContext.Selection;
+
+        public Camera3D Camera => _viewport.Camera;
+
+        public MeshObjectId CubeId { get; }
+
+        public MeshObjectId CylinderId { get; }
+
+        public int HistoryChanges { get; private set; }
+
+        public static async Task<Fixture> Create()
+        {
+            var tree = (SceneTree)Engine.GetMainLoop();
+            Node3D mapRoot = AutoFree(new Node3D());
+            tree.Root.AddChild(mapRoot);
+            var application = new Application(mapRoot);
+            MainViewport viewport = CreateViewport();
+            application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
+
+            // Colliders only exist after a flush, and the ray they answer needs a physics frame.
+            application.Update(0.0);
+            await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
+            return new Fixture(application, viewport);
+        }
+
+        public void Select(MeshObjectId id) => Selection.Select(id);
+
+        public Transform3D TransformOf(MeshObjectId id)
+        {
+            AssertBool(Application.Document!.TryGetMeshTransform(id, out Transform3D transform))
+                .IsTrue();
+            return transform;
+        }
+
+        public Vector2 ScreenPositionOf(MeshObjectId id) =>
+            Camera.UnprojectPosition(TransformOf(id).Origin);
+
+        public void MouseDown(Vector2 position) =>
+            Application.HandleToolMouseDown(new EditorMouseInput(Camera, position));
+
+        public void MouseDrag(Vector2 position) =>
+            Application.HandleToolMouseDrag(new EditorMouseInput(Camera, position));
+
+        public void MouseUp(Vector2 position) =>
+            Application.HandleToolMouseUp(new EditorMouseInput(Camera, position));
+
+        // Walks outward along the projected +X axis from the gizmo until a handle answers a press.
+        public Vector2 FindHandle()
+        {
+            Vector3 origin = Application.Gizmos.ProxyTransform.Origin;
+            for (int step = 1; step <= 60; step++)
+            {
+                Vector2 candidate = HandlePosition(origin, 4.0f * step);
+                if (Application.Gizmos.BeginInteraction(Camera, candidate))
+                {
+                    Application.Gizmos.Cancel();
+                    return candidate;
+                }
+            }
+
+            AssertThat("a handle was found").IsEqual("no handle was hit");
+            return Vector2.Zero;
+        }
+
+        public void Dispose() => Application.Dispose();
+
+        private Vector2 HandlePosition(Vector3 origin, float offset)
+        {
+            Vector2 center = Camera.UnprojectPosition(origin);
+            Vector2 axis = (Camera.UnprojectPosition(origin + Vector3.Right) - center).Normalized();
+            return center + (axis * offset);
+        }
+    }
+
+    // Stands in for the real command sink so a failing commit can be observed without corrupting the
+    // application's history.
+    private sealed class FailingCommandContext(IEditorToolContext inner)
+        : IEditorToolContext,
+            IEditorCommandSink
+    {
+        public IEditorDocumentReader Document => inner.Document;
+
+        public IEditorCommandSink Commands => this;
+
+        public PickingService Picking => inner.Picking;
+
+        public SelectionState Selection => inner.Selection;
+
+        public PreviewState Preview => inner.Preview;
+
+        public TranslateGizmoCoordinator TranslateGizmos => inner.TranslateGizmos;
+
+        public void Submit(IEditorCommand command) =>
+            throw new InvalidOperationException("The command could not be submitted.");
+    }
+}
