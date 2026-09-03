@@ -44,6 +44,9 @@ public sealed class Application : IDisposable
                 gizmos
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
+            _toolRegistry.Register(new TranslateTool());
+            _toolRegistry.SetDefaultTool(TranslateTool.ToolId);
+            _toolRegistry.Activate(TranslateTool.ToolId);
         }
         catch
         {
@@ -93,6 +96,10 @@ public sealed class Application : IDisposable
 
     // Raised after a successful execute, undo, redo, or a non-empty clear of command history.
     public event Action? CommandHistoryChanged;
+
+    // Raised when a tool interaction fails so the UI can present the error and the interaction is
+    // already cancelled.
+    public event Action<string, Exception>? OperationFailed;
 
     public bool Undo()
     {
@@ -174,19 +181,19 @@ public sealed class Application : IDisposable
     public void HandleToolMouseDown(EditorMouseInput input)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _toolRegistry.MouseDown(input);
+        RunProtectedToolOperation("Tool interaction", () => _toolRegistry.MouseDown(input));
     }
 
     public void HandleToolMouseDrag(EditorMouseInput input)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _toolRegistry.MouseDrag(input);
+        RunProtectedToolOperation("Tool interaction", () => _toolRegistry.MouseDrag(input));
     }
 
     public void HandleToolMouseUp(EditorMouseInput input)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _toolRegistry.MouseUp(input);
+        RunProtectedToolOperation("Tool interaction", () => _toolRegistry.MouseUp(input));
     }
 
     public void Update(double delta)
@@ -224,6 +231,19 @@ public sealed class Application : IDisposable
     }
 
     private void OnCommandHistoryChanged() => CommandHistoryChanged?.Invoke();
+
+    private void RunProtectedToolOperation(string operation, Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception exception)
+        {
+            CancelActiveInteraction();
+            OperationFailed?.Invoke(operation, exception);
+        }
+    }
 
     private void ReplaceScene(Scene scene, string? path)
     {

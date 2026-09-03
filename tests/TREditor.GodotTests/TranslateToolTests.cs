@@ -228,11 +228,6 @@ public class TranslateToolTests
         {
             Application = application;
             _viewport = viewport;
-            Tool = new TranslateTool();
-            // Commit 9 owns the production registration; the tests wire the same thing by hand so
-            // input arrives through the registry rather than by calling the tool directly.
-            application.Tools.Register(Tool);
-            application.Tools.Activate(TranslateTool.ToolId);
             application.CommandHistoryChanged += () => HistoryChanges++;
 
             foreach (MeshObjectId id in application.Document!.GetObjectIds())
@@ -247,7 +242,7 @@ public class TranslateToolTests
 
         public Application Application { get; }
 
-        public TranslateTool Tool { get; }
+        public TranslateTool Tool => (TranslateTool)Application.Tools.ActiveTool!;
 
         public IEditorToolContext Context => Application.ToolContext;
 

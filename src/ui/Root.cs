@@ -41,6 +41,7 @@ public partial class Root : Node
         GetNode<ToolsToolbar>("UI/Toolbar/ToolbarMargin/Tools")
             .Bind(_application.SelectionMode);
         GetNode<MainViewportArea>("UI/MainViewportArea").Bind(_application);
+        _application.OperationFailed += OnOperationFailed;
 
         ConfigureFileDialog(_openSceneDialog, FileDialog.FileModeEnum.OpenFile);
         ConfigureFileDialog(_saveSceneDialog, FileDialog.FileModeEnum.SaveFile);
@@ -65,6 +66,9 @@ public partial class Root : Node
 
         if (_saveSceneDialog is not null)
             _saveSceneDialog.FileSelected -= OnSaveSceneSelected;
+
+        if (_application is not null)
+            _application.OperationFailed -= OnOperationFailed;
 
         _application?.Dispose();
         _keybindings?.Dispose();
@@ -153,14 +157,22 @@ public partial class Root : Node
         }
         catch (Exception exception)
         {
-            GD.PushError($"{operation} failed: {exception}");
+            PresentOperationError(operation, exception);
+        }
+    }
 
-            if (_fileErrorDialog is not null)
-            {
-                _fileErrorDialog.Title = $"{operation} failed";
-                _fileErrorDialog.DialogText = exception.Message;
-                _fileErrorDialog.PopupCentered();
-            }
+    private void OnOperationFailed(string operation, Exception exception) =>
+        PresentOperationError(operation, exception);
+
+    private void PresentOperationError(string operation, Exception exception)
+    {
+        GD.PushError($"{operation} failed: {exception}");
+
+        if (_fileErrorDialog is not null)
+        {
+            _fileErrorDialog.Title = $"{operation} failed";
+            _fileErrorDialog.DialogText = exception.Message;
+            _fileErrorDialog.PopupCentered();
         }
     }
 }

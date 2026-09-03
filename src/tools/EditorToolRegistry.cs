@@ -9,12 +9,15 @@ public sealed class EditorToolRegistry
     private readonly Dictionary<string, IEditorTool> _tools = new(StringComparer.Ordinal);
     private readonly IEditorToolContext _context;
     private IEditorTool? _activeTool;
+    private string? _defaultToolId;
 
     public EditorToolRegistry(IEditorToolContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
         _context = context;
     }
+
+    public event Action? ActiveToolChanged;
 
     public IEditorTool? ActiveTool => _activeTool;
 
@@ -33,6 +36,16 @@ public sealed class EditorToolRegistry
         }
     }
 
+    // The tool restored whenever activation is cleared. Call after the default tool is registered.
+    public void SetDefaultTool(string id)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        if (!_tools.ContainsKey(id))
+            throw new ArgumentException($"No tool is registered as '{id}'.", nameof(id));
+
+        _defaultToolId = id;
+    }
+
     public void Activate(string id)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -45,8 +58,15 @@ public sealed class EditorToolRegistry
         SetActiveTool(tool);
     }
 
+    // Returns to the default tool when one is set; otherwise clears the active tool.
     public void Deactivate()
     {
+        if (_defaultToolId is not null)
+        {
+            Activate(_defaultToolId);
+            return;
+        }
+
         if (_activeTool is null)
             return;
 
@@ -75,6 +95,7 @@ public sealed class EditorToolRegistry
             // The switch completes even when the outgoing tool fails to cancel; leaving a tool that
             // already threw in charge of input would be worse than losing its cleanup.
             _activeTool = tool;
+            ActiveToolChanged?.Invoke();
         }
     }
 }

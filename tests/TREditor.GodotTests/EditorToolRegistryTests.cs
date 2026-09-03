@@ -136,6 +136,23 @@ public class EditorToolRegistryTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public void DeactivateReturnsToTheDefaultTool()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        using var application = new Application(mapRoot);
+        var registry = application.Tools;
+        var other = new RecordingTool("test.other");
+        registry.Register(other);
+        registry.Activate(other.Id);
+
+        registry.Deactivate();
+
+        AssertThat(registry.ActiveTool?.Id).IsEqual(TranslateTool.ToolId);
+        AssertThat(string.Join(",", other.Calls)).IsEqual("cancel");
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public void AFailedCancelStillCompletesTheSwitch()
     {
         Node3D mapRoot = AutoFree(new Node3D());
