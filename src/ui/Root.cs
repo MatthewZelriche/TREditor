@@ -15,6 +15,7 @@ public partial class Root : Node
     private FileDialog? _openSceneDialog;
     private FileDialog? _saveSceneDialog;
     private AcceptDialog? _fileErrorDialog;
+    private AcceptDialog? _fatalErrorDialog;
 
     internal Application? CurrentApplication => _application;
 
@@ -35,6 +36,7 @@ public partial class Root : Node
         _openSceneDialog = GetNode<FileDialog>("%OpenSceneDialog");
         _saveSceneDialog = GetNode<FileDialog>("%SaveSceneDialog");
         _fileErrorDialog = GetNode<AcceptDialog>("%FileErrorDialog");
+        _fatalErrorDialog = GetNode<AcceptDialog>("%FatalErrorDialog");
 
         GetNode<SelectionModeToolbar>("UI/ToolbarStrip/ToolbarMargin/SelectionModes")
             .Bind(_application.SelectionMode);
@@ -42,6 +44,9 @@ public partial class Root : Node
             .Bind(_application.SelectionMode);
         GetNode<MainViewportArea>("UI/MainViewportArea").Bind(_application);
         _application.OperationFailed += OnOperationFailed;
+        _application.FatalError += OnFatalError;
+        if (_application.FatalFailure is { } fatalFailure)
+            OnFatalError(fatalFailure.Operation, fatalFailure.Exception);
 
         ConfigureFileDialog(_openSceneDialog, FileDialog.FileModeEnum.OpenFile);
         ConfigureFileDialog(_saveSceneDialog, FileDialog.FileModeEnum.SaveFile);
@@ -49,6 +54,8 @@ public partial class Root : Node
         _menuBar.MenuActionRequested += OnMenuActionRequested;
         _openSceneDialog.FileSelected += OnOpenSceneSelected;
         _saveSceneDialog.FileSelected += OnSaveSceneSelected;
+        _fatalErrorDialog.Confirmed += CloseAfterFatalError;
+        _fatalErrorDialog.Canceled += CloseAfterFatalError;
     }
 
     public override void _Process(double delta)
@@ -67,8 +74,17 @@ public partial class Root : Node
         if (_saveSceneDialog is not null)
             _saveSceneDialog.FileSelected -= OnSaveSceneSelected;
 
+        if (_fatalErrorDialog is not null)
+        {
+            _fatalErrorDialog.Confirmed -= CloseAfterFatalError;
+            _fatalErrorDialog.Canceled -= CloseAfterFatalError;
+        }
+
         if (_application is not null)
+        {
             _application.OperationFailed -= OnOperationFailed;
+            _application.FatalError -= OnFatalError;
+        }
 
         _application?.Dispose();
         _keybindings?.Dispose();
@@ -79,6 +95,7 @@ public partial class Root : Node
         _openSceneDialog = null;
         _saveSceneDialog = null;
         _fileErrorDialog = null;
+        _fatalErrorDialog = null;
     }
 
     private static void ConfigureFileDialog(
@@ -163,6 +180,36 @@ public partial class Root : Node
 
     private void OnOperationFailed(string operation, Exception exception) =>
         PresentOperationError(operation, exception);
+
+    private void OnFatalError(string operation, Exception exception)
+    {
+        GD.PushError($"Fatal scene service error while {operation}: {exception}");
+
+        if (_fatalErrorDialog is null)
+        {
+            GetTree().Quit();
+            return;
+        }
+
+        _fatalErrorDialog.Title = "Application crashed";
+        _fatalErrorDialog.DialogText =
+            "A fatal error occurred while "
+            + operation
+            + ". The application cannot continue safely.\n\n"
+            + "Saving after a fatal error is not supported yet.\n\n"
+            + "Debug details:\n"
+            + exception;
+        _fatalErrorDialog.GetOkButton().Text = "Close Application";
+        _fatalErrorDialog.PopupCentered();
+    }
+
+    private void CloseAfterFatalError()
+    {
+        // Future recovery point: offer to save a recovery copy here only after the document/service
+        // boundaries guarantee that the authoritative document is stable and safe to serialize.
+        // The recovery path must serialize the document directly, never derived service state.
+        GetTree().Quit();
+    }
 
     private void PresentOperationError(string operation, Exception exception)
     {

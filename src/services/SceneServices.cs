@@ -6,6 +6,7 @@ public sealed class SceneServices : IDisposable
     private readonly IReadOnlyList<ISceneService> _services;
     private readonly PreviewState _previews;
     private Scene _scene;
+    private Exception? _fatalException;
     private bool _disposed;
 
     // Preview state is named explicitly because it is a second source of transform notifications,
@@ -50,39 +51,53 @@ public sealed class SceneServices : IDisposable
 
     public Scene CurrentScene => _scene;
 
+    // A service callback can fail after the document mutation that triggered it has already
+    // completed. Such a failure must not escape back through the document and make the command
+    // appear to have failed. The collection instead becomes permanently faulted and reports the
+    // first failure to its owner.
+    public event Action<string, Exception>? FatalError;
+
+    public bool IsFaulted => _fatalException is not null;
+
     public void SetScene(Scene scene)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(scene);
+        if (IsFaulted)
+            return;
+
         if (ReferenceEquals(_scene, scene))
             return;
 
-        // A partial transition cannot be recovered reliably across arbitrary services.
-        // Any failure permanently disposes the complete collection.
+        // Once transition begins, the new scene is the authoritative document even if one of its
+        // derived services cannot follow it. A failure is fatal for the application, but it does
+        // not escape this boundary or roll the document transition back.
         Unsubscribe(_scene);
-
-        try
+        _scene = scene;
+        if (
+            !RunServiceOperation("replacing the scene", () =>
+            {
+                foreach (ISceneService service in _services)
+                    service.SetScene(scene);
+            })
+        )
         {
-            foreach (ISceneService service in _services)
-                service.SetScene(scene);
+            return;
+        }
 
-            _scene = scene;
-            Subscribe(scene);
-            ReplayObjects(scene, _services.Count);
-        }
-        catch (Exception transitionException)
-        {
-            DisposeAfterFailure(transitionException);
-            throw;
-        }
+        Subscribe(scene);
+        RunServiceOperation("replaying the scene", () => ReplayObjects(scene, _services.Count));
     }
 
     public void Flush()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        foreach (ISceneService service in _services)
-            service.Flush();
+        RunServiceOperation("flushing scene services", () =>
+        {
+            foreach (ISceneService service in _services)
+                service.Flush();
+        });
     }
 
     public void Dispose()
@@ -91,6 +106,7 @@ public sealed class SceneServices : IDisposable
             return;
 
         _disposed = true;
+        FatalError = null;
         _previews.TransformChanged -= OnObjectTransformChanged;
         Unsubscribe(_scene);
 
@@ -119,26 +135,56 @@ public sealed class SceneServices : IDisposable
 
     private void OnObjectAdded(Scene.MeshObject meshObject)
     {
-        foreach (ISceneService service in _services)
-            service.OnObjectAdded(meshObject);
+        RunServiceOperation("adding a scene object", () =>
+        {
+            foreach (ISceneService service in _services)
+                service.OnObjectAdded(meshObject);
+        });
     }
 
     private void OnObjectRemoved(Scene.MeshObject meshObject)
     {
-        foreach (ISceneService service in _services)
-            service.OnObjectRemoved(meshObject);
+        RunServiceOperation("removing a scene object", () =>
+        {
+            foreach (ISceneService service in _services)
+                service.OnObjectRemoved(meshObject);
+        });
     }
 
     private void OnObjectGeometryChanged(MeshObjectId id)
     {
-        foreach (ISceneService service in _services)
-            service.OnObjectGeometryChanged(id);
+        RunServiceOperation("updating scene geometry", () =>
+        {
+            foreach (ISceneService service in _services)
+                service.OnObjectGeometryChanged(id);
+        });
     }
 
     private void OnObjectTransformChanged(MeshObjectId id)
     {
-        foreach (ISceneService service in _services)
-            service.OnObjectTransformChanged(id);
+        RunServiceOperation("updating a scene transform", () =>
+        {
+            foreach (ISceneService service in _services)
+                service.OnObjectTransformChanged(id);
+        });
+    }
+
+    private bool RunServiceOperation(string operation, Action action)
+    {
+        if (IsFaulted)
+            return false;
+
+        try
+        {
+            action();
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _fatalException = exception;
+            FatalError?.Invoke(operation, exception);
+            return false;
+        }
     }
 
     private void ReplayObjects(Scene scene, int serviceCount)

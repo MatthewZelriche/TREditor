@@ -35,6 +35,7 @@ public sealed class Application : IDisposable
                 pickingService,
                 gizmos
             );
+            _services.FatalError += OnSceneServicesFatalError;
             _toolContext = new EditorToolContext(
                 () => _currentScene,
                 _commandHistory,
@@ -100,6 +101,15 @@ public sealed class Application : IDisposable
     // Raised when a tool interaction fails so the UI can present the error and the interaction is
     // already cancelled.
     public event Action<string, Exception>? OperationFailed;
+
+    // A scene service failed after an authoritative document operation may already have completed.
+    // We must treat this as unrecoverable because it may leave the services in a partially mutated state
+    // TODO: In the future we may want to protect more robustly against this kind of behavior
+    public event Action<string, Exception>? FatalError;
+
+    // Retained so Root can present a failure raised while Application is still being constructed,
+    // before the UI has had an opportunity to subscribe to FatalError.
+    public (string Operation, Exception Exception)? FatalFailure { get; private set; }
 
     public bool Undo()
     {
@@ -214,7 +224,9 @@ public sealed class Application : IDisposable
             // Release retained commands before services or the current scene are disposed so
             // disposable commands can still touch scene-owned state during cleanup.
             _commandHistory.Changed -= OnCommandHistoryChanged;
+            _services.FatalError -= OnSceneServicesFatalError;
             CommandHistoryChanged = null;
+            FatalError = null;
             _toolRegistry.CancelActiveTool();
             _selectionMode.ClearChangedListeners();
             _selectionState.Clear();
@@ -231,6 +243,12 @@ public sealed class Application : IDisposable
     }
 
     private void OnCommandHistoryChanged() => CommandHistoryChanged?.Invoke();
+
+    private void OnSceneServicesFatalError(string operation, Exception exception)
+    {
+        FatalFailure ??= (operation, exception);
+        FatalError?.Invoke(operation, exception);
+    }
 
     private void RunProtectedToolOperation(string operation, Action action)
     {

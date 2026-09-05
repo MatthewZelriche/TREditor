@@ -88,6 +88,11 @@ title = "Save Scene As"
 unique_name_in_owner = true
 title = "File Error"
 
+[node name="FatalErrorDialog" type="AcceptDialog" parent="."]
+unique_name_in_owner = true
+title = "Application Crashed"
+exclusive = true
+
 [node name="KeybindingsDialog" parent="." instance=ExtResource("7_keybindings_dialog")]
 unique_name_in_owner = true
 

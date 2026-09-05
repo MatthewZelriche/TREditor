@@ -121,7 +121,7 @@ public sealed class SceneServicesTests
     }
 
     [Fact]
-    public void SetSceneFailurePermanentlyDisposesTheServiceCollection()
+    public void SetSceneFailureRaisesOneFatalErrorWithoutEscaping()
     {
         using var oldScene = new Scene();
         using var newScene = new Scene();
@@ -131,18 +131,19 @@ public sealed class SceneServicesTests
         var services = new SceneServices(oldScene, new PreviewState(), first, failing);
         calls.Clear();
         failing.ThrowOnSetScene = true;
+        var fatalErrors = new List<(string Operation, Exception Exception)>();
+        services.FatalError += (operation, exception) => fatalErrors.Add((operation, exception));
 
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
-            () => services.SetScene(newScene)
-        );
+        services.SetScene(newScene);
 
-        Assert.Equal("SetScene failed.", exception.Message);
+        Assert.True(services.IsFaulted);
+        Assert.Single(fatalErrors);
+        Assert.Equal("replacing the scene", fatalErrors[0].Operation);
+        Assert.Equal("SetScene failed.", fatalErrors[0].Exception.Message);
         Assert.Equal(
             [
                 "first:set-scene",
                 "failing:set-scene",
-                "first:dispose",
-                "failing:dispose",
             ],
             calls
         );
@@ -150,9 +151,73 @@ public sealed class SceneServicesTests
         calls.Clear();
         oldScene.Add("Old", Transform3D.Identity, null!);
         newScene.Add("New", Transform3D.Identity, null!);
+        services.SetScene(oldScene);
+        services.Flush();
         Assert.Empty(calls);
-        Assert.Throws<ObjectDisposedException>(() => services.Flush());
-        Assert.Throws<ObjectDisposedException>(() => services.SetScene(oldScene));
+        Assert.Single(fatalErrors);
+
+        services.Dispose();
+        Assert.Equal(["first:dispose", "failing:dispose"], calls);
+    }
+
+    [Fact]
+    public void SceneEventFailureDoesNotEscapeTheCommandOrPreventItEnteringHistory()
+    {
+        using var scene = new Scene();
+        Scene.MeshObject target = scene.Add("Object", Transform3D.Identity, null!);
+        var calls = new List<string>();
+        var failing = new RecordingSceneService("failing", calls);
+        var skipped = new RecordingSceneService("skipped", calls);
+        using var services = new SceneServices(scene, new PreviewState(), failing, skipped);
+        using var history = new CommandHistory();
+        history.SetScene(scene);
+        calls.Clear();
+        failing.ThrowOnTransform = true;
+        var fatalErrors = new List<(string Operation, Exception Exception)>();
+        services.FatalError += (operation, exception) => fatalErrors.Add((operation, exception));
+        var after = new Transform3D(Basis.Identity, new Vector3(4, 5, 6));
+
+        history.Submit(new TranslateCommand(target.Id, Transform3D.Identity, after));
+
+        Assert.True(history.CanUndo);
+        Assert.True(scene.TryGetMeshTransform(target.Id, out Transform3D actual));
+        Assert.Equal(after, actual);
+        Assert.True(services.IsFaulted);
+        Assert.Single(fatalErrors);
+        Assert.Equal("updating a scene transform", fatalErrors[0].Operation);
+        Assert.Equal("Transform failed.", fatalErrors[0].Exception.Message);
+        Assert.Equal(["failing:transform:0"], calls);
+
+        calls.Clear();
+        scene.MarkGeometryChanged(target.Id);
+        services.Flush();
+        Assert.Empty(calls);
+        Assert.Single(fatalErrors);
+    }
+
+    [Fact]
+    public void AThrowingFatalErrorSubscriberIsAllowedToPropagate()
+    {
+        using var scene = new Scene();
+        Scene.MeshObject target = scene.Add("Object", Transform3D.Identity, null!);
+        var service = new RecordingSceneService("failing", []);
+        using var services = new SceneServices(scene, new PreviewState(), service);
+        service.ThrowOnTransform = true;
+        int notifiedCount = 0;
+        services.FatalError += (_, _) => throw new InvalidOperationException("UI failed.");
+        services.FatalError += (_, _) => notifiedCount++;
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+            () =>
+                scene.SetTransform(
+                    target.Id,
+                    new Transform3D(Basis.Identity, new Vector3(1, 2, 3))
+                )
+        );
+
+        Assert.Equal("UI failed.", exception.Message);
+        Assert.Equal(0, notifiedCount);
+        Assert.True(services.IsFaulted);
     }
 
     private sealed class RecordingSceneService(
@@ -163,6 +228,8 @@ public sealed class SceneServicesTests
         public Scene? Scene { get; private set; }
 
         public bool ThrowOnSetScene { get; set; }
+
+        public bool ThrowOnTransform { get; set; }
 
         public void SetScene(Scene scene)
         {
@@ -188,8 +255,12 @@ public sealed class SceneServicesTests
         public void OnObjectGeometryChanged(MeshObjectId id) =>
             calls.Add($"{name}:geometry:{id.Value}");
 
-        public void OnObjectTransformChanged(MeshObjectId id) =>
+        public void OnObjectTransformChanged(MeshObjectId id)
+        {
             calls.Add($"{name}:transform:{id.Value}");
+            if (ThrowOnTransform)
+                throw new InvalidOperationException("Transform failed.");
+        }
 
         public void Flush() => calls.Add($"{name}:flush");
     }

@@ -8,8 +8,10 @@ public interface ISceneService : IDisposable
     /// <see cref="SceneServices"/>. The service does not own or dispose either scene.
     /// </summary>
     /// <remarks>
-    /// If this method throws, <see cref="SceneServices"/> treats the entire service collection
-    /// as unusable and disposes it. Implementations are not required to support recovery.
+    /// After successful construction, <see cref="SceneServices"/> catches service failures at its
+    /// boundary, reports a fatal error, and stops dispatching further work. Implementations are not
+    /// required to support recovery.
+    /// As a result, this means throwing exceptions should be reserved for fatal scenarios only.
     /// </remarks>
     void SetScene(Scene scene);
 
