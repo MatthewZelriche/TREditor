@@ -1,0 +1,59 @@
+sequenceDiagram
+    %% High-level editor tool flow as currently implemented.
+    %% See sequenceDiagram.mmd for the TranslateTool-specific deep dive.
+    autonumber
+    actor User
+    participant UI as Viewport / UI
+    participant App as Application + Tool Registry
+    participant Tool as Active Editor Tool
+    participant Ctx as IEditorToolContext
+    participant History as CommandHistory
+    participant State as Transient Editor State<br/>Selection + Previews
+    participant Doc as Document / Scene
+    participant Services as SceneServices<br/>Render + Picking + Gizmos
+
+    rect rgb(30, 30, 30)
+        Note over User, Services: Input routing and tool decisions
+        User->>UI: Perform an editor gesture
+        UI->>App: Raise tool input phase
+        App->>Tool: Dispatch to active tool with context
+        Tool->>Ctx: Read document snapshots and query editor services
+        Ctx-->>Tool: IDs, value data, selection, and interaction results
+        Note over Tool, Doc: The tool receives no document mutation API
+    end
+
+    rect rgb(40, 40, 40)
+        Note over User, Services: Transient preview during an interaction
+        User->>UI: Continue gesture
+        UI->>App: Raise updated tool input
+        App->>Tool: Dispatch update
+        Tool->>State: Set or update preview state
+        State-->>Services: Preview changed
+        Services-->>UI: Update derived visuals and picking
+        Note over Tool, Doc: Preview updates do not mutate the document
+    end
+
+    rect rgb(30, 30, 30)
+        Note over User, Services: Complete the action
+        User->>UI: Complete gesture or action
+        UI->>App: Raise completion input
+        App->>Tool: Dispatch completion
+
+        alt Action changes the document
+            Tool->>History: Submit command containing mutation data
+            History->>Doc: Execute command against Scene
+            Doc-->>Services: Document change event
+            Services-->>UI: Synchronize render, picking, and gizmos
+            History->>History: Record successful command and clear redo
+        else Action changes undoable transient state
+            Tool->>History: Submit editor-state command
+            History->>State: Execute command, such as selection change
+            State-->>Services: Transient state changed
+            Services-->>UI: Synchronize affected editor visuals
+            History->>History: Record successful command and clear redo
+        end
+
+        Tool->>State: Clear preview
+        State-->>Services: Preview changed
+        Services-->>UI: Display authoritative document state
+    end
