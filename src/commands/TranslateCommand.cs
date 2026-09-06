@@ -19,14 +19,14 @@ public sealed class TranslateCommand : IEditorCommand
 
     public string DisplayName => "Translate";
 
-    public void Execute(Scene scene) => Apply(scene, _after);
+    public void Execute(Document document) => Apply(document, _after);
 
-    public void Undo(Scene scene) => Apply(scene, _before);
+    public void Undo(Document document) => Apply(document, _before);
 
-    private void Apply(Scene scene, Transform3D transform)
+    private void Apply(Document document, Transform3D transform)
     {
-        ArgumentNullException.ThrowIfNull(scene);
-        if (!scene.SetTransform(_id, transform))
+        ArgumentNullException.ThrowIfNull(document);
+        if (!document.SetTransform(_id, transform))
         {
             throw new InvalidOperationException(
                 $"Object {_id.Value} no longer exists and cannot be translated."

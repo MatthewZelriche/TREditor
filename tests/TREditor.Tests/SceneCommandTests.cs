@@ -9,30 +9,30 @@ public class SceneCommandTests
     private static readonly Transform3D After = new(Basis.Identity, new Vector3(1, 2, 3));
 
     [Fact]
-    public void SubmitExecutesUndoesAndRedoesAgainstTheScene()
+    public void SubmitExecutesUndoesAndRedoesAgainstTheDocument()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
         IEditorCommandSink sink = history;
-        Scene.MeshObject target = scene.Add("Movable", Before, null!);
+        MeshObject target = document.Add("Movable", Before, null!);
 
         sink.Submit(new MoveCommand(target.Id, Before, After));
-        Assert.Equal(After, ReadTransform(scene, target.Id));
+        Assert.Equal(After, ReadTransform(document, target.Id));
 
         Assert.True(history.Undo());
-        Assert.Equal(Before, ReadTransform(scene, target.Id));
+        Assert.Equal(Before, ReadTransform(document, target.Id));
 
         Assert.True(history.Redo());
-        Assert.Equal(After, ReadTransform(scene, target.Id));
+        Assert.Equal(After, ReadTransform(document, target.Id));
     }
 
     [Fact]
     public void CommittingAgainstAMissingObjectFailsAndLeavesTheHistoryUnchanged()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
 
         Assert.Throws<InvalidOperationException>(
             () => history.Submit(new MoveCommand(new MeshObjectId(7), Before, After))
@@ -43,18 +43,18 @@ public class SceneCommandTests
     }
 
     [Fact]
-    public void CommandsRunAgainstTheSceneTheHistoryCurrentlyHolds()
+    public void CommandsRunAgainstTheDocumentTheHistoryCurrentlyHolds()
     {
-        using var first = new Scene();
-        using var second = new Scene();
+        using var first = new Document();
+        using var second = new Document();
         using var history = new CommandHistory();
-        history.SetScene(first);
-        Scene.MeshObject inFirst = first.Add("Movable", Before, null!);
-        Scene.MeshObject inSecond = second.Add("Movable", Before, null!);
+        history.SetDocument(first);
+        MeshObject inFirst = first.Add("Movable", Before, null!);
+        MeshObject inSecond = second.Add("Movable", Before, null!);
 
         history.Submit(new MoveCommand(inFirst.Id, Before, After));
         history.Clear();
-        history.SetScene(second);
+        history.SetDocument(second);
         history.Submit(new MoveCommand(inSecond.Id, Before, After));
 
         Assert.Equal(After, ReadTransform(first, inFirst.Id));
@@ -62,7 +62,7 @@ public class SceneCommandTests
     }
 
     [Fact]
-    public void OperationsWithoutASceneFail()
+    public void OperationsWithoutADocumentFail()
     {
         using var history = new CommandHistory();
 
@@ -71,9 +71,9 @@ public class SceneCommandTests
         );
     }
 
-    private static Transform3D ReadTransform(Scene scene, MeshObjectId id)
+    private static Transform3D ReadTransform(Document document, MeshObjectId id)
     {
-        Assert.True(scene.TryGetMeshTransform(id, out Transform3D transform));
+        Assert.True(document.TryGetMeshTransform(id, out Transform3D transform));
         return transform;
     }
 
@@ -82,13 +82,13 @@ public class SceneCommandTests
     {
         public string DisplayName => "Move";
 
-        public void Execute(Scene scene) => Apply(scene, after);
+        public void Execute(Document document) => Apply(document, after);
 
-        public void Undo(Scene scene) => Apply(scene, before);
+        public void Undo(Document document) => Apply(document, before);
 
-        private void Apply(Scene scene, Transform3D transform)
+        private void Apply(Document document, Transform3D transform)
         {
-            if (!scene.SetTransform(id, transform))
+            if (!document.SetTransform(id, transform))
                 throw new InvalidOperationException("The target object no longer exists.");
         }
     }

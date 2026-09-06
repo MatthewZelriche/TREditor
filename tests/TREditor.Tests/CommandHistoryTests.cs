@@ -2,9 +2,9 @@ namespace TREditor.Tests;
 
 public sealed class CommandHistoryTests : IDisposable
 {
-    private readonly Scene _scene = new();
+    private readonly Document _document = new();
 
-    public void Dispose() => _scene.Dispose();
+    public void Dispose() => _document.Dispose();
 
     [Fact]
     public void ExecuteAppliesTheCommandAndUndoRedoReplayIt()
@@ -299,7 +299,7 @@ public sealed class CommandHistoryTests : IDisposable
     private CommandHistory CreateHistory(int capacity = CommandHistory.DefaultCapacity)
     {
         var history = new CommandHistory(capacity);
-        history.SetScene(_scene);
+        history.SetDocument(_document);
         return history;
     }
 
@@ -315,9 +315,9 @@ public sealed class CommandHistoryTests : IDisposable
     {
         public string DisplayName => $"Append {value}";
 
-        public void Execute(Scene scene) => document.Add(value);
+        public void Execute(Document _) => document.Add(value);
 
-        public void Undo(Scene scene) => document.RemoveAt(document.Count - 1);
+        public void Undo(Document _) => document.RemoveAt(document.Count - 1);
     }
 
     private sealed class PlainCommand(string displayName) : IEditorCommand
@@ -328,9 +328,9 @@ public sealed class CommandHistoryTests : IDisposable
 
         public int UndoCount { get; private set; }
 
-        public void Execute(Scene scene) => ExecuteCount++;
+        public void Execute(Document _) => ExecuteCount++;
 
-        public void Undo(Scene scene) => UndoCount++;
+        public void Undo(Document _) => UndoCount++;
     }
 
     private sealed class TestCommand(string displayName, List<string>? log = null)
@@ -352,7 +352,7 @@ public sealed class CommandHistoryTests : IDisposable
 
         public Action? DuringUndo { get; set; }
 
-        public void Execute(Scene scene)
+        public void Execute(Document _)
         {
             DuringExecute?.Invoke();
             if (ThrowOnExecute)
@@ -362,7 +362,7 @@ public sealed class CommandHistoryTests : IDisposable
             log?.Add($"execute:{displayName}");
         }
 
-        public void Undo(Scene scene)
+        public void Undo(Document _)
         {
             DuringUndo?.Invoke();
             if (ThrowOnUndo)

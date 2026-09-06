@@ -10,9 +10,9 @@ public sealed class SelectionCommandTests
     [Fact]
     public void SubmittingASelectionAppliesItAndRecordsHistory()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
         var selection = new SelectionState();
         IEditorCommandSink sink = history;
 
@@ -26,9 +26,9 @@ public sealed class SelectionCommandTests
     [Fact]
     public void ReplacingASelectionRestoresThePreviousObjectOnUndo()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
         var selection = new SelectionState();
         history.Submit(new SelectionCommand(selection, null, First));
 
@@ -45,9 +45,9 @@ public sealed class SelectionCommandTests
     [Fact]
     public void ClearingASelectionUndoesBackToTheExactPreviousObject()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
         var selection = new SelectionState();
         selection.Select(Second);
 
@@ -72,9 +72,9 @@ public sealed class SelectionCommandTests
     [Fact]
     public void UndoAndRedoRaiseSelectionChangedOnce()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
         var selection = new SelectionState();
         int changedCount = 0;
         selection.Changed += () => changedCount++;
@@ -89,9 +89,9 @@ public sealed class SelectionCommandTests
     [Fact]
     public void HistoryChangeNotificationsAccompanySelectionCommands()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
         var selection = new SelectionState();
         int historyChangedCount = 0;
         history.Changed += () => historyChangedCount++;
@@ -104,17 +104,17 @@ public sealed class SelectionCommandTests
     }
 
     [Fact]
-    public void SelectionCommandsIgnoreTheSceneTheyAreGiven()
+    public void SelectionCommandsIgnoreTheDocumentTheyAreGiven()
     {
-        using var first = new Scene();
-        using var second = new Scene();
+        using var first = new Document();
+        using var second = new Document();
         using var history = new CommandHistory();
-        history.SetScene(first);
+        history.SetDocument(first);
         var selection = new SelectionState();
 
         history.Submit(new SelectionCommand(selection, null, First));
         history.Clear();
-        history.SetScene(second);
+        history.SetDocument(second);
         history.Submit(new SelectionCommand(selection, First, Second));
 
         Assert.Equal(Second, selection.Selected);

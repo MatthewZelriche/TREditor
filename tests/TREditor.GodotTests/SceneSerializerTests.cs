@@ -22,7 +22,7 @@ public class SceneSerializerTests
             var cubeTransform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3));
             var cylinderTransform = new Transform3D(Basis.Identity, new Vector3(-4, 5, -6));
 
-            using var source = new Scene();
+            using var source = new Document();
             source.Add(
                 "Cube",
                 cubeTransform,
@@ -35,16 +35,16 @@ public class SceneSerializerTests
             );
 
             SceneSerializer.Save(source, ScenePath);
-            using Scene loaded = SceneSerializer.Load(ScenePath);
+            using Document loaded = SceneSerializer.Load(ScenePath);
 
-            AssertThat(loaded.Objects.Count).IsEqual(2);
+            AssertThat(loaded.ObjectCount).IsEqual(2);
 
-            Scene.MeshObject cube = loaded.Objects.Values.Single(value => value.Name == "Cube");
+            MeshObject cube = loaded.GetObjects().Single(value => value.Name == "Cube");
             AssertThat(cube.Transform).IsEqual(cubeTransform);
             AssertThat(cube.Mesh.SpatialMesh.VertexCount).IsEqual(8);
             AssertThat(cube.Mesh.SpatialMesh.FaceCount).IsEqual(6);
 
-            Scene.MeshObject cylinder = loaded.Objects.Values.Single(value => value.Name == "Cylinder");
+            MeshObject cylinder = loaded.GetObjects().Single(value => value.Name == "Cylinder");
             AssertThat(cylinder.Transform).IsEqual(cylinderTransform);
             AssertThat(cylinder.Mesh.SpatialMesh.VertexCount).IsEqual(16);
             AssertThat(cylinder.Mesh.SpatialMesh.FaceCount).IsEqual(10);

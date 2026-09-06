@@ -8,15 +8,15 @@ namespace TREditor.Tests;
 public class EditorDocumentReaderTests
 {
     [Fact]
-    public void ReadTransformsAreCopiesThatDoNotFollowLaterSceneChanges()
+    public void ReadTransformsAreCopiesThatDoNotFollowLaterDocumentChanges()
     {
-        using var scene = new Scene();
-        IEditorDocumentReader reader = scene;
+        using var document = new Document();
+        IEditorDocumentReader reader = document;
         var start = new Transform3D(Basis.Identity, new Vector3(1, 2, 3));
-        Scene.MeshObject added = scene.Add("Cube", start, null!);
+        MeshObject added = document.Add("Cube", start, null!);
 
         Assert.True(reader.TryGetMeshTransform(added.Id, out Transform3D transform));
-        Assert.True(scene.SetTransform(added.Id, new Transform3D(Basis.Identity, new Vector3(9, 9, 9))));
+        Assert.True(document.SetTransform(added.Id, new Transform3D(Basis.Identity, new Vector3(9, 9, 9))));
 
         Assert.Equal(start, transform);
     }
@@ -24,22 +24,22 @@ public class EditorDocumentReaderTests
     [Fact]
     public void UnknownIdReturnsFalseAndADefaultTransform()
     {
-        using var scene = new Scene();
-        IEditorDocumentReader reader = scene;
+        using var document = new Document();
+        IEditorDocumentReader reader = document;
 
         Assert.False(reader.TryGetMeshTransform(new MeshObjectId(42), out Transform3D transform));
         Assert.Equal(default, transform);
     }
 
     [Fact]
-    public void ObjectIdsAreACopyThatDoesNotFollowLaterSceneChanges()
+    public void ObjectIdsAreACopyThatDoesNotFollowLaterDocumentChanges()
     {
-        using var scene = new Scene();
-        IEditorDocumentReader reader = scene;
-        Scene.MeshObject first = scene.Add("First", Transform3D.Identity, null!);
+        using var document = new Document();
+        IEditorDocumentReader reader = document;
+        MeshObject first = document.Add("First", Transform3D.Identity, null!);
 
         var ids = reader.GetObjectIds();
-        scene.Add("Second", Transform3D.Identity, null!);
+        document.Add("Second", Transform3D.Identity, null!);
 
         Assert.Equal([first.Id], ids);
         Assert.Equal(2, reader.ObjectCount);
@@ -64,11 +64,11 @@ public class EditorDocumentReaderTests
     }
 
     private static bool IsForbidden(System.Type type) =>
-        type == typeof(Scene)
-        || type == typeof(Scene.MeshObject)
+        type == typeof(Document)
+        || type == typeof(MeshObject)
         || type == typeof(GDMesh)
         || type.FullName == "TRMesh.Mesh.SpatialMesh"
         || (typeof(IEnumerable).IsAssignableFrom(type)
             && type.GetGenericArguments().Any(argument =>
-                argument == typeof(Scene.MeshObject) || argument == typeof(GDMesh)));
+                argument == typeof(MeshObject) || argument == typeof(GDMesh)));
 }

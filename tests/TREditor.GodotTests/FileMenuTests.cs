@@ -29,9 +29,9 @@ public class FileMenuTests
             openDialog.UseNativeDialog = false;
             saveDialog.UseNativeDialog = false;
 
-            Scene initialScene = application.CurrentScene!;
+            Document initialDocument = application.CurrentDocument!;
             EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.NewDocument);
-            AssertBool(ReferenceEquals(initialScene, application.CurrentScene)).IsFalse();
+            AssertBool(ReferenceEquals(initialDocument, application.CurrentDocument)).IsFalse();
 
             EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.OpenDocument);
             AssertBool(openDialog.Visible).IsTrue();

@@ -6,7 +6,7 @@ using Godot;
 // root as they come and go; tools drive interaction through this type and never touch a Gizmo3D node.
 //
 // All hosts move one shared, non-rendering proxy node. The gizmo is only ever allowed to mutate that
-// proxy, so a drag can never reach a scene object, a render mesh, or any other authoritative node.
+// proxy, so a drag can never reach a document object, a render mesh, or any other authoritative node.
 public sealed class TranslateGizmoCoordinator : ISceneService
 {
     private readonly Dictionary<Camera3D, HostRegistration> _hosts = [];
@@ -14,7 +14,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     private readonly Node3D _proxy;
     private readonly SelectionState _selection;
     private readonly PreviewState _previews;
-    private Scene? _scene;
+    private Document? _document;
     private Camera3D? _interactionCamera;
     private bool _attached;
     private bool _disposed;
@@ -89,25 +89,25 @@ public sealed class TranslateGizmoCoordinator : ISceneService
             host.Attach(_proxy);
     }
 
-    // SceneServices owns document and preview lifecycle. Both committed scene changes and preview
+    // SceneServices owns document and preview lifecycle. Both committed document changes and preview
     // changes arrive through OnObjectTransformChanged, so the coordinator needs no parallel event
     // subscriptions in Application.
-    public void SetScene(Scene scene)
+    public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(document);
 
         Hide();
-        _scene = scene;
+        _document = document;
     }
 
-    public void OnObjectAdded(Scene.MeshObject meshObject)
+    public void OnObjectAdded(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);
     }
 
-    public void OnObjectRemoved(Scene.MeshObject meshObject)
+    public void OnObjectRemoved(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);
@@ -238,7 +238,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
 
         _disposed = true;
         _selection.Changed -= Synchronize;
-        _scene = null;
+        _document = null;
         _interactionCamera = null;
         _attached = false;
         foreach ((Camera3D camera, HostRegistration registration) in _hosts)
@@ -260,9 +260,9 @@ public sealed class TranslateGizmoCoordinator : ISceneService
             return;
 
         if (
-            _scene is Scene scene
+            _document is Document document
             && _selection.Selected is MeshObjectId id
-            && TryGetDisplayedTransform(scene, id, out Transform3D transform)
+            && TryGetDisplayedTransform(document, id, out Transform3D transform)
         )
         {
             ShowAt(transform);
@@ -272,12 +272,12 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         Hide();
     }
 
-    private bool TryGetDisplayedTransform(Scene scene, MeshObjectId id, out Transform3D transform)
+    private bool TryGetDisplayedTransform(Document document, MeshObjectId id, out Transform3D transform)
     {
         if (_previews.TryGetTransform(id, out transform))
             return true;
 
-        return scene.TryGetMeshTransform(id, out transform);
+        return document.TryGetMeshTransform(id, out transform);
     }
 
     // A pane torn down by Godot can free its camera before the coordinator hears about it, and there

@@ -12,26 +12,26 @@ public class RenderServiceTests
 {
     [TestCase]
     [RequireGodotRuntime]
-    public void RenderServiceKeepsOneRenderRootWhenTheSceneChanges()
+    public void RenderServiceKeepsOneRenderRootWhenTheDocumentChanges()
     {
         Node3D mapRoot = AutoFree(new Node3D());
-        using var firstScene = new Scene();
-        using var secondScene = new Scene();
-        firstScene.Add(
+        using var firstDocument = new Document();
+        using var secondDocument = new Document();
+        firstDocument.Add(
             "First",
             Transform3D.Identity,
             new GDMesh(
                 SpatialMeshBuilder.CreateAabb(NumericsVector3.Zero, NumericsVector3.One)
             )
         );
-        secondScene.Add(
+        secondDocument.Add(
             "Second",
             Transform3D.Identity,
             new GDMesh(SpatialMeshBuilder.CreateCylinder(1.0f, 1.0f, 8))
         );
         var previews = new PreviewState();
-        var renderService = new RenderService(firstScene, mapRoot, previews);
-        var services = new SceneServices(firstScene, previews, renderService);
+        var renderService = new RenderService(firstDocument, mapRoot, previews);
+        var services = new SceneServices(firstDocument, previews, renderService);
 
         Node3D originalRenderRoot = mapRoot.GetNode<Node3D>("Render");
         MeshInstance3D firstInstance = originalRenderRoot.GetNode<MeshInstance3D>(
@@ -40,7 +40,7 @@ public class RenderServiceTests
         if (firstInstance.Mesh is not ArrayMesh firstArrayMesh)
             throw new InvalidOperationException("Render entry did not create an ArrayMesh.");
 
-        services.SetScene(secondScene);
+        services.SetDocument(secondDocument);
 
         AssertThat(mapRoot.GetChildCount()).IsEqual(1);
         AssertThat(mapRoot.GetNode<Node3D>("Render")).IsSame(originalRenderRoot);
@@ -56,13 +56,13 @@ public class RenderServiceTests
     public void RenderServiceShowsPreviewsUntilTheyAreCleared()
     {
         Node3D mapRoot = AutoFree(new Node3D());
-        using var scene = new Scene();
-        using var replacementScene = new Scene();
+        using var document = new Document();
+        using var replacementDocument = new Document();
         var previews = new PreviewState();
-        var renderService = new RenderService(scene, mapRoot, previews);
-        var services = new SceneServices(scene, previews, renderService);
+        var renderService = new RenderService(document, mapRoot, previews);
+        var services = new SceneServices(document, previews, renderService);
         var initialTransform = new Transform3D(Basis.Identity, new Vector3(1.0f, 0.0f, 0.0f));
-        Scene.MeshObject meshObject = scene.Add(
+        MeshObject meshObject = document.Add(
             "Cube",
             initialTransform,
             new GDMesh(
@@ -90,14 +90,14 @@ public class RenderServiceTests
                 Basis.Identity,
                 new Vector3(0.0f, 5.0f, 0.0f)
             );
-            scene.SetTransform(meshObject.Id, committedTransform);
+            document.SetTransform(meshObject.Id, committedTransform);
             AssertThat(instance.Transform).IsEqual(secondPreview);
 
             previews.ClearTransform(meshObject.Id);
             AssertThat(instance.Transform).IsEqual(committedTransform);
 
             previews.SetTransform(meshObject.Id, firstPreview);
-            services.SetScene(replacementScene);
+            services.SetDocument(replacementDocument);
             AssertBool(previews.TryGetTransform(meshObject.Id, out _)).IsFalse();
         }
         finally
@@ -108,13 +108,13 @@ public class RenderServiceTests
 
     [TestCase]
     [RequireGodotRuntime]
-    public void RenderServiceTracksSceneObjectsAndBatchesGeometryRebuilds()
+    public void RenderServiceTracksMeshObjectsAndBatchesGeometryRebuilds()
     {
         Node3D mapRoot = AutoFree(new Node3D());
-        using var scene = new Scene();
+        using var document = new Document();
         var previews = new PreviewState();
-        var renderService = new RenderService(scene, mapRoot, previews);
-        var services = new SceneServices(scene, previews, renderService);
+        var renderService = new RenderService(document, mapRoot, previews);
+        var services = new SceneServices(document, previews, renderService);
         var initialTransform = new Transform3D(
             Basis.Identity,
             new Vector3(1.0f, 2.0f, 3.0f)
@@ -122,7 +122,7 @@ public class RenderServiceTests
         var mesh = new GDMesh(
             SpatialMeshBuilder.CreateAabb(NumericsVector3.Zero, NumericsVector3.One)
         );
-        Scene.MeshObject meshObject = scene.Add("Cube", initialTransform, mesh);
+        MeshObject meshObject = document.Add("Cube", initialTransform, mesh);
 
         try
         {
@@ -143,8 +143,8 @@ public class RenderServiceTests
             AssertThat(arrayMesh.GetSurfaceCount()).IsEqual(1);
             AssertThat(mesh.Surface.ElementIndices.Count).IsEqual(36);
 
-            scene.MarkGeometryChanged(meshObject.Id);
-            scene.MarkGeometryChanged(meshObject.Id);
+            document.MarkGeometryChanged(meshObject.Id);
+            document.MarkGeometryChanged(meshObject.Id);
             AssertBool(mesh.Dirty).IsTrue();
 
             services.Flush();
@@ -154,10 +154,10 @@ public class RenderServiceTests
                 Basis.Identity,
                 new Vector3(-3.0f, 4.0f, 5.0f)
             );
-            scene.SetTransform(meshObject.Id, updatedTransform);
+            document.SetTransform(meshObject.Id, updatedTransform);
             AssertThat(instance.Transform).IsEqual(updatedTransform);
 
-            scene.Remove(meshObject.Id);
+            document.Remove(meshObject.Id);
             AssertThat(renderRoot.GetChildCount()).IsEqual(0);
             AssertBool(GodotObject.IsInstanceValid(arrayMesh)).IsFalse();
         }

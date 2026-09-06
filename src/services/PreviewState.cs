@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Godot;
 
 // Transient transform overrides used while a tool drags. Previews never reach the document: the
-// scene keeps the authoritative transform and a preview only changes what services display until
+// document keeps the authoritative transform and a preview only changes what services display until
 // it is cleared. Changes are announced through <see cref="TransformChanged"/> so every scene
 // service can recompute an object's effective transform through the same path a committed change
 // uses.
@@ -13,7 +13,7 @@ public sealed class PreviewState : ISceneService
     private bool _disposed;
 
     // Raised for a single object whose preview was set, changed, or explicitly cleared. Lifecycle
-    // cleanup (scene replacement, object removal, disposal) is silent because the services being
+    // cleanup (document replacement, object removal, disposal) is silent because the services being
     // notified are discarding their own state for those objects at the same time.
     public event Action<MeshObjectId>? TransformChanged;
 
@@ -56,20 +56,20 @@ public sealed class PreviewState : ISceneService
             TransformChanged?.Invoke(id);
     }
 
-    public void SetScene(Scene scene)
+    public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(document);
         _transforms.Clear();
     }
 
-    public void OnObjectAdded(Scene.MeshObject meshObject)
+    public void OnObjectAdded(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);
     }
 
-    public void OnObjectRemoved(Scene.MeshObject meshObject)
+    public void OnObjectRemoved(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);

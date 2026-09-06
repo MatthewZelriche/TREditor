@@ -1,5 +1,5 @@
 // Everything a tool is allowed to reach. Document access is read-only and the only route to a
-// document change is Commands; no member exposes a mutable Scene.
+// document change is Commands; no member exposes a mutable Document.
 public interface IEditorToolContext
 {
     IEditorDocumentReader Document { get; }

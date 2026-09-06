@@ -12,24 +12,24 @@ public sealed class Application : IDisposable
     private readonly SelectionModeState _selectionMode = new();
     private readonly SelectionState _selectionState = new();
     private readonly PreviewState _previewState = new();
-    private Scene? _currentScene;
+    private Document? _currentDocument;
     private string? _currentFilePath;
     private bool _disposed;
 
     public Application(Node3D mapRoot)
     {
         ArgumentNullException.ThrowIfNull(mapRoot);
-        var initialScene = new Scene();
+        var initialDocument = new Document();
         RenderService? renderService = null;
         PickingService? pickingService = null;
         TranslateGizmoCoordinator? gizmos = null;
         try
         {
             gizmos = new TranslateGizmoCoordinator(mapRoot, _selectionState, _previewState);
-            renderService = new RenderService(initialScene, mapRoot, _previewState);
-            pickingService = new PickingService(initialScene, mapRoot, _previewState);
+            renderService = new RenderService(initialDocument, mapRoot, _previewState);
+            pickingService = new PickingService(initialDocument, mapRoot, _previewState);
             _services = new SceneServices(
-                initialScene,
+                initialDocument,
                 _previewState,
                 renderService,
                 pickingService,
@@ -37,7 +37,7 @@ public sealed class Application : IDisposable
             );
             _services.FatalError += OnSceneServicesFatalError;
             _toolContext = new EditorToolContext(
-                () => _currentScene,
+                () => _currentDocument,
                 _commandHistory,
                 pickingService,
                 _selectionState,
@@ -54,20 +54,20 @@ public sealed class Application : IDisposable
             gizmos?.Dispose();
             pickingService?.Dispose();
             renderService?.Dispose();
-            initialScene.Dispose();
+            initialDocument.Dispose();
             throw;
         }
 
-        _currentScene = initialScene;
-        _commandHistory.SetScene(initialScene);
+        _currentDocument = initialDocument;
+        _commandHistory.SetDocument(initialDocument);
         _commandHistory.Changed += OnCommandHistoryChanged;
-        SetUpSceneForDebug();
+        SetUpDocumentForDebug();
     }
 
     // Tool- and UI-facing document access. Only value snapshots leave this boundary.
-    public IEditorDocumentReader? Document => _currentScene;
+    public IEditorDocumentReader? Document => _currentDocument;
 
-    internal Scene? CurrentScene => _currentScene;
+    internal Document? CurrentDocument => _currentDocument;
 
     public IEditorToolContext ToolContext => _toolContext;
 
@@ -151,7 +151,7 @@ public sealed class Application : IDisposable
     public void NewScene()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ReplaceScene(new Scene(), null);
+        ReplaceDocument(new Document(), null);
     }
 
     public void OpenScene(string path)
@@ -159,31 +159,31 @@ public sealed class Application : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        Scene loadedScene = SceneSerializer.Load(path);
-        ReplaceScene(loadedScene, path);
+        Document loadedDocument = SceneSerializer.Load(path);
+        ReplaceDocument(loadedDocument, path);
     }
 
     public void SaveScene()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        Scene scene = _currentScene
+        Document document = _currentDocument
             ?? throw new InvalidOperationException("There is no scene to save.");
         string path = _currentFilePath
             ?? throw new InvalidOperationException(
                 "The current scene has no file path. Use SaveSceneAs first."
             );
 
-        SceneSerializer.Save(scene, path);
+        SceneSerializer.Save(document, path);
     }
 
     public void SaveSceneAs(string path)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        Scene scene = _currentScene
+        Document document = _currentDocument
             ?? throw new InvalidOperationException("There is no scene to save.");
 
-        SceneSerializer.Save(scene, path);
+        SceneSerializer.Save(document, path);
         _currentFilePath = path;
     }
 
@@ -221,8 +221,8 @@ public sealed class Application : IDisposable
         _disposed = true;
         try
         {
-            // Release retained commands before services or the current scene are disposed so
-            // disposable commands can still touch scene-owned state during cleanup.
+            // Release retained commands before services or the current document are disposed so
+            // disposable commands can still touch document-owned state during cleanup.
             _commandHistory.Changed -= OnCommandHistoryChanged;
             _services.FatalError -= OnSceneServicesFatalError;
             CommandHistoryChanged = null;
@@ -236,8 +236,8 @@ public sealed class Application : IDisposable
         }
         finally
         {
-            _currentScene?.Dispose();
-            _currentScene = null;
+            _currentDocument?.Dispose();
+            _currentDocument = null;
             _currentFilePath = null;
         }
     }
@@ -263,39 +263,39 @@ public sealed class Application : IDisposable
         }
     }
 
-    private void ReplaceScene(Scene scene, string? path)
+    private void ReplaceDocument(Document document, string? path)
     {
-        Scene? previousScene = _currentScene;
+        Document? previousDocument = _currentDocument;
         // Nothing a tool was interacting with survives the document it belonged to.
         CancelActiveInteraction();
 
         try
         {
-            _services.SetScene(scene);
+            _services.SetDocument(document);
         }
         catch
         {
-            scene.Dispose();
+            document.Dispose();
             throw;
         }
 
-        _currentScene = scene;
+        _currentDocument = document;
         _currentFilePath = path;
         // Transient editor state cannot outlive the document it referred to.
         _selectionState.Clear();
-        // Clear before disposing the previous scene so discarded commands can release state that
+        // Clear before disposing the previous document so discarded commands can release state that
         // still refers to it. Failures above leave the existing history intact.
         _commandHistory.Clear();
-        // Retarget only after the old history is gone so a discarded command cannot reach the new scene.
-        _commandHistory.SetScene(scene);
-        previousScene?.Dispose();
+        // Retarget only after the old history is gone so a discarded command cannot reach the new document.
+        _commandHistory.SetDocument(document);
+        previousDocument?.Dispose();
     }
 
     // TODO: Delete this when Primitive Creation is hooked up
-    private void SetUpSceneForDebug()
+    private void SetUpDocumentForDebug()
     {
-        Scene scene = _currentScene
-            ?? throw new InvalidOperationException("A scene must exist before adding debug geometry.");
+        Document document = _currentDocument
+            ?? throw new InvalidOperationException("A document must exist before adding debug geometry.");
         var cubeTransform = new Transform3D(
             Basis.Identity,
             new Vector3(-1.5f, 0.0f, 0.0f)
@@ -305,7 +305,7 @@ public sealed class Application : IDisposable
             new Vector3(1.5f, 0.0f, 0.0f)
         );
 
-        scene.Add(
+        document.Add(
             "Debug Cube",
             cubeTransform,
             new GDMesh(
@@ -315,7 +315,7 @@ public sealed class Application : IDisposable
                 )
             )
         );
-        scene.Add(
+        document.Add(
             "Debug Cylinder",
             cylinderTransform,
             new GDMesh(SpatialMeshBuilder.CreateCylinder(2.5f, 1.75f, 16))

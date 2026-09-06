@@ -5,30 +5,30 @@ namespace TREditor.Tests;
 public sealed class SceneServicesTests
 {
     [Fact]
-    public void FansOutLifecycleAndSceneEventsInRegistrationOrder()
+    public void FansOutLifecycleAndDocumentEventsInRegistrationOrder()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         var calls = new List<string>();
         var first = new RecordingSceneService("first", calls);
         var second = new RecordingSceneService("second", calls);
-        using var services = new SceneServices(scene, new PreviewState(), first, second);
+        using var services = new SceneServices(document, new PreviewState(), first, second);
 
-        Assert.Same(scene, first.Scene);
-        Assert.Same(scene, second.Scene);
-        Scene.MeshObject meshObject = scene.Add("Object", Transform3D.Identity, null!);
-        scene.SetTransform(
+        Assert.Same(document, first.Document);
+        Assert.Same(document, second.Document);
+        MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
+        document.SetTransform(
             meshObject.Id,
             new Transform3D(Basis.Identity, new Vector3(1, 2, 3))
         );
-        scene.MarkGeometryChanged(meshObject.Id);
+        document.MarkGeometryChanged(meshObject.Id);
         services.Flush();
-        scene.Remove(meshObject.Id);
+        document.Remove(meshObject.Id);
         services.Dispose();
 
         Assert.Equal(
             [
-                "first:set-scene",
-                "second:set-scene",
+                "first:set-document",
+                "second:set-document",
                 $"first:add:{meshObject.Id.Value}",
                 $"second:add:{meshObject.Id.Value}",
                 $"first:transform:{meshObject.Id.Value}",
@@ -47,19 +47,19 @@ public sealed class SceneServicesTests
     }
 
     [Fact]
-    public void DisposeUnsubscribesFromTheScene()
+    public void DisposeUnsubscribesFromTheDocument()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         var calls = new List<string>();
         var service = new RecordingSceneService("service", calls);
-        var services = new SceneServices(scene, new PreviewState(), service);
+        var services = new SceneServices(document, new PreviewState(), service);
         services.Dispose();
         calls.Clear();
 
-        Scene.MeshObject meshObject = scene.Add("Object", Transform3D.Identity, null!);
-        scene.SetTransform(meshObject.Id, Transform3D.Identity);
-        scene.MarkGeometryChanged(meshObject.Id);
-        scene.Remove(meshObject.Id);
+        MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
+        document.SetTransform(meshObject.Id, Transform3D.Identity);
+        document.MarkGeometryChanged(meshObject.Id);
+        document.Remove(meshObject.Id);
 
         Assert.Empty(calls);
     }
@@ -67,14 +67,14 @@ public sealed class SceneServicesTests
     [Fact]
     public void ConstructionReplaysExistingObjectsInRegistrationOrder()
     {
-        using var scene = new Scene();
-        Scene.MeshObject firstObject = scene.Add("First", Transform3D.Identity, null!);
-        Scene.MeshObject secondObject = scene.Add("Second", Transform3D.Identity, null!);
+        using var document = new Document();
+        MeshObject firstObject = document.Add("First", Transform3D.Identity, null!);
+        MeshObject secondObject = document.Add("Second", Transform3D.Identity, null!);
         var calls = new List<string>();
         var firstService = new RecordingSceneService("first", calls);
         var secondService = new RecordingSceneService("second", calls);
         using var services = new SceneServices(
-            scene,
+            document,
             new PreviewState(),
             firstService,
             secondService
@@ -82,8 +82,8 @@ public sealed class SceneServicesTests
 
         Assert.Equal(
             [
-                "first:set-scene",
-                "second:set-scene",
+                "first:set-document",
+                "second:set-document",
                 $"first:add:{firstObject.Id.Value}",
                 $"second:add:{firstObject.Id.Value}",
                 $"first:add:{secondObject.Id.Value}",
@@ -94,64 +94,64 @@ public sealed class SceneServicesTests
     }
 
     [Fact]
-    public void SetSceneUnsubscribesFromTheOldSceneAndReplaysTheNewScene()
+    public void SetDocumentUnsubscribesFromTheOldDocumentAndReplaysTheNewDocument()
     {
-        using var oldScene = new Scene();
-        using var newScene = new Scene();
-        Scene.MeshObject existingObject = newScene.Add("Existing", Transform3D.Identity, null!);
+        using var oldDocument = new Document();
+        using var newDocument = new Document();
+        MeshObject existingObject = newDocument.Add("Existing", Transform3D.Identity, null!);
         var calls = new List<string>();
         var service = new RecordingSceneService("service", calls);
-        using var services = new SceneServices(oldScene, new PreviewState(), service);
+        using var services = new SceneServices(oldDocument, new PreviewState(), service);
 
         calls.Clear();
-        services.SetScene(newScene);
-        oldScene.Add("Old", Transform3D.Identity, null!);
-        Scene.MeshObject addedObject = newScene.Add("New", Transform3D.Identity, null!);
+        services.SetDocument(newDocument);
+        oldDocument.Add("Old", Transform3D.Identity, null!);
+        MeshObject addedObject = newDocument.Add("New", Transform3D.Identity, null!);
 
         Assert.Equal(
             [
-                "service:set-scene",
+                "service:set-document",
                 $"service:add:{existingObject.Id.Value}",
                 $"service:add:{addedObject.Id.Value}",
             ],
             calls
         );
-        Assert.Same(newScene, service.Scene);
-        Assert.Same(newScene, services.CurrentScene);
+        Assert.Same(newDocument, service.Document);
+        Assert.Same(newDocument, services.CurrentDocument);
     }
 
     [Fact]
-    public void SetSceneFailureRaisesOneFatalErrorWithoutEscaping()
+    public void SetDocumentFailureRaisesOneFatalErrorWithoutEscaping()
     {
-        using var oldScene = new Scene();
-        using var newScene = new Scene();
+        using var oldDocument = new Document();
+        using var newDocument = new Document();
         var calls = new List<string>();
         var first = new RecordingSceneService("first", calls);
         var failing = new RecordingSceneService("failing", calls);
-        var services = new SceneServices(oldScene, new PreviewState(), first, failing);
+        var services = new SceneServices(oldDocument, new PreviewState(), first, failing);
         calls.Clear();
-        failing.ThrowOnSetScene = true;
+        failing.ThrowOnSetDocument = true;
         var fatalErrors = new List<(string Operation, Exception Exception)>();
         services.FatalError += (operation, exception) => fatalErrors.Add((operation, exception));
 
-        services.SetScene(newScene);
+        services.SetDocument(newDocument);
 
         Assert.True(services.IsFaulted);
         Assert.Single(fatalErrors);
-        Assert.Equal("replacing the scene", fatalErrors[0].Operation);
-        Assert.Equal("SetScene failed.", fatalErrors[0].Exception.Message);
+        Assert.Equal("replacing the document", fatalErrors[0].Operation);
+        Assert.Equal("SetDocument failed.", fatalErrors[0].Exception.Message);
         Assert.Equal(
             [
-                "first:set-scene",
-                "failing:set-scene",
+                "first:set-document",
+                "failing:set-document",
             ],
             calls
         );
 
         calls.Clear();
-        oldScene.Add("Old", Transform3D.Identity, null!);
-        newScene.Add("New", Transform3D.Identity, null!);
-        services.SetScene(oldScene);
+        oldDocument.Add("Old", Transform3D.Identity, null!);
+        newDocument.Add("New", Transform3D.Identity, null!);
+        services.SetDocument(oldDocument);
         services.Flush();
         Assert.Empty(calls);
         Assert.Single(fatalErrors);
@@ -161,16 +161,16 @@ public sealed class SceneServicesTests
     }
 
     [Fact]
-    public void SceneEventFailureDoesNotEscapeTheCommandOrPreventItEnteringHistory()
+    public void DocumentEventFailureDoesNotEscapeTheCommandOrPreventItEnteringHistory()
     {
-        using var scene = new Scene();
-        Scene.MeshObject target = scene.Add("Object", Transform3D.Identity, null!);
+        using var document = new Document();
+        MeshObject target = document.Add("Object", Transform3D.Identity, null!);
         var calls = new List<string>();
         var failing = new RecordingSceneService("failing", calls);
         var skipped = new RecordingSceneService("skipped", calls);
-        using var services = new SceneServices(scene, new PreviewState(), failing, skipped);
+        using var services = new SceneServices(document, new PreviewState(), failing, skipped);
         using var history = new CommandHistory();
-        history.SetScene(scene);
+        history.SetDocument(document);
         calls.Clear();
         failing.ThrowOnTransform = true;
         var fatalErrors = new List<(string Operation, Exception Exception)>();
@@ -180,16 +180,16 @@ public sealed class SceneServicesTests
         history.Submit(new TranslateCommand(target.Id, Transform3D.Identity, after));
 
         Assert.True(history.CanUndo);
-        Assert.True(scene.TryGetMeshTransform(target.Id, out Transform3D actual));
+        Assert.True(document.TryGetMeshTransform(target.Id, out Transform3D actual));
         Assert.Equal(after, actual);
         Assert.True(services.IsFaulted);
         Assert.Single(fatalErrors);
-        Assert.Equal("updating a scene transform", fatalErrors[0].Operation);
+        Assert.Equal("updating a document transform", fatalErrors[0].Operation);
         Assert.Equal("Transform failed.", fatalErrors[0].Exception.Message);
         Assert.Equal(["failing:transform:0"], calls);
 
         calls.Clear();
-        scene.MarkGeometryChanged(target.Id);
+        document.MarkGeometryChanged(target.Id);
         services.Flush();
         Assert.Empty(calls);
         Assert.Single(fatalErrors);
@@ -198,10 +198,10 @@ public sealed class SceneServicesTests
     [Fact]
     public void AThrowingFatalErrorSubscriberIsAllowedToPropagate()
     {
-        using var scene = new Scene();
-        Scene.MeshObject target = scene.Add("Object", Transform3D.Identity, null!);
+        using var document = new Document();
+        MeshObject target = document.Add("Object", Transform3D.Identity, null!);
         var service = new RecordingSceneService("failing", []);
-        using var services = new SceneServices(scene, new PreviewState(), service);
+        using var services = new SceneServices(document, new PreviewState(), service);
         service.ThrowOnTransform = true;
         int notifiedCount = 0;
         services.FatalError += (_, _) => throw new InvalidOperationException("UI failed.");
@@ -209,7 +209,7 @@ public sealed class SceneServicesTests
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () =>
-                scene.SetTransform(
+                document.SetTransform(
                     target.Id,
                     new Transform3D(Basis.Identity, new Vector3(1, 2, 3))
                 )
@@ -225,31 +225,31 @@ public sealed class SceneServicesTests
         List<string> calls
     ) : ISceneService
     {
-        public Scene? Scene { get; private set; }
+        public Document? Document { get; private set; }
 
-        public bool ThrowOnSetScene { get; set; }
+        public bool ThrowOnSetDocument { get; set; }
 
         public bool ThrowOnTransform { get; set; }
 
-        public void SetScene(Scene scene)
+        public void SetDocument(Document document)
         {
-            calls.Add($"{name}:set-scene");
-            if (ThrowOnSetScene)
-                throw new InvalidOperationException("SetScene failed.");
+            calls.Add($"{name}:set-document");
+            if (ThrowOnSetDocument)
+                throw new InvalidOperationException("SetDocument failed.");
 
-            Scene = scene;
+            Document = document;
         }
 
         public void Dispose()
         {
             calls.Add($"{name}:dispose");
-            Scene = null;
+            Document = null;
         }
 
-        public void OnObjectAdded(Scene.MeshObject meshObject) =>
+        public void OnObjectAdded(MeshObject meshObject) =>
             calls.Add($"{name}:add:{meshObject.Id.Value}");
 
-        public void OnObjectRemoved(Scene.MeshObject meshObject) =>
+        public void OnObjectRemoved(MeshObject meshObject) =>
             calls.Add($"{name}:remove:{meshObject.Id.Value}");
 
         public void OnObjectGeometryChanged(MeshObjectId id) =>

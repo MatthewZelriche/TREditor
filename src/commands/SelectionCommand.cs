@@ -2,8 +2,8 @@ using System;
 
 // A user-driven change to the transient selection, recorded in the shared history so it can be undone
 // alongside document edits. Selection is editor state rather than document state, so this command keeps
-// the application-owned SelectionState it was built with and ignores the scene it is handed. Storing the
-// exact before and after values keeps undo and redo deterministic regardless of intervening selections.
+// the application-owned SelectionState it was built with and ignores the document it is handed. Storing
+// the exact before and after values keeps undo and redo deterministic regardless of intervening selections.
 public sealed class SelectionCommand : IEditorCommand
 {
     private readonly SelectionState _selection;
@@ -30,12 +30,12 @@ public sealed class SelectionCommand : IEditorCommand
 
     public string DisplayName => _after is null ? "Clear Selection" : "Select Object";
 
-    public void Execute(Scene scene)
+    public void Execute(Document document)
     {
         _selection.Apply(_after);
     }
 
-    public void Undo(Scene scene)
+    public void Undo(Document document)
     {
         _selection.Apply(_before);
     }

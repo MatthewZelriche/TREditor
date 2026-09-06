@@ -4,18 +4,18 @@ using Godot;
 
 public sealed class SceneSerializer
 {
-    public static void Save(Scene scene, string path)
+    public static void Save(Document document, string path)
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(document);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var resource = new SceneResource();
-        foreach (Scene.MeshObject meshObject in scene.Objects.Values)
+        foreach (MeshObject meshObject in document.GetObjects())
         {
             if (meshObject.Mesh is null)
             {
                 throw new InvalidOperationException(
-                    $"Scene object {meshObject.Id} ('{meshObject.Name}') has no mesh to serialize."
+                    $"Document object {meshObject.Id} ('{meshObject.Name}') has no mesh to serialize."
                 );
             }
 
@@ -34,7 +34,7 @@ public sealed class SceneSerializer
             throw new IOException($"Could not save scene to '{path}': {error}.");
     }
 
-    public static Scene Load(string path)
+    public static Document Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
@@ -51,7 +51,7 @@ public sealed class SceneSerializer
             );
         }
 
-        var scene = new Scene();
+        var document = new Document();
         try
         {
             foreach (SceneObjectResource sceneObject in resource.Objects)
@@ -66,14 +66,14 @@ public sealed class SceneSerializer
                     );
                 }
 
-                scene.Add(sceneObject.Name, sceneObject.Transform, sceneObject.Mesh);
+                document.Add(sceneObject.Name, sceneObject.Transform, sceneObject.Mesh);
             }
 
-            return scene;
+            return document;
         }
         catch
         {
-            scene.Dispose();
+            document.Dispose();
             throw;
         }
     }

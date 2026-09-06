@@ -13,16 +13,16 @@ public sealed class PickingService : ISceneService
     private readonly Dictionary<ulong, MeshObjectId> _colliderIds = [];
     private readonly HashSet<MeshObjectId> _dirtyMeshes = [];
     private readonly PreviewState _previews;
-    private Scene _scene;
+    private Document _document;
     private bool _disposed;
 
-    public PickingService(Scene scene, Node3D mapRoot, PreviewState previews)
+    public PickingService(Document document, Node3D mapRoot, PreviewState previews)
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(mapRoot);
         ArgumentNullException.ThrowIfNull(previews);
 
-        _scene = scene;
+        _document = document;
         _previews = previews;
         _mapRoot = mapRoot;
         _pickingRoot = new Node3D { Name = "Picking" };
@@ -37,15 +37,15 @@ public sealed class PickingService : ISceneService
         }
     }
 
-    public void SetScene(Scene scene)
+    public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(scene);
-        if (ReferenceEquals(_scene, scene))
+        ArgumentNullException.ThrowIfNull(document);
+        if (ReferenceEquals(_document, document))
             return;
 
-        ClearSceneState();
-        _scene = scene;
+        ClearDocumentState();
+        _document = document;
     }
 
     public void Dispose()
@@ -54,11 +54,11 @@ public sealed class PickingService : ISceneService
             return;
 
         _disposed = true;
-        ClearSceneState();
+        ClearDocumentState();
         _pickingRoot.Free();
     }
 
-    public void OnObjectAdded(Scene.MeshObject meshObject)
+    public void OnObjectAdded(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);
@@ -81,7 +81,7 @@ public sealed class PickingService : ISceneService
         _dirtyMeshes.Add(meshObject.Id);
     }
 
-    public void OnObjectRemoved(Scene.MeshObject meshObject)
+    public void OnObjectRemoved(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);
@@ -97,7 +97,7 @@ public sealed class PickingService : ISceneService
     public void OnObjectGeometryChanged(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_scene.Objects.TryGetValue(id, out Scene.MeshObject? meshObject))
+        if (!_document.TryGetObject(id, out MeshObject meshObject))
             return;
 
         meshObject.Mesh.MarkDirty();
@@ -108,7 +108,7 @@ public sealed class PickingService : ISceneService
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (
-            _scene.Objects.TryGetValue(id, out Scene.MeshObject? meshObject)
+            _document.TryGetObject(id, out MeshObject meshObject)
             && _entries.TryGetValue(id, out PickingEntry? entry)
         )
         {
@@ -118,7 +118,7 @@ public sealed class PickingService : ISceneService
 
     // Colliders follow previews so a raycast hits an object where it is drawn, not where it was
     // last committed.
-    private Transform3D EffectiveTransform(Scene.MeshObject meshObject) =>
+    private Transform3D EffectiveTransform(MeshObject meshObject) =>
         _previews.TryGetTransform(meshObject.Id, out Transform3D preview)
             ? preview
             : meshObject.Transform;
@@ -129,7 +129,7 @@ public sealed class PickingService : ISceneService
         foreach (MeshObjectId id in _dirtyMeshes)
         {
             if (
-                _scene.Objects.TryGetValue(id, out Scene.MeshObject? meshObject)
+                _document.TryGetObject(id, out MeshObject meshObject)
                 && _entries.TryGetValue(id, out PickingEntry? entry)
             )
             {
@@ -173,7 +173,7 @@ public sealed class PickingService : ISceneService
         return _colliderIds.TryGetValue(colliderId, out MeshObjectId id) ? id : null;
     }
 
-    private void ClearSceneState()
+    private void ClearDocumentState()
     {
         foreach (PickingEntry entry in _entries.Values)
             entry.Dispose();
@@ -202,7 +202,7 @@ public sealed class PickingService : ISceneService
         private bool _disposed;
 
         public PickingEntry(
-            Scene.MeshObject meshObject,
+            MeshObject meshObject,
             Node3D pickingRoot,
             Transform3D transform
         )

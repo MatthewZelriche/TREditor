@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 // Bounded, in-memory undo/redo history. Commands that execute successfully are owned by the history and
 // are disposed when they are evicted, invalidated, cleared, or when the history itself is disposed.
-// The history also holds the scene commands act on and supplies it to them on every call.
+// The history also holds the document commands act on and supplies it to them on every call.
 public sealed class CommandHistory : IDisposable, IEditorCommandSink
 {
     public const int DefaultCapacity = 100;
@@ -12,7 +12,7 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
     private readonly List<IEditorCommand> _undo = [];
     private readonly List<IEditorCommand> _redo = [];
     private readonly int _capacity;
-    private Scene? _scene;
+    private Document? _document;
     private bool _operationInProgress;
     private bool _disposed;
 
@@ -40,13 +40,13 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
 
     public string? RedoDisplayName => CanRedo ? _redo[^1].DisplayName : null;
 
-    // Points the history at the scene later commands will act on. Callers are responsible for clearing
-    // history that belongs to a scene being replaced.
-    public void SetScene(Scene scene)
+    // Points the history at the document later commands will act on. Callers are responsible for clearing
+    // history that belongs to a document being replaced.
+    public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(scene);
-        _scene = scene;
+        ArgumentNullException.ThrowIfNull(document);
+        _document = document;
     }
 
     public void Submit(IEditorCommand command) => Execute(command);
@@ -58,11 +58,11 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(command);
 
-        Scene scene = RequireScene();
+        Document document = RequireDocument();
         BeginOperation();
         try
         {
-            command.Execute(scene);
+            command.Execute(document);
             DisposeAll(_redo);
             _undo.Add(command);
             EnforceCapacity();
@@ -88,7 +88,7 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
                 return false;
 
             IEditorCommand command = _undo[^1];
-            command.Undo(RequireScene());
+            command.Undo(RequireDocument());
             _undo.RemoveAt(_undo.Count - 1);
             _redo.Add(command);
         }
@@ -114,7 +114,7 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
                 return false;
 
             IEditorCommand command = _redo[^1];
-            command.Execute(RequireScene());
+            command.Execute(RequireDocument());
             _redo.RemoveAt(_redo.Count - 1);
             _undo.Add(command);
         }
@@ -155,13 +155,14 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
 
         _disposed = true;
         Changed = null;
-        _scene = null;
+        _document = null;
         DisposeAll(_undo);
         DisposeAll(_redo);
     }
 
-    private Scene RequireScene() =>
-        _scene ?? throw new InvalidOperationException("The command history has no scene to act on.");
+    private Document RequireDocument() =>
+        _document
+        ?? throw new InvalidOperationException("The command history has no document to act on.");
 
     private void BeginOperation()
     {

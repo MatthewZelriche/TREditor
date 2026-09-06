@@ -8,16 +8,16 @@ public sealed class RenderService : ISceneService
     private readonly Dictionary<MeshObjectId, RenderEntry> _entries = [];
     private readonly HashSet<MeshObjectId> _dirtyMeshes = [];
     private readonly PreviewState _previews;
-    private Scene _scene;
+    private Document _document;
     private bool _disposed;
 
-    public RenderService(Scene scene, Node3D mapRoot, PreviewState previews)
+    public RenderService(Document document, Node3D mapRoot, PreviewState previews)
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(mapRoot);
         ArgumentNullException.ThrowIfNull(previews);
 
-        _scene = scene;
+        _document = document;
         _previews = previews;
         _renderRoot = new Node3D { Name = "Render" };
         try
@@ -31,15 +31,15 @@ public sealed class RenderService : ISceneService
         }
     }
 
-    public void SetScene(Scene scene)
+    public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(scene);
-        if (ReferenceEquals(_scene, scene))
+        ArgumentNullException.ThrowIfNull(document);
+        if (ReferenceEquals(_document, document))
             return;
 
-        ClearSceneState();
-        _scene = scene;
+        ClearDocumentState();
+        _document = document;
     }
 
     public void Dispose()
@@ -48,11 +48,11 @@ public sealed class RenderService : ISceneService
             return;
 
         _disposed = true;
-        ClearSceneState();
+        ClearDocumentState();
         _renderRoot.Free();
     }
 
-    public void OnObjectAdded(Scene.MeshObject meshObject)
+    public void OnObjectAdded(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);
@@ -72,7 +72,7 @@ public sealed class RenderService : ISceneService
         _dirtyMeshes.Add(meshObject.Id);
     }
 
-    public void OnObjectRemoved(Scene.MeshObject meshObject)
+    public void OnObjectRemoved(MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(meshObject);
@@ -87,7 +87,7 @@ public sealed class RenderService : ISceneService
     public void OnObjectGeometryChanged(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_scene.Objects.TryGetValue(id, out Scene.MeshObject? meshObject))
+        if (!_document.TryGetObject(id, out MeshObject meshObject))
             return;
 
         meshObject.Mesh.MarkDirty();
@@ -98,7 +98,7 @@ public sealed class RenderService : ISceneService
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (
-            _scene.Objects.TryGetValue(id, out Scene.MeshObject? meshObject)
+            _document.TryGetObject(id, out MeshObject meshObject)
             && _entries.TryGetValue(id, out RenderEntry? entry)
         )
         {
@@ -108,7 +108,7 @@ public sealed class RenderService : ISceneService
 
     // An active preview wins over the committed transform, so a command that lands mid-drag
     // updates the document without disturbing what the tool is showing.
-    private Transform3D EffectiveTransform(Scene.MeshObject meshObject) =>
+    private Transform3D EffectiveTransform(MeshObject meshObject) =>
         _previews.TryGetTransform(meshObject.Id, out Transform3D preview)
             ? preview
             : meshObject.Transform;
@@ -119,7 +119,7 @@ public sealed class RenderService : ISceneService
         foreach (MeshObjectId id in _dirtyMeshes)
         {
             if (
-                _scene.Objects.TryGetValue(id, out Scene.MeshObject? meshObject)
+                _document.TryGetObject(id, out MeshObject meshObject)
                 && _entries.TryGetValue(id, out RenderEntry? entry)
             )
             {
@@ -131,7 +131,7 @@ public sealed class RenderService : ISceneService
         _dirtyMeshes.Clear();
     }
 
-    private void ClearSceneState()
+    private void ClearDocumentState()
     {
         foreach (RenderEntry entry in _entries.Values)
             entry.Dispose();
@@ -182,7 +182,7 @@ public sealed class RenderService : ISceneService
     {
         private bool _disposed;
 
-        public RenderEntry(Scene.MeshObject meshObject, Node3D renderRoot, Transform3D transform)
+        public RenderEntry(MeshObject meshObject, Node3D renderRoot, Transform3D transform)
         {
             ArrayMesh = new ArrayMesh();
             Instance = new MeshInstance3D

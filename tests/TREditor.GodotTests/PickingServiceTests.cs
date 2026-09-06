@@ -12,13 +12,13 @@ public class PickingServiceTests
 {
     [TestCase]
     [RequireGodotRuntime]
-    public async Task PickingServiceRaycastMapsCollidersAndTracksSceneChanges()
+    public async Task PickingServiceRaycastMapsCollidersAndTracksDocumentChanges()
     {
         var tree = (SceneTree)Engine.GetMainLoop();
         Node3D mapRoot = AutoFree(new Node3D());
         tree.Root.AddChild(mapRoot);
-        using var scene = new Scene();
-        Scene.MeshObject meshObject = scene.Add(
+        using var document = new Document();
+        MeshObject meshObject = document.Add(
             "Cube",
             Transform3D.Identity,
             new GDMesh(
@@ -29,8 +29,8 @@ public class PickingServiceTests
             )
         );
         var previews = new PreviewState();
-        var pickingService = new PickingService(scene, mapRoot, previews);
-        var services = new SceneServices(scene, previews, pickingService);
+        var pickingService = new PickingService(document, mapRoot, previews);
+        var services = new SceneServices(document, previews, pickingService);
 
         try
         {
@@ -45,7 +45,7 @@ public class PickingServiceTests
             AssertThat(pickingService.Raycast(originalRay)?.Value ?? -1)
                 .IsEqual(meshObject.Id.Value);
 
-            scene.SetTransform(
+            document.SetTransform(
                 meshObject.Id,
                 new Transform3D(Basis.Identity, new Vector3(4.0f, 0.0f, 0.0f))
             );
@@ -60,7 +60,7 @@ public class PickingServiceTests
             AssertThat(pickingService.Raycast(movedRay)?.Value ?? -1)
                 .IsEqual(meshObject.Id.Value);
 
-            scene.Remove(meshObject.Id);
+            document.Remove(meshObject.Id);
             await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
             AssertBool(pickingService.Raycast(movedRay) is null).IsTrue();
         }
@@ -79,8 +79,8 @@ public class PickingServiceTests
         var tree = (SceneTree)Engine.GetMainLoop();
         Node3D mapRoot = AutoFree(new Node3D());
         tree.Root.AddChild(mapRoot);
-        using var scene = new Scene();
-        Scene.MeshObject meshObject = scene.Add(
+        using var document = new Document();
+        MeshObject meshObject = document.Add(
             "Cube",
             Transform3D.Identity,
             new GDMesh(
@@ -91,8 +91,8 @@ public class PickingServiceTests
             )
         );
         var previews = new PreviewState();
-        var pickingService = new PickingService(scene, mapRoot, previews);
-        var services = new SceneServices(scene, previews, pickingService);
+        var pickingService = new PickingService(document, mapRoot, previews);
+        var services = new SceneServices(document, previews, pickingService);
 
         try
         {

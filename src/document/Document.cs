@@ -2,19 +2,17 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-public sealed class Scene : IDisposable, IEditorDocumentReader
+// Authoritative document for persisted data. Owns MeshObject records; transient state
+// such as selection, history, etc is stored elsewhere
+public sealed class Document : IDisposable, IEditorDocumentReader
 {
-    // Exists to enforce that only Scene class instances can access MeshObject.SetTransform
-    private static readonly object TransformGuard = new();
-
     readonly Dictionary<MeshObjectId, MeshObject> _objects = [];
     int _nextObjectId;
     bool _disposed;
 
-    internal IReadOnlyDictionary<MeshObjectId, MeshObject> Objects => _objects;
-
     public int ObjectCount => _objects.Count;
 
+    // Compatibility notifications: Commit 3 replaces these with one post-commit DocumentChangeSet.
     internal event Action<MeshObject>? ObjectAdded;
     internal event Action<MeshObject>? ObjectRemoved;
     internal event Action<MeshObjectId>? ObjectGeometryChanged;
@@ -41,6 +39,23 @@ public sealed class Scene : IDisposable, IEditorDocumentReader
         return ids;
     }
 
+    // Snapshot of current object records. Callers may retain entries; later replacements do not mutate them.
+    internal MeshObject[] GetObjects()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var objects = new MeshObject[_objects.Count];
+        _objects.Values.CopyTo(objects, 0);
+        return objects;
+    }
+
+    internal bool TryGetObject(MeshObjectId id, out MeshObject meshObject)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _objects.TryGetValue(id, out meshObject!);
+    }
+
+    // Compatibility insertion path: Commit 3 makes add atomic via candidate collection state and
+    // explicit mesh ownership transfer before publication.
     internal MeshObject Add(string name, Transform3D transform, GDMesh mesh)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -54,6 +69,8 @@ public sealed class Scene : IDisposable, IEditorDocumentReader
         return meshObject;
     }
 
+    // Compatibility removal path: Commit 3 changes ownership so removal retains mesh state for
+    // possible undo instead of disposing during the observable callback.
     internal bool Remove(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -72,17 +89,20 @@ public sealed class Scene : IDisposable, IEditorDocumentReader
         return true;
     }
 
+    // Compatibility transform path: Commit 2 removes this once callers use ReplaceObject.
     internal bool SetTransform(MeshObjectId id, Transform3D transform)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_objects.TryGetValue(id, out MeshObject? meshObject))
+        if (!_objects.TryGetValue(id, out MeshObject? current))
             return false;
 
-        meshObject.SetTransform(transform, TransformGuard);
+        _objects[id] = current with { Transform = transform };
         ObjectTransformChanged?.Invoke(id);
         return true;
     }
 
+    // Compatibility geometry notification: Commit 3 replaces this with an internal committed-change
+    // route so arbitrary callers cannot announce geometry changes that did not occur.
     internal bool MarkGeometryChanged(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -107,36 +127,5 @@ public sealed class Scene : IDisposable, IEditorDocumentReader
         ObjectRemoved = null;
         ObjectGeometryChanged = null;
         ObjectTransformChanged = null;
-    }
-
-    public sealed class MeshObject
-    {
-        internal MeshObject(MeshObjectId id, string name, Transform3D transform, GDMesh mesh)
-        {
-            Id = id;
-            Name = name;
-            Transform = transform;
-            Mesh = mesh;
-        }
-
-        internal void SetTransform(Transform3D transform, object guard)
-        {
-            if (!ReferenceEquals(guard, TransformGuard))
-            {
-                throw new InvalidOperationException(
-                    "Transform can only be changed through Scene.SetTransform."
-                );
-            }
-
-            Transform = transform;
-        }
-
-        public MeshObjectId Id { get; }
-
-        public string Name { get; }
-
-        public Transform3D Transform { get; private set; }
-
-        public GDMesh Mesh { get; }
     }
 }

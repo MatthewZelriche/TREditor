@@ -5,16 +5,16 @@ public sealed class SceneServices : IDisposable
 {
     private readonly IReadOnlyList<ISceneService> _services;
     private readonly PreviewState _previews;
-    private Scene _scene;
+    private Document _document;
     private Exception? _fatalException;
     private bool _disposed;
 
     // Preview state is named explicitly because it is a second source of transform notifications,
     // not just another subscriber. It is also driven as an ordinary service, first in the list, so
     // it discards previews before the services that render them react.
-    public SceneServices(Scene scene, PreviewState previews, params ISceneService[] services)
+    public SceneServices(Document document, PreviewState previews, params ISceneService[] services)
     {
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(previews);
         ArgumentNullException.ThrowIfNull(services);
 
@@ -29,7 +29,7 @@ public sealed class SceneServices : IDisposable
                 );
         }
 
-        _scene = scene;
+        _document = document;
         _previews = previews;
         _services = serviceCopy;
         _previews.TransformChanged += OnObjectTransformChanged;
@@ -37,10 +37,10 @@ public sealed class SceneServices : IDisposable
         try
         {
             foreach (ISceneService service in _services)
-                service.SetScene(scene);
+                service.SetDocument(document);
 
-            Subscribe(scene);
-            ReplayObjects(scene, _services.Count);
+            Subscribe(document);
+            ReplayObjects(document, _services.Count);
         }
         catch (Exception initializationException)
         {
@@ -49,7 +49,7 @@ public sealed class SceneServices : IDisposable
         }
     }
 
-    public Scene CurrentScene => _scene;
+    public Document CurrentDocument => _document;
 
     // A service callback can fail after the document mutation that triggered it has already
     // completed. Such a failure must not escape back through the document and make the command
@@ -59,34 +59,34 @@ public sealed class SceneServices : IDisposable
 
     public bool IsFaulted => _fatalException is not null;
 
-    public void SetScene(Scene scene)
+    public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(scene);
+        ArgumentNullException.ThrowIfNull(document);
         if (IsFaulted)
             return;
 
-        if (ReferenceEquals(_scene, scene))
+        if (ReferenceEquals(_document, document))
             return;
 
-        // Once transition begins, the new scene is the authoritative document even if one of its
-        // derived services cannot follow it. A failure is fatal for the application, but it does
-        // not escape this boundary or roll the document transition back.
-        Unsubscribe(_scene);
-        _scene = scene;
+        // Once transition begins, the new document is authoritative even if one of its derived
+        // services cannot follow it. A failure is fatal for the application, but it does not escape
+        // this boundary or roll the document transition back.
+        Unsubscribe(_document);
+        _document = document;
         if (
-            !RunServiceOperation("replacing the scene", () =>
+            !RunServiceOperation("replacing the document", () =>
             {
                 foreach (ISceneService service in _services)
-                    service.SetScene(scene);
+                    service.SetDocument(document);
             })
         )
         {
             return;
         }
 
-        Subscribe(scene);
-        RunServiceOperation("replaying the scene", () => ReplayObjects(scene, _services.Count));
+        Subscribe(document);
+        RunServiceOperation("replaying the document", () => ReplayObjects(document, _services.Count));
     }
 
     public void Flush()
@@ -108,7 +108,7 @@ public sealed class SceneServices : IDisposable
         _disposed = true;
         FatalError = null;
         _previews.TransformChanged -= OnObjectTransformChanged;
-        Unsubscribe(_scene);
+        Unsubscribe(_document);
 
         List<Exception>? disposalExceptions = null;
         foreach (ISceneService service in _services)
@@ -133,18 +133,18 @@ public sealed class SceneServices : IDisposable
         }
     }
 
-    private void OnObjectAdded(Scene.MeshObject meshObject)
+    private void OnObjectAdded(MeshObject meshObject)
     {
-        RunServiceOperation("adding a scene object", () =>
+        RunServiceOperation("adding a document object", () =>
         {
             foreach (ISceneService service in _services)
                 service.OnObjectAdded(meshObject);
         });
     }
 
-    private void OnObjectRemoved(Scene.MeshObject meshObject)
+    private void OnObjectRemoved(MeshObject meshObject)
     {
-        RunServiceOperation("removing a scene object", () =>
+        RunServiceOperation("removing a document object", () =>
         {
             foreach (ISceneService service in _services)
                 service.OnObjectRemoved(meshObject);
@@ -153,7 +153,7 @@ public sealed class SceneServices : IDisposable
 
     private void OnObjectGeometryChanged(MeshObjectId id)
     {
-        RunServiceOperation("updating scene geometry", () =>
+        RunServiceOperation("updating document geometry", () =>
         {
             foreach (ISceneService service in _services)
                 service.OnObjectGeometryChanged(id);
@@ -162,7 +162,7 @@ public sealed class SceneServices : IDisposable
 
     private void OnObjectTransformChanged(MeshObjectId id)
     {
-        RunServiceOperation("updating a scene transform", () =>
+        RunServiceOperation("updating a document transform", () =>
         {
             foreach (ISceneService service in _services)
                 service.OnObjectTransformChanged(id);
@@ -187,29 +187,29 @@ public sealed class SceneServices : IDisposable
         }
     }
 
-    private void ReplayObjects(Scene scene, int serviceCount)
+    private void ReplayObjects(Document document, int serviceCount)
     {
-        foreach (Scene.MeshObject meshObject in scene.Objects.Values)
+        foreach (MeshObject meshObject in document.GetObjects())
         {
             for (int index = 0; index < serviceCount; index++)
                 _services[index].OnObjectAdded(meshObject);
         }
     }
 
-    private void Subscribe(Scene scene)
+    private void Subscribe(Document document)
     {
-        scene.ObjectAdded += OnObjectAdded;
-        scene.ObjectRemoved += OnObjectRemoved;
-        scene.ObjectGeometryChanged += OnObjectGeometryChanged;
-        scene.ObjectTransformChanged += OnObjectTransformChanged;
+        document.ObjectAdded += OnObjectAdded;
+        document.ObjectRemoved += OnObjectRemoved;
+        document.ObjectGeometryChanged += OnObjectGeometryChanged;
+        document.ObjectTransformChanged += OnObjectTransformChanged;
     }
 
-    private void Unsubscribe(Scene scene)
+    private void Unsubscribe(Document document)
     {
-        scene.ObjectAdded -= OnObjectAdded;
-        scene.ObjectRemoved -= OnObjectRemoved;
-        scene.ObjectGeometryChanged -= OnObjectGeometryChanged;
-        scene.ObjectTransformChanged -= OnObjectTransformChanged;
+        document.ObjectAdded -= OnObjectAdded;
+        document.ObjectRemoved -= OnObjectRemoved;
+        document.ObjectGeometryChanged -= OnObjectGeometryChanged;
+        document.ObjectTransformChanged -= OnObjectTransformChanged;
     }
 
     private void DisposeAfterFailure(Exception originalException)

@@ -114,17 +114,17 @@ public sealed class PreviewStateTests
     }
 
     [Fact]
-    public void SceneReplacementDiscardsPreviewsWithoutAnnouncingThem()
+    public void DocumentReplacementDiscardsPreviewsWithoutAnnouncingThem()
     {
-        using var oldScene = new Scene();
-        using var newScene = new Scene();
+        using var oldDocument = new Document();
+        using var newDocument = new Document();
         var previews = new PreviewState();
         var id = new MeshObjectId(1);
-        previews.SetScene(oldScene);
+        previews.SetDocument(oldDocument);
         previews.SetTransform(id, FirstPreview);
         List<MeshObjectId> changed = Record(previews);
 
-        previews.SetScene(newScene);
+        previews.SetDocument(newDocument);
 
         Assert.False(previews.TryGetTransform(id, out _));
         Assert.Empty(changed);
@@ -133,10 +133,10 @@ public sealed class PreviewStateTests
     [Fact]
     public void ObjectRemovalDiscardsThatObjectsPreviewWithoutAnnouncingIt()
     {
-        using var scene = new Scene();
+        using var document = new Document();
         var previews = new PreviewState();
-        Scene.MeshObject removed = scene.Add("Removed", Transform3D.Identity, null!);
-        Scene.MeshObject kept = scene.Add("Kept", Transform3D.Identity, null!);
+        MeshObject removed = document.Add("Removed", Transform3D.Identity, null!);
+        MeshObject kept = document.Add("Kept", Transform3D.Identity, null!);
         previews.SetTransform(removed.Id, FirstPreview);
         previews.SetTransform(kept.Id, SecondPreview);
         List<MeshObjectId> changed = Record(previews);
