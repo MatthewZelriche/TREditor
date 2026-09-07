@@ -12,7 +12,9 @@ public class DocumentTests
 
         MeshObject first = document.Add("First", Transform3D.Identity, null!);
         MeshObject second = document.Add("Second", Transform3D.Identity, null!);
-        Assert.True(document.Remove(first.Id));
+        MeshObject? removed = document.Remove(first.Id);
+        Assert.NotNull(removed);
+        removed.Mesh?.Dispose();
         MeshObject third = document.Add("Third", Transform3D.Identity, null!);
 
         Assert.Equal(new MeshObjectId(0), first.Id);
@@ -26,58 +28,46 @@ public class DocumentTests
     }
 
     [Fact]
-    public void MutationsRaiseOneEventWithTheExpectedPayload()
+    public void MutationsRaiseOneChangedEventWithTheExpectedPayload()
     {
         using var document = new Document();
-        int addedCount = 0;
-        int removedCount = 0;
-        int geometryChangedCount = 0;
-        int transformChangedCount = 0;
-        MeshObject? added = null;
-        MeshObject? removed = null;
-        MeshObjectId geometryChanged = default;
-        MeshObjectId transformChanged = default;
-
-        document.ObjectAdded += meshObject =>
-        {
-            addedCount++;
-            added = meshObject;
-        };
-        document.ObjectRemoved += meshObject =>
-        {
-            removedCount++;
-            removed = meshObject;
-        };
-        document.ObjectGeometryChanged += id =>
-        {
-            geometryChangedCount++;
-            geometryChanged = id;
-        };
-        document.ObjectTransformChanged += id =>
-        {
-            transformChangedCount++;
-            transformChanged = id;
-        };
+        var changeSets = new List<DocumentChangeSet>();
+        document.Changed += changeSets.Add;
 
         MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
         var transform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3));
         MeshObject replacement = meshObject with { Transform = transform };
         Assert.True(document.ReplaceObject(meshObject, replacement));
-        Assert.True(document.MarkGeometryChanged(meshObject.Id));
-        Assert.True(document.Remove(meshObject.Id));
-
-        Assert.Equal(1, addedCount);
-        Assert.Same(meshObject, added);
-        Assert.Equal(1, transformChangedCount);
-        Assert.Equal(meshObject.Id, transformChanged);
-        Assert.Equal(Transform3D.Identity, meshObject.Transform);
-        Assert.Equal(1, geometryChangedCount);
-        Assert.Equal(meshObject.Id, geometryChanged);
-        Assert.Equal(1, removedCount);
+        Assert.True(document.CommitGeometryChange(meshObject.Id));
+        MeshObject? removed = document.Remove(meshObject.Id);
         Assert.NotNull(removed);
-        Assert.Equal(meshObject.Id, removed!.Id);
+
+        Assert.Equal(4, changeSets.Count);
+        Assert.Equal(1, changeSets[0].MutationSerial);
+        Assert.Equal(
+            new DocumentObjectChange(meshObject.Id, DocumentChangeKind.Added),
+            changeSets[0].Change
+        );
+        Assert.Equal(2, changeSets[1].MutationSerial);
+        Assert.Equal(
+            new DocumentObjectChange(meshObject.Id, DocumentChangeKind.TransformChanged),
+            changeSets[1].Change
+        );
+        Assert.Equal(Transform3D.Identity, meshObject.Transform);
+        Assert.Equal(3, changeSets[2].MutationSerial);
+        Assert.Equal(
+            new DocumentObjectChange(meshObject.Id, DocumentChangeKind.GeometryChanged),
+            changeSets[2].Change
+        );
+        Assert.Equal(4, changeSets[3].MutationSerial);
+        Assert.Equal(
+            new DocumentObjectChange(meshObject.Id, DocumentChangeKind.Removed),
+            changeSets[3].Change
+        );
+        Assert.Equal(meshObject.Id, removed.Id);
         Assert.Equal(transform, removed.Transform);
         Assert.NotSame(meshObject, removed);
+        Assert.Equal(4, document.MutationSerial);
     }
 
     [Fact]
@@ -85,10 +75,9 @@ public class DocumentTests
     {
         using var document = new Document();
         MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
-        int geometryChangedCount = 0;
-        int transformChangedCount = 0;
-        document.ObjectGeometryChanged += _ => geometryChangedCount++;
-        document.ObjectTransformChanged += _ => transformChangedCount++;
+        var kinds = new List<DocumentChangeKind>();
+        document.Changed += changeSet => kinds.Add(changeSet.Change.Kind);
+        kinds.Clear();
 
         Assert.True(
             document.ReplaceObject(
@@ -97,8 +86,7 @@ public class DocumentTests
             )
         );
 
-        Assert.Equal(0, geometryChangedCount);
-        Assert.Equal(1, transformChangedCount);
+        Assert.Equal([DocumentChangeKind.TransformChanged], kinds);
     }
 
     [Fact]
@@ -110,18 +98,18 @@ public class DocumentTests
         {
             Transform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3)),
         };
-        int transformChangedCount = 0;
-        MeshObjectId transformChanged = default;
-        document.ObjectTransformChanged += id =>
-        {
-            transformChangedCount++;
-            transformChanged = id;
-        };
+        var changeSets = new List<DocumentChangeSet>();
+        document.Changed += changeSets.Add;
+        long serialBefore = document.MutationSerial;
 
         Assert.True(document.ReplaceObject(expected, replacement));
 
-        Assert.Equal(1, transformChangedCount);
-        Assert.Equal(expected.Id, transformChanged);
+        Assert.Single(changeSets);
+        Assert.Equal(serialBefore + 1, changeSets[0].MutationSerial);
+        Assert.Equal(
+            new DocumentObjectChange(expected.Id, DocumentChangeKind.TransformChanged),
+            changeSets[0].Change
+        );
         Assert.True(document.TryGetObject(expected.Id, out MeshObject current));
         Assert.Same(replacement, current);
     }
@@ -140,12 +128,14 @@ public class DocumentTests
         {
             Transform = new Transform3D(Basis.Identity, new Vector3(9, 9, 9)),
         };
-        int transformChangedCount = 0;
-        document.ObjectTransformChanged += _ => transformChangedCount++;
+        int changedCount = 0;
+        document.Changed += _ => changedCount++;
+        long serialBefore = document.MutationSerial;
 
         Assert.False(document.ReplaceObject(original, staleAttempt));
 
-        Assert.Equal(0, transformChangedCount);
+        Assert.Equal(0, changedCount);
+        Assert.Equal(serialBefore, document.MutationSerial);
         Assert.True(document.TryGetObject(original.Id, out MeshObject current));
         Assert.Same(installed, current);
     }
@@ -160,8 +150,9 @@ public class DocumentTests
             Transform3D.Identity,
             null!
         );
-        int transformChangedCount = 0;
-        document.ObjectTransformChanged += _ => transformChangedCount++;
+        int changedCount = 0;
+        document.Changed += _ => changedCount++;
+        long serialBefore = document.MutationSerial;
 
         Assert.False(
             document.ReplaceObject(
@@ -170,7 +161,8 @@ public class DocumentTests
             )
         );
 
-        Assert.Equal(0, transformChangedCount);
+        Assert.Equal(0, changedCount);
+        Assert.Equal(serialBefore, document.MutationSerial);
         Assert.Equal(0, document.ObjectCount);
     }
 
@@ -185,12 +177,14 @@ public class DocumentTests
             expected.Transform,
             expected.Mesh
         );
-        int transformChangedCount = 0;
-        document.ObjectTransformChanged += _ => transformChangedCount++;
+        int changedCount = 0;
+        document.Changed += _ => changedCount++;
+        long serialBefore = document.MutationSerial;
 
         Assert.False(document.ReplaceObject(expected, otherId));
 
-        Assert.Equal(0, transformChangedCount);
+        Assert.Equal(0, changedCount);
+        Assert.Equal(serialBefore, document.MutationSerial);
         Assert.True(document.TryGetObject(expected.Id, out MeshObject current));
         Assert.Same(expected, current);
     }
@@ -208,12 +202,14 @@ public class DocumentTests
                 typeof(GDMesh)
             )
         );
-        int transformChangedCount = 0;
-        document.ObjectTransformChanged += _ => transformChangedCount++;
+        int changedCount = 0;
+        document.Changed += _ => changedCount++;
+        long serialBefore = document.MutationSerial;
 
         Assert.False(document.ReplaceObject(expected, differentMesh));
 
-        Assert.Equal(0, transformChangedCount);
+        Assert.Equal(0, changedCount);
+        Assert.Equal(serialBefore, document.MutationSerial);
         Assert.True(document.TryGetObject(expected.Id, out MeshObject current));
         Assert.Same(expected, current);
     }
@@ -222,13 +218,15 @@ public class DocumentTests
     public void RemoveUnknownIdIsNoOp()
     {
         using var document = new Document();
-        int removedCount = 0;
-        document.ObjectRemoved += _ => removedCount++;
+        int changedCount = 0;
+        document.Changed += _ => changedCount++;
+        long serialBefore = document.MutationSerial;
 
-        bool removed = document.Remove(new MeshObjectId(42));
+        MeshObject? removed = document.Remove(new MeshObjectId(42));
 
-        Assert.False(removed);
-        Assert.Equal(0, removedCount);
+        Assert.Null(removed);
+        Assert.Equal(0, changedCount);
+        Assert.Equal(serialBefore, document.MutationSerial);
         Assert.Equal(0, document.ObjectCount);
         Assert.Empty(document.GetObjects());
     }

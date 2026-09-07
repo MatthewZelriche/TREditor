@@ -32,7 +32,7 @@ public sealed class SceneServices : IDisposable
         _document = document;
         _previews = previews;
         _services = serviceCopy;
-        _previews.TransformChanged += OnObjectTransformChanged;
+        _previews.TransformChanged += OnPreviewTransformChanged;
 
         try
         {
@@ -107,7 +107,7 @@ public sealed class SceneServices : IDisposable
 
         _disposed = true;
         FatalError = null;
-        _previews.TransformChanged -= OnObjectTransformChanged;
+        _previews.TransformChanged -= OnPreviewTransformChanged;
         Unsubscribe(_document);
 
         List<Exception>? disposalExceptions = null;
@@ -133,39 +133,21 @@ public sealed class SceneServices : IDisposable
         }
     }
 
-    private void OnObjectAdded(MeshObject meshObject)
+    private void OnDocumentChanged(DocumentChangeSet changeSet)
     {
-        RunServiceOperation("adding a document object", () =>
+        RunServiceOperation("applying a document change", () =>
         {
             foreach (ISceneService service in _services)
-                service.OnObjectAdded(meshObject);
+                service.OnDocumentChanged(changeSet);
         });
     }
 
-    private void OnObjectRemoved(MeshObject meshObject)
+    private void OnPreviewTransformChanged(MeshObjectId id)
     {
-        RunServiceOperation("removing a document object", () =>
+        RunServiceOperation("updating a preview transform", () =>
         {
             foreach (ISceneService service in _services)
-                service.OnObjectRemoved(meshObject);
-        });
-    }
-
-    private void OnObjectGeometryChanged(MeshObjectId id)
-    {
-        RunServiceOperation("updating document geometry", () =>
-        {
-            foreach (ISceneService service in _services)
-                service.OnObjectGeometryChanged(id);
-        });
-    }
-
-    private void OnObjectTransformChanged(MeshObjectId id)
-    {
-        RunServiceOperation("updating a document transform", () =>
-        {
-            foreach (ISceneService service in _services)
-                service.OnObjectTransformChanged(id);
+                service.OnPreviewTransformChanged(id);
         });
     }
 
@@ -189,28 +171,29 @@ public sealed class SceneServices : IDisposable
 
     private void ReplayObjects(Document document, int serviceCount)
     {
-        foreach (MeshObject meshObject in document.GetObjects())
+        MeshObject[] objects = document.GetObjects();
+        if (objects.Length == 0)
+            return;
+
+        // Replay uses serial 0: it is derived reconstruction, not a new document commit.
+        // Notify each service of every existing object so registration order is unchanged.
+        for (int serviceIndex = 0; serviceIndex < serviceCount; serviceIndex++)
         {
-            for (int index = 0; index < serviceCount; index++)
-                _services[index].OnObjectAdded(meshObject);
+            for (int objectIndex = 0; objectIndex < objects.Length; objectIndex++)
+            {
+                _services[serviceIndex].OnDocumentChanged(
+                    new DocumentChangeSet(
+                        0,
+                        new DocumentObjectChange(objects[objectIndex].Id, DocumentChangeKind.Added)
+                    )
+                );
+            }
         }
     }
 
-    private void Subscribe(Document document)
-    {
-        document.ObjectAdded += OnObjectAdded;
-        document.ObjectRemoved += OnObjectRemoved;
-        document.ObjectGeometryChanged += OnObjectGeometryChanged;
-        document.ObjectTransformChanged += OnObjectTransformChanged;
-    }
+    private void Subscribe(Document document) => document.Changed += OnDocumentChanged;
 
-    private void Unsubscribe(Document document)
-    {
-        document.ObjectAdded -= OnObjectAdded;
-        document.ObjectRemoved -= OnObjectRemoved;
-        document.ObjectGeometryChanged -= OnObjectGeometryChanged;
-        document.ObjectTransformChanged -= OnObjectTransformChanged;
-    }
+    private void Unsubscribe(Document document) => document.Changed -= OnDocumentChanged;
 
     private void DisposeAfterFailure(Exception originalException)
     {

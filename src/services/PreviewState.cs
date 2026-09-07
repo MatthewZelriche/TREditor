@@ -63,23 +63,16 @@ public sealed class PreviewState : ISceneService
         _transforms.Clear();
     }
 
-    public void OnObjectAdded(MeshObject meshObject)
+    public void OnDocumentChanged(DocumentChangeSet changeSet)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(meshObject);
+        ArgumentNullException.ThrowIfNull(changeSet);
+
+        if (changeSet.Change.Kind == DocumentChangeKind.Removed)
+            _transforms.Remove(changeSet.Change.ObjectId);
     }
 
-    public void OnObjectRemoved(MeshObject meshObject)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(meshObject);
-        _transforms.Remove(meshObject.Id);
-    }
-
-    public void OnObjectGeometryChanged(MeshObjectId id) =>
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-    public void OnObjectTransformChanged(MeshObjectId id) =>
+    public void OnPreviewTransformChanged(MeshObjectId id) =>
         ObjectDisposedException.ThrowIf(_disposed, this);
 
     public void Flush() => ObjectDisposedException.ThrowIf(_disposed, this);

@@ -65,7 +65,7 @@ public class PickingServiceTests
             AssertThat(pickingService.Raycast(movedRay)?.Value ?? -1)
                 .IsEqual(meshObject.Id.Value);
 
-            document.Remove(meshObject.Id);
+            document.Remove(meshObject.Id)?.Mesh?.Dispose();
             await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
             AssertBool(pickingService.Raycast(movedRay) is null).IsTrue();
         }

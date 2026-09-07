@@ -142,7 +142,9 @@ public sealed class TranslateCommandTests
         MeshObject after = before with { Transform = AfterTransform };
         history.Submit(new TranslateCommand(before, after));
 
-        Assert.True(document.Remove(before.Id));
+        MeshObject? removed = document.Remove(before.Id);
+        Assert.NotNull(removed);
+        removed.Mesh?.Dispose();
 
         Assert.Throws<InvalidOperationException>(() => history.Undo());
     }

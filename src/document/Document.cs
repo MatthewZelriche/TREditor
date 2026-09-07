@@ -3,20 +3,21 @@ using System.Collections.Generic;
 using Godot;
 
 // Authoritative document for persisted data. Owns MeshObject records; transient state
-// such as selection, history, etc is stored elsewhere
+// such as selection, history, etc is stored elsewhere.
 public sealed class Document : IDisposable, IEditorDocumentReader
 {
     readonly Dictionary<MeshObjectId, MeshObject> _objects = [];
     int _nextObjectId;
+    long _mutationSerial;
     bool _disposed;
 
     public int ObjectCount => _objects.Count;
 
-    // Compatibility notifications: Commit 3 replaces these with one post-commit DocumentChangeSet.
-    internal event Action<MeshObject>? ObjectAdded;
-    internal event Action<MeshObject>? ObjectRemoved;
-    internal event Action<MeshObjectId>? ObjectGeometryChanged;
-    internal event Action<MeshObjectId>? ObjectTransformChanged;
+    // Session-local commit counter. Advances exactly once after each successful atomic operation.
+    public long MutationSerial => _mutationSerial;
+
+    // Raised once after authoritative state is committed. Payloads contain IDs and kinds only.
+    internal event Action<DocumentChangeSet>? Changed;
 
     public bool TryGetMeshTransform(MeshObjectId id, out Transform3D transform)
     {
@@ -54,73 +55,63 @@ public sealed class Document : IDisposable, IEditorDocumentReader
         return _objects.TryGetValue(id, out meshObject!);
     }
 
-    // Compatibility insertion path: Commit 3 makes add atomic via candidate collection state and
-    // explicit mesh ownership transfer before publication.
+    // After publication the document owns the mesh; on failure before insertion the caller retains it.
     internal MeshObject Add(string name, Transform3D transform, GDMesh mesh)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(name);
 
         var id = new MeshObjectId(_nextObjectId);
-        _nextObjectId = checked(_nextObjectId + 1);
         var meshObject = new MeshObject(id, name, transform, mesh);
-        _objects.Add(meshObject.Id, meshObject);
-        ObjectAdded?.Invoke(meshObject);
+        _objects.Add(id, meshObject);
+        _nextObjectId = checked(_nextObjectId + 1);
+        Publish(new DocumentObjectChange(id, DocumentChangeKind.Added));
         return meshObject;
     }
 
-    // Compatibility removal path: Commit 3 changes ownership so removal retains mesh state for
-    // possible undo instead of disposing during the observable callback.
-    internal bool Remove(MeshObjectId id)
+    // Removes the object from the document without disposing its mesh. The returned record's mesh is
+    // owned by the caller (e.g. an undo command) until they dispose it or re-insert it.
+    internal MeshObject? Remove(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_objects.Remove(id, out MeshObject? meshObject))
-            return false;
+            return null;
 
-        try
-        {
-            ObjectRemoved?.Invoke(meshObject);
-        }
-        finally
-        {
-            meshObject.Mesh?.Dispose();
-        }
-
-        return true;
+        Publish(new DocumentObjectChange(id, DocumentChangeKind.Removed));
+        return meshObject;
     }
 
-    // Compare-and-replace an object record. Every rejection path returns false without mutating or
-    // notifying; only a fully validated replacement is installed.
+    // Compare-and-replace a single object record in place. Validation completes before mutation, so
+    // a rejected call leaves the live collection untouched without allocating a candidate map.
     internal bool ReplaceObject(MeshObject expected, MeshObject replacement)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (
-            expected is null
-            || replacement is null
-            || replacement.Name is null
-            || expected.Id != replacement.Id
-            || !ReferenceEquals(expected.Mesh, replacement.Mesh)
-            || !_objects.TryGetValue(expected.Id, out MeshObject? current)
-            || !ReferenceEquals(current, expected)
-        )
-        {
+        if (!IsValidReplacement(expected, replacement))
             return false;
-        }
 
         _objects[expected.Id] = replacement;
-        ObjectTransformChanged?.Invoke(expected.Id);
+        Publish(new DocumentObjectChange(expected.Id, DocumentChangeKind.TransformChanged));
         return true;
     }
 
-    // Compatibility geometry notification: Commit 3 replaces this with an internal committed-change
-    // route so arbitrary callers cannot announce geometry changes that did not occur.
-    internal bool MarkGeometryChanged(MeshObjectId id)
+    private bool IsValidReplacement(MeshObject expected, MeshObject replacement) =>
+        expected is not null
+        && replacement is not null
+        && replacement.Name is not null
+        && expected.Id == replacement.Id
+        && ReferenceEquals(expected.Mesh, replacement.Mesh)
+        && _objects.TryGetValue(expected.Id, out MeshObject? current)
+        && ReferenceEquals(current, expected);
+
+    // Committed geometry announcement after topology has already changed through the document.
+    // Not a free-form "pretend geometry changed" hook for arbitrary callers.
+    internal bool CommitGeometryChange(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_objects.ContainsKey(id))
             return false;
 
-        ObjectGeometryChanged?.Invoke(id);
+        Publish(new DocumentObjectChange(id, DocumentChangeKind.GeometryChanged));
         return true;
     }
 
@@ -134,9 +125,13 @@ public sealed class Document : IDisposable, IEditorDocumentReader
             meshObject.Mesh?.Dispose();
 
         _objects.Clear();
-        ObjectAdded = null;
-        ObjectRemoved = null;
-        ObjectGeometryChanged = null;
-        ObjectTransformChanged = null;
+        Changed = null;
+    }
+
+    private void Publish(DocumentObjectChange change)
+    {
+        long serial = checked(_mutationSerial + 1);
+        _mutationSerial = serial;
+        Changed?.Invoke(new DocumentChangeSet(serial, change));
     }
 }

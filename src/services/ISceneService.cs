@@ -15,13 +15,12 @@ public interface ISceneService : IDisposable
     /// </remarks>
     void SetDocument(Document document);
 
-    void OnObjectAdded(MeshObject meshObject);
+    // Handles a committed document change. Query the document by ID for current records; removed
+    // objects are already gone from the document when this runs.
+    void OnDocumentChanged(DocumentChangeSet changeSet);
 
-    void OnObjectRemoved(MeshObject meshObject);
-
-    void OnObjectGeometryChanged(MeshObjectId id);
-
-    void OnObjectTransformChanged(MeshObjectId id);
+    // Preview-only transform notification. Committed transforms arrive through OnDocumentChanged.
+    void OnPreviewTransformChanged(MeshObjectId id);
 
     void Flush();
 }

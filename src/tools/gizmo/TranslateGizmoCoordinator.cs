@@ -89,9 +89,9 @@ public sealed class TranslateGizmoCoordinator : ISceneService
             host.Attach(_proxy);
     }
 
-    // SceneServices owns document and preview lifecycle. Both committed document changes and preview
-    // changes arrive through OnObjectTransformChanged, so the coordinator needs no parallel event
-    // subscriptions in Application.
+    // SceneServices owns document and preview lifecycle. Committed transforms arrive through
+    // OnDocumentChanged; preview transforms arrive through OnPreviewTransformChanged. The
+    // coordinator needs no parallel event subscriptions in Application.
     public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -101,24 +101,26 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         _document = document;
     }
 
-    public void OnObjectAdded(MeshObject meshObject)
+    public void OnDocumentChanged(DocumentChangeSet changeSet)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(meshObject);
+        ArgumentNullException.ThrowIfNull(changeSet);
+
+        DocumentObjectChange change = changeSet.Change;
+        switch (change.Kind)
+        {
+            case DocumentChangeKind.Removed:
+                if (_selection.Selected == change.ObjectId)
+                    Hide();
+                break;
+            case DocumentChangeKind.TransformChanged:
+                if (_selection.Selected == change.ObjectId)
+                    Synchronize();
+                break;
+        }
     }
 
-    public void OnObjectRemoved(MeshObject meshObject)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(meshObject);
-        if (_selection.Selected == meshObject.Id)
-            Hide();
-    }
-
-    public void OnObjectGeometryChanged(MeshObjectId id) =>
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-    public void OnObjectTransformChanged(MeshObjectId id)
+    public void OnPreviewTransformChanged(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_selection.Selected == id)

@@ -141,7 +141,12 @@ public sealed class PreviewStateTests
         previews.SetTransform(kept.Id, SecondPreview);
         List<MeshObjectId> changed = Record(previews);
 
-        previews.OnObjectRemoved(removed);
+        previews.OnDocumentChanged(
+            new DocumentChangeSet(
+                1,
+                new DocumentObjectChange(removed.Id, DocumentChangeKind.Removed)
+            )
+        );
 
         Assert.False(previews.TryGetTransform(removed.Id, out _));
         Assert.True(previews.TryGetTransform(kept.Id, out _));

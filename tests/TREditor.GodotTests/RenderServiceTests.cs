@@ -148,8 +148,8 @@ public class RenderServiceTests
             AssertThat(arrayMesh.GetSurfaceCount()).IsEqual(1);
             AssertThat(mesh.Surface.ElementIndices.Count).IsEqual(36);
 
-            document.MarkGeometryChanged(meshObject.Id);
-            document.MarkGeometryChanged(meshObject.Id);
+            document.CommitGeometryChange(meshObject.Id);
+            document.CommitGeometryChange(meshObject.Id);
             AssertBool(mesh.Dirty).IsTrue();
 
             services.Flush();
@@ -167,7 +167,7 @@ public class RenderServiceTests
             ).IsTrue();
             AssertThat(instance.Transform).IsEqual(updatedTransform);
 
-            document.Remove(meshObject.Id);
+            document.Remove(meshObject.Id)?.Mesh?.Dispose();
             AssertThat(renderRoot.GetChildCount()).IsEqual(0);
             AssertBool(GodotObject.IsInstanceValid(arrayMesh)).IsFalse();
         }

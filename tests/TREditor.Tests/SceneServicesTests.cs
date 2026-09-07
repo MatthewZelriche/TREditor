@@ -22,9 +22,9 @@ public sealed class SceneServicesTests
                 meshObject with { Transform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3)) }
             )
         );
-        document.MarkGeometryChanged(meshObject.Id);
+        document.CommitGeometryChange(meshObject.Id);
         services.Flush();
-        document.Remove(meshObject.Id);
+        document.Remove(meshObject.Id)?.Mesh?.Dispose();
         services.Dispose();
 
         Assert.Equal(
@@ -60,8 +60,8 @@ public sealed class SceneServicesTests
 
         MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
         Assert.True(document.ReplaceObject(meshObject, meshObject with { Transform = Transform3D.Identity }));
-        document.MarkGeometryChanged(meshObject.Id);
-        document.Remove(meshObject.Id);
+        document.CommitGeometryChange(meshObject.Id);
+        document.Remove(meshObject.Id)?.Mesh?.Dispose();
 
         Assert.Empty(calls);
     }
@@ -87,8 +87,8 @@ public sealed class SceneServicesTests
                 "first:set-document",
                 "second:set-document",
                 $"first:add:{firstObject.Id.Value}",
-                $"second:add:{firstObject.Id.Value}",
                 $"first:add:{secondObject.Id.Value}",
+                $"second:add:{firstObject.Id.Value}",
                 $"second:add:{secondObject.Id.Value}",
             ],
             calls
@@ -187,12 +187,12 @@ public sealed class SceneServicesTests
         Assert.Equal(afterTransform, actual);
         Assert.True(services.IsFaulted);
         Assert.Single(fatalErrors);
-        Assert.Equal("updating a document transform", fatalErrors[0].Operation);
+        Assert.Equal("applying a document change", fatalErrors[0].Operation);
         Assert.Equal("Transform failed.", fatalErrors[0].Exception.Message);
         Assert.Equal(["failing:transform:0"], calls);
 
         calls.Clear();
-        document.MarkGeometryChanged(target.Id);
+        document.CommitGeometryChange(target.Id);
         services.Flush();
         Assert.Empty(calls);
         Assert.Single(fatalErrors);
@@ -249,21 +249,25 @@ public sealed class SceneServicesTests
             Document = null;
         }
 
-        public void OnObjectAdded(MeshObject meshObject) =>
-            calls.Add($"{name}:add:{meshObject.Id.Value}");
-
-        public void OnObjectRemoved(MeshObject meshObject) =>
-            calls.Add($"{name}:remove:{meshObject.Id.Value}");
-
-        public void OnObjectGeometryChanged(MeshObjectId id) =>
-            calls.Add($"{name}:geometry:{id.Value}");
-
-        public void OnObjectTransformChanged(MeshObjectId id)
+        public void OnDocumentChanged(DocumentChangeSet changeSet)
         {
-            calls.Add($"{name}:transform:{id.Value}");
-            if (ThrowOnTransform)
+            DocumentObjectChange change = changeSet.Change;
+            string kind = change.Kind switch
+            {
+                DocumentChangeKind.Added => "add",
+                DocumentChangeKind.Removed => "remove",
+                DocumentChangeKind.TransformChanged => "transform",
+                DocumentChangeKind.GeometryChanged => "geometry",
+                _ => throw new ArgumentOutOfRangeException(nameof(changeSet), change.Kind, null),
+            };
+            calls.Add($"{name}:{kind}:{change.ObjectId.Value}");
+
+            if (ThrowOnTransform && change.Kind == DocumentChangeKind.TransformChanged)
                 throw new InvalidOperationException("Transform failed.");
         }
+
+        public void OnPreviewTransformChanged(MeshObjectId id) =>
+            calls.Add($"{name}:preview-transform:{id.Value}");
 
         public void Flush() => calls.Add($"{name}:flush");
     }

@@ -58,10 +58,46 @@ public sealed class PickingService : ISceneService
         _pickingRoot.Free();
     }
 
-    public void OnObjectAdded(MeshObject meshObject)
+    public void OnDocumentChanged(DocumentChangeSet changeSet)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(meshObject);
+        ArgumentNullException.ThrowIfNull(changeSet);
+
+        DocumentObjectChange change = changeSet.Change;
+        switch (change.Kind)
+        {
+            case DocumentChangeKind.Added:
+                AddObject(change.ObjectId);
+                break;
+            case DocumentChangeKind.Removed:
+                RemoveObject(change.ObjectId);
+                break;
+            case DocumentChangeKind.TransformChanged:
+                ApplyTransform(change.ObjectId);
+                break;
+            case DocumentChangeKind.GeometryChanged:
+                MarkGeometryDirty(change.ObjectId);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(changeSet),
+                    change.Kind,
+                    "Unknown document change kind."
+                );
+        }
+    }
+
+    public void OnPreviewTransformChanged(MeshObjectId id)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ApplyTransform(id);
+    }
+
+    private void AddObject(MeshObjectId id)
+    {
+        if (!_document.TryGetObject(id, out MeshObject meshObject))
+            throw new InvalidOperationException($"Document object {id.Value} was added but is missing.");
+
         ArgumentNullException.ThrowIfNull(meshObject.Mesh);
 
         var entry = new PickingEntry(meshObject, _pickingRoot, EffectiveTransform(meshObject));
@@ -81,22 +117,18 @@ public sealed class PickingService : ISceneService
         _dirtyMeshes.Add(meshObject.Id);
     }
 
-    public void OnObjectRemoved(MeshObject meshObject)
+    private void RemoveObject(MeshObjectId id)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(meshObject);
-
-        _dirtyMeshes.Remove(meshObject.Id);
-        if (!_entries.Remove(meshObject.Id, out PickingEntry? entry))
+        _dirtyMeshes.Remove(id);
+        if (!_entries.Remove(id, out PickingEntry? entry))
             return;
 
         _colliderIds.Remove(entry.Body.GetInstanceId());
         entry.Dispose();
     }
 
-    public void OnObjectGeometryChanged(MeshObjectId id)
+    private void MarkGeometryDirty(MeshObjectId id)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_document.TryGetObject(id, out MeshObject meshObject))
             return;
 
@@ -104,9 +136,8 @@ public sealed class PickingService : ISceneService
         _dirtyMeshes.Add(id);
     }
 
-    public void OnObjectTransformChanged(MeshObjectId id)
+    private void ApplyTransform(MeshObjectId id)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
         if (
             _document.TryGetObject(id, out MeshObject meshObject)
             && _entries.TryGetValue(id, out PickingEntry? entry)

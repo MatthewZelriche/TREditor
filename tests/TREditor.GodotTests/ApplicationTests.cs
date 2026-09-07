@@ -336,7 +336,7 @@ public class ApplicationTests
     {
         try
         {
-            document.MarkGeometryChanged(new MeshObjectId(0));
+            document.CommitGeometryChange(new MeshObjectId(0));
             return false;
         }
         catch (ObjectDisposedException)
@@ -412,7 +412,7 @@ public class ApplicationTests
         public void Dispose()
         {
             // Throws ObjectDisposedException if the history released this command after the document.
-            document.MarkGeometryChanged(new MeshObjectId(0));
+            document.CommitGeometryChange(new MeshObjectId(0));
             disposeLog.Add($"dispose-while-alive:{displayName}");
         }
     }
