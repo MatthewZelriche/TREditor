@@ -5,8 +5,8 @@ namespace TREditor.Tests;
 
 public sealed class TranslateCommandTests
 {
-    private static readonly Transform3D Before = new(Basis.Identity, new Vector3(1, 0, -2));
-    private static readonly Transform3D After = new(Basis.Identity, new Vector3(4, 5, -2));
+    private static readonly Transform3D BeforeTransform = new(Basis.Identity, new Vector3(1, 0, -2));
+    private static readonly Transform3D AfterTransform = new(Basis.Identity, new Vector3(4, 5, -2));
 
     [Fact]
     public void ExecuteUndoAndRedoApplyTheExactAbsoluteTransforms()
@@ -14,34 +14,107 @@ public sealed class TranslateCommandTests
         using var document = new Document();
         using var history = new CommandHistory();
         history.SetDocument(document);
-        MeshObject target = document.Add("Movable", Before, null!);
+        MeshObject before = document.Add("Movable", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
 
-        history.Submit(new TranslateCommand(target.Id, Before, After));
-        Assert.Equal(After, ReadTransform(document, target.Id));
+        history.Submit(new TranslateCommand(before, after));
+        Assert.Equal(AfterTransform, ReadTransform(document, before.Id));
 
         Assert.True(history.Undo());
-        Assert.Equal(Before, ReadTransform(document, target.Id));
+        Assert.Equal(BeforeTransform, ReadTransform(document, before.Id));
 
         Assert.True(history.Redo());
-        Assert.Equal(After, ReadTransform(document, target.Id));
+        Assert.Equal(AfterTransform, ReadTransform(document, before.Id));
     }
 
     [Fact]
-    public void RedoIsUnaffectedByTransformsAppliedInBetween()
+    public void RepeatedExecuteUndoRedoWithTheSameRecordsSucceeds()
     {
         using var document = new Document();
         using var history = new CommandHistory();
         history.SetDocument(document);
-        MeshObject target = document.Add("Movable", Before, null!);
-        history.Submit(new TranslateCommand(target.Id, Before, After));
-        Assert.True(history.Undo());
+        MeshObject before = document.Add("Movable", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
+        var command = new TranslateCommand(before, after);
 
-        Assert.True(
-            document.SetTransform(target.Id, new Transform3D(Basis.Identity, new Vector3(9, 9, 9)))
-        );
+        history.Submit(command);
+        Assert.True(history.Undo());
+        Assert.True(history.Redo());
+        Assert.True(history.Undo());
         Assert.True(history.Redo());
 
-        Assert.Equal(After, ReadTransform(document, target.Id));
+        Assert.Equal(AfterTransform, ReadTransform(document, before.Id));
+        Assert.True(document.TryGetObject(before.Id, out MeshObject current));
+        Assert.Same(after, current);
+    }
+
+    [Fact]
+    public void InterveningReplaceObjectMakesRedoFailWithoutMovingStacks()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        MeshObject before = document.Add("Movable", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
+        history.Submit(new TranslateCommand(before, after));
+        Assert.True(history.Undo());
+
+        MeshObject intervening = before with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(9, 9, 9)),
+        };
+        Assert.True(document.ReplaceObject(before, intervening));
+
+        Assert.Throws<InvalidOperationException>(() => history.Redo());
+        Assert.False(history.CanUndo);
+        Assert.True(history.CanRedo);
+        Assert.True(document.TryGetObject(before.Id, out MeshObject current));
+        Assert.Same(intervening, current);
+    }
+
+    [Fact]
+    public void StaleExpectedOnExecuteFailsWithoutEnteringHistory()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        MeshObject before = document.Add("Movable", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
+        MeshObject intervening = before with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(3, 3, 3)),
+        };
+        Assert.True(document.ReplaceObject(before, intervening));
+
+        Assert.Throws<InvalidOperationException>(
+            () => history.Submit(new TranslateCommand(before, after))
+        );
+        Assert.False(history.CanUndo);
+        Assert.True(document.TryGetObject(before.Id, out MeshObject current));
+        Assert.Same(intervening, current);
+    }
+
+    [Fact]
+    public void StaleExpectedOnUndoFailsWithoutMovingStacks()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        MeshObject before = document.Add("Movable", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
+        history.Submit(new TranslateCommand(before, after));
+
+        MeshObject intervening = after with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(8, 8, 8)),
+        };
+        Assert.True(document.ReplaceObject(after, intervening));
+
+        Assert.Throws<InvalidOperationException>(() => history.Undo());
+        Assert.True(history.CanUndo);
+        Assert.False(history.CanRedo);
+        Assert.True(document.TryGetObject(before.Id, out MeshObject current));
+        Assert.Same(intervening, current);
     }
 
     [Fact]
@@ -50,9 +123,11 @@ public sealed class TranslateCommandTests
         using var document = new Document();
         using var history = new CommandHistory();
         history.SetDocument(document);
+        var before = new MeshObject(new MeshObjectId(12), "Missing", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
 
         Assert.Throws<InvalidOperationException>(
-            () => history.Submit(new TranslateCommand(new MeshObjectId(12), Before, After))
+            () => history.Submit(new TranslateCommand(before, after))
         );
         Assert.False(history.CanUndo);
     }
@@ -63,10 +138,11 @@ public sealed class TranslateCommandTests
         using var document = new Document();
         using var history = new CommandHistory();
         history.SetDocument(document);
-        MeshObject target = document.Add("Movable", Before, null!);
-        history.Submit(new TranslateCommand(target.Id, Before, After));
+        MeshObject before = document.Add("Movable", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
+        history.Submit(new TranslateCommand(before, after));
 
-        Assert.True(document.Remove(target.Id));
+        Assert.True(document.Remove(before.Id));
 
         Assert.Throws<InvalidOperationException>(() => history.Undo());
     }
@@ -74,7 +150,9 @@ public sealed class TranslateCommandTests
     [Fact]
     public void TheDisplayNameDescribesTheMove()
     {
-        Assert.Equal("Translate", new TranslateCommand(new MeshObjectId(0), Before, After).DisplayName);
+        var before = new MeshObject(new MeshObjectId(0), "Name", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
+        Assert.Equal("Translate", new TranslateCommand(before, after).DisplayName);
     }
 
     private static Transform3D ReadTransform(Document document, MeshObjectId id)

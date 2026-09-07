@@ -16,9 +16,31 @@ public class EditorDocumentReaderTests
         MeshObject added = document.Add("Cube", start, null!);
 
         Assert.True(reader.TryGetMeshTransform(added.Id, out Transform3D transform));
-        Assert.True(document.SetTransform(added.Id, new Transform3D(Basis.Identity, new Vector3(9, 9, 9))));
+        Assert.True(
+            document.ReplaceObject(
+                added,
+                added with { Transform = new Transform3D(Basis.Identity, new Vector3(9, 9, 9)) }
+            )
+        );
 
         Assert.Equal(start, transform);
+    }
+
+    [Fact]
+    public void TryGetObjectReturnsTheCurrentRecord()
+    {
+        using var document = new Document();
+        IEditorDocumentReader reader = document;
+        MeshObject added = document.Add("Cube", Transform3D.Identity, null!);
+        MeshObject replacement = added with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(2, 3, 4)),
+        };
+        Assert.True(document.ReplaceObject(added, replacement));
+
+        Assert.True(reader.TryGetObject(added.Id, out MeshObject current));
+        Assert.Same(replacement, current);
+        Assert.False(reader.TryGetObject(new MeshObjectId(99), out _));
     }
 
     [Fact]
@@ -65,10 +87,8 @@ public class EditorDocumentReaderTests
 
     private static bool IsForbidden(System.Type type) =>
         type == typeof(Document)
-        || type == typeof(MeshObject)
         || type == typeof(GDMesh)
         || type.FullName == "TRMesh.Mesh.SpatialMesh"
         || (typeof(IEnumerable).IsAssignableFrom(type)
-            && type.GetGenericArguments().Any(argument =>
-                argument == typeof(MeshObject) || argument == typeof(GDMesh)));
+            && type.GetGenericArguments().Any(argument => argument == typeof(GDMesh)));
 }

@@ -45,10 +45,15 @@ public class PickingServiceTests
             AssertThat(pickingService.Raycast(originalRay)?.Value ?? -1)
                 .IsEqual(meshObject.Id.Value);
 
-            document.SetTransform(
-                meshObject.Id,
-                new Transform3D(Basis.Identity, new Vector3(4.0f, 0.0f, 0.0f))
-            );
+            AssertBool(
+                document.ReplaceObject(
+                    meshObject,
+                    meshObject with
+                    {
+                        Transform = new Transform3D(Basis.Identity, new Vector3(4.0f, 0.0f, 0.0f)),
+                    }
+                )
+            ).IsTrue();
             await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
 
             AssertBool(pickingService.Raycast(originalRay) is null).IsTrue();

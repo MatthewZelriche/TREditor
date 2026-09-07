@@ -90,7 +90,12 @@ public class RenderServiceTests
                 Basis.Identity,
                 new Vector3(0.0f, 5.0f, 0.0f)
             );
-            document.SetTransform(meshObject.Id, committedTransform);
+            AssertBool(
+                document.ReplaceObject(
+                    meshObject,
+                    meshObject with { Transform = committedTransform }
+                )
+            ).IsTrue();
             AssertThat(instance.Transform).IsEqual(secondPreview);
 
             previews.ClearTransform(meshObject.Id);
@@ -154,7 +159,12 @@ public class RenderServiceTests
                 Basis.Identity,
                 new Vector3(-3.0f, 4.0f, 5.0f)
             );
-            document.SetTransform(meshObject.Id, updatedTransform);
+            AssertBool(
+                document.ReplaceObject(
+                    meshObject,
+                    meshObject with { Transform = updatedTransform }
+                )
+            ).IsTrue();
             AssertThat(instance.Transform).IsEqual(updatedTransform);
 
             document.Remove(meshObject.Id);

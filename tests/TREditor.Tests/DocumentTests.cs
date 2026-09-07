@@ -61,7 +61,8 @@ public class DocumentTests
 
         MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
         var transform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3));
-        Assert.True(document.SetTransform(meshObject.Id, transform));
+        MeshObject replacement = meshObject with { Transform = transform };
+        Assert.True(document.ReplaceObject(meshObject, replacement));
         Assert.True(document.MarkGeometryChanged(meshObject.Id));
         Assert.True(document.Remove(meshObject.Id));
 
@@ -80,7 +81,7 @@ public class DocumentTests
     }
 
     [Fact]
-    public void SetTransformDoesNotRaiseGeometryChanged()
+    public void ReplaceObjectDoesNotRaiseGeometryChanged()
     {
         using var document = new Document();
         MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
@@ -90,14 +91,131 @@ public class DocumentTests
         document.ObjectTransformChanged += _ => transformChangedCount++;
 
         Assert.True(
-            document.SetTransform(
-                meshObject.Id,
-                new Transform3D(Basis.Identity, new Vector3(4, 5, 6))
+            document.ReplaceObject(
+                meshObject,
+                meshObject with { Transform = new Transform3D(Basis.Identity, new Vector3(4, 5, 6)) }
             )
         );
 
         Assert.Equal(0, geometryChangedCount);
         Assert.Equal(1, transformChangedCount);
+    }
+
+    [Fact]
+    public void ReplaceObjectInstallsTheReplacementAndRaisesTransformChangedOnce()
+    {
+        using var document = new Document();
+        MeshObject expected = document.Add("Object", Transform3D.Identity, null!);
+        MeshObject replacement = expected with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3)),
+        };
+        int transformChangedCount = 0;
+        MeshObjectId transformChanged = default;
+        document.ObjectTransformChanged += id =>
+        {
+            transformChangedCount++;
+            transformChanged = id;
+        };
+
+        Assert.True(document.ReplaceObject(expected, replacement));
+
+        Assert.Equal(1, transformChangedCount);
+        Assert.Equal(expected.Id, transformChanged);
+        Assert.True(document.TryGetObject(expected.Id, out MeshObject current));
+        Assert.Same(replacement, current);
+    }
+
+    [Fact]
+    public void ReplaceObjectRejectsAStaleExpectedRecordWithoutMutationOrEvent()
+    {
+        using var document = new Document();
+        MeshObject original = document.Add("Object", Transform3D.Identity, null!);
+        MeshObject installed = original with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(1, 0, 0)),
+        };
+        Assert.True(document.ReplaceObject(original, installed));
+        MeshObject staleAttempt = original with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(9, 9, 9)),
+        };
+        int transformChangedCount = 0;
+        document.ObjectTransformChanged += _ => transformChangedCount++;
+
+        Assert.False(document.ReplaceObject(original, staleAttempt));
+
+        Assert.Equal(0, transformChangedCount);
+        Assert.True(document.TryGetObject(original.Id, out MeshObject current));
+        Assert.Same(installed, current);
+    }
+
+    [Fact]
+    public void ReplaceObjectRejectsAMissingTargetWithoutMutationOrEvent()
+    {
+        using var document = new Document();
+        var orphan = new MeshObject(
+            new MeshObjectId(42),
+            "Missing",
+            Transform3D.Identity,
+            null!
+        );
+        int transformChangedCount = 0;
+        document.ObjectTransformChanged += _ => transformChangedCount++;
+
+        Assert.False(
+            document.ReplaceObject(
+                orphan,
+                orphan with { Transform = new Transform3D(Basis.Identity, new Vector3(1, 1, 1)) }
+            )
+        );
+
+        Assert.Equal(0, transformChangedCount);
+        Assert.Equal(0, document.ObjectCount);
+    }
+
+    [Fact]
+    public void ReplaceObjectRejectsMismatchedIdsWithoutMutationOrEvent()
+    {
+        using var document = new Document();
+        MeshObject expected = document.Add("Object", Transform3D.Identity, null!);
+        var otherId = new MeshObject(
+            new MeshObjectId(expected.Id.Value + 1),
+            expected.Name,
+            expected.Transform,
+            expected.Mesh
+        );
+        int transformChangedCount = 0;
+        document.ObjectTransformChanged += _ => transformChangedCount++;
+
+        Assert.False(document.ReplaceObject(expected, otherId));
+
+        Assert.Equal(0, transformChangedCount);
+        Assert.True(document.TryGetObject(expected.Id, out MeshObject current));
+        Assert.Same(expected, current);
+    }
+
+    [Fact]
+    public void ReplaceObjectRejectsMeshReferenceChangesWithoutMutationOrEvent()
+    {
+        using var document = new Document();
+        MeshObject expected = document.Add("Object", Transform3D.Identity, null!);
+        var differentMesh = new MeshObject(
+            expected.Id,
+            expected.Name,
+            expected.Transform,
+            (GDMesh)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(
+                typeof(GDMesh)
+            )
+        );
+        int transformChangedCount = 0;
+        document.ObjectTransformChanged += _ => transformChangedCount++;
+
+        Assert.False(document.ReplaceObject(expected, differentMesh));
+
+        Assert.Equal(0, transformChangedCount);
+        Assert.True(document.TryGetObject(expected.Id, out MeshObject current));
+        Assert.Same(expected, current);
     }
 
     [Fact]
@@ -121,13 +239,15 @@ public class DocumentTests
         using var document = new Document();
         MeshObject before = document.Add("Object", Transform3D.Identity, null!);
         var updated = new Transform3D(Basis.Identity, new Vector3(7, 8, 9));
+        MeshObject replacement = before with { Transform = updated };
 
-        Assert.True(document.SetTransform(before.Id, updated));
+        Assert.True(document.ReplaceObject(before, replacement));
 
         Assert.Equal(Transform3D.Identity, before.Transform);
         Assert.True(document.TryGetObject(before.Id, out MeshObject after));
         Assert.Equal(updated, after.Transform);
         Assert.NotSame(before, after);
+        Assert.Same(replacement, after);
         Assert.Equal(before.Id, after.Id);
         Assert.Equal(before.Name, after.Name);
         Assert.Same(before.Mesh, after.Mesh);
@@ -142,9 +262,9 @@ public class DocumentTests
         MeshObject[] snapshot = document.GetObjects();
         document.Add("Second", Transform3D.Identity, null!);
         Assert.True(
-            document.SetTransform(
-                first.Id,
-                new Transform3D(Basis.Identity, new Vector3(1, 0, 0))
+            document.ReplaceObject(
+                first,
+                first with { Transform = new Transform3D(Basis.Identity, new Vector3(1, 0, 0)) }
             )
         );
 

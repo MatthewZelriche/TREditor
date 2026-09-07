@@ -1,35 +1,38 @@
 using System;
-using Godot;
 
-// A committed move of one object. Both the before and after transforms are absolute rather than a
-// delta, so undo and redo land on exactly the same places no matter how many times they run or what
-// else touched the object in between.
+// A committed move of one object. Exact before and after MeshObject records are retained so undo and
+// redo replace the same instances the command observed; a stale intervening replacement fails rather
+// than overwriting unrelated state.
 public sealed class TranslateCommand : IEditorCommand
 {
-    private readonly MeshObjectId _id;
-    private readonly Transform3D _before;
-    private readonly Transform3D _after;
+    // Memory: This is fine because both are records that point to the same underlying
+    // GDMesh. However, for commands that require TopologyPatches, we will need to be more careful
+    // with what we store to avoid bloating memory. We store a lot of commands for history and they need
+    // to be lightweight.
+    private readonly MeshObject _before;
+    private readonly MeshObject _after;
 
-    public TranslateCommand(MeshObjectId id, Transform3D before, Transform3D after)
+    public TranslateCommand(MeshObject before, MeshObject after)
     {
-        _id = id;
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
         _before = before;
         _after = after;
     }
 
     public string DisplayName => "Translate";
 
-    public void Execute(Document document) => Apply(document, _after);
+    public void Execute(Document document) => Replace(document, _before, _after);
 
-    public void Undo(Document document) => Apply(document, _before);
+    public void Undo(Document document) => Replace(document, _after, _before);
 
-    private void Apply(Document document, Transform3D transform)
+    private static void Replace(Document document, MeshObject expected, MeshObject replacement)
     {
         ArgumentNullException.ThrowIfNull(document);
-        if (!document.SetTransform(_id, transform))
+        if (!document.ReplaceObject(expected, replacement))
         {
             throw new InvalidOperationException(
-                $"Object {_id.Value} no longer exists and cannot be translated."
+                $"Object {expected.Id.Value} is missing or stale and cannot be translated."
             );
         }
     }

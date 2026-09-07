@@ -15,16 +15,17 @@ public class SceneCommandTests
         using var history = new CommandHistory();
         history.SetDocument(document);
         IEditorCommandSink sink = history;
-        MeshObject target = document.Add("Movable", Before, null!);
+        MeshObject before = document.Add("Movable", Before, null!);
+        MeshObject after = before with { Transform = After };
 
-        sink.Submit(new MoveCommand(target.Id, Before, After));
-        Assert.Equal(After, ReadTransform(document, target.Id));
+        sink.Submit(new MoveCommand(before, after));
+        Assert.Equal(After, ReadTransform(document, before.Id));
 
         Assert.True(history.Undo());
-        Assert.Equal(Before, ReadTransform(document, target.Id));
+        Assert.Equal(Before, ReadTransform(document, before.Id));
 
         Assert.True(history.Redo());
-        Assert.Equal(After, ReadTransform(document, target.Id));
+        Assert.Equal(After, ReadTransform(document, before.Id));
     }
 
     [Fact]
@@ -33,9 +34,11 @@ public class SceneCommandTests
         using var document = new Document();
         using var history = new CommandHistory();
         history.SetDocument(document);
+        var before = new MeshObject(new MeshObjectId(7), "Missing", Before, null!);
+        MeshObject after = before with { Transform = After };
 
         Assert.Throws<InvalidOperationException>(
-            () => history.Submit(new MoveCommand(new MeshObjectId(7), Before, After))
+            () => history.Submit(new MoveCommand(before, after))
         );
 
         Assert.False(history.CanUndo);
@@ -51,11 +54,13 @@ public class SceneCommandTests
         history.SetDocument(first);
         MeshObject inFirst = first.Add("Movable", Before, null!);
         MeshObject inSecond = second.Add("Movable", Before, null!);
+        MeshObject firstAfter = inFirst with { Transform = After };
+        MeshObject secondAfter = inSecond with { Transform = After };
 
-        history.Submit(new MoveCommand(inFirst.Id, Before, After));
+        history.Submit(new MoveCommand(inFirst, firstAfter));
         history.Clear();
         history.SetDocument(second);
-        history.Submit(new MoveCommand(inSecond.Id, Before, After));
+        history.Submit(new MoveCommand(inSecond, secondAfter));
 
         Assert.Equal(After, ReadTransform(first, inFirst.Id));
         Assert.Equal(After, ReadTransform(second, inSecond.Id));
@@ -65,9 +70,11 @@ public class SceneCommandTests
     public void OperationsWithoutADocumentFail()
     {
         using var history = new CommandHistory();
+        var before = new MeshObject(new MeshObjectId(0), "Missing", Before, null!);
+        MeshObject after = before with { Transform = After };
 
         Assert.Throws<InvalidOperationException>(
-            () => history.Submit(new MoveCommand(new MeshObjectId(0), Before, After))
+            () => history.Submit(new MoveCommand(before, after))
         );
     }
 
@@ -77,18 +84,19 @@ public class SceneCommandTests
         return transform;
     }
 
-    private sealed class MoveCommand(MeshObjectId id, Transform3D before, Transform3D after)
-        : IEditorCommand
+    private sealed class MoveCommand(MeshObject before, MeshObject after) : IEditorCommand
     {
         public string DisplayName => "Move";
 
-        public void Execute(Document document) => Apply(document, after);
-
-        public void Undo(Document document) => Apply(document, before);
-
-        private void Apply(Document document, Transform3D transform)
+        public void Execute(Document document)
         {
-            if (!document.SetTransform(id, transform))
+            if (!document.ReplaceObject(before, after))
+                throw new InvalidOperationException("The target object no longer exists.");
+        }
+
+        public void Undo(Document document)
+        {
+            if (!document.ReplaceObject(after, before))
                 throw new InvalidOperationException("The target object no longer exists.");
         }
     }

@@ -48,7 +48,7 @@ public sealed class Document : IDisposable, IEditorDocumentReader
         return objects;
     }
 
-    internal bool TryGetObject(MeshObjectId id, out MeshObject meshObject)
+    public bool TryGetObject(MeshObjectId id, out MeshObject meshObject)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         return _objects.TryGetValue(id, out meshObject!);
@@ -89,15 +89,26 @@ public sealed class Document : IDisposable, IEditorDocumentReader
         return true;
     }
 
-    // Compatibility transform path: Commit 2 removes this once callers use ReplaceObject.
-    internal bool SetTransform(MeshObjectId id, Transform3D transform)
+    // Compare-and-replace an object record. Every rejection path returns false without mutating or
+    // notifying; only a fully validated replacement is installed.
+    internal bool ReplaceObject(MeshObject expected, MeshObject replacement)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_objects.TryGetValue(id, out MeshObject? current))
+        if (
+            expected is null
+            || replacement is null
+            || replacement.Name is null
+            || expected.Id != replacement.Id
+            || !ReferenceEquals(expected.Mesh, replacement.Mesh)
+            || !_objects.TryGetValue(expected.Id, out MeshObject? current)
+            || !ReferenceEquals(current, expected)
+        )
+        {
             return false;
+        }
 
-        _objects[id] = current with { Transform = transform };
-        ObjectTransformChanged?.Invoke(id);
+        _objects[expected.Id] = replacement;
+        ObjectTransformChanged?.Invoke(expected.Id);
         return true;
     }
 

@@ -16,9 +16,11 @@ public sealed class SceneServicesTests
         Assert.Same(document, first.Document);
         Assert.Same(document, second.Document);
         MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
-        document.SetTransform(
-            meshObject.Id,
-            new Transform3D(Basis.Identity, new Vector3(1, 2, 3))
+        Assert.True(
+            document.ReplaceObject(
+                meshObject,
+                meshObject with { Transform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3)) }
+            )
         );
         document.MarkGeometryChanged(meshObject.Id);
         services.Flush();
@@ -57,7 +59,7 @@ public sealed class SceneServicesTests
         calls.Clear();
 
         MeshObject meshObject = document.Add("Object", Transform3D.Identity, null!);
-        document.SetTransform(meshObject.Id, Transform3D.Identity);
+        Assert.True(document.ReplaceObject(meshObject, meshObject with { Transform = Transform3D.Identity }));
         document.MarkGeometryChanged(meshObject.Id);
         document.Remove(meshObject.Id);
 
@@ -175,13 +177,14 @@ public sealed class SceneServicesTests
         failing.ThrowOnTransform = true;
         var fatalErrors = new List<(string Operation, Exception Exception)>();
         services.FatalError += (operation, exception) => fatalErrors.Add((operation, exception));
-        var after = new Transform3D(Basis.Identity, new Vector3(4, 5, 6));
+        var afterTransform = new Transform3D(Basis.Identity, new Vector3(4, 5, 6));
+        MeshObject after = target with { Transform = afterTransform };
 
-        history.Submit(new TranslateCommand(target.Id, Transform3D.Identity, after));
+        history.Submit(new TranslateCommand(target, after));
 
         Assert.True(history.CanUndo);
         Assert.True(document.TryGetMeshTransform(target.Id, out Transform3D actual));
-        Assert.Equal(after, actual);
+        Assert.Equal(afterTransform, actual);
         Assert.True(services.IsFaulted);
         Assert.Single(fatalErrors);
         Assert.Equal("updating a document transform", fatalErrors[0].Operation);
@@ -209,9 +212,9 @@ public sealed class SceneServicesTests
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () =>
-                document.SetTransform(
-                    target.Id,
-                    new Transform3D(Basis.Identity, new Vector3(1, 2, 3))
+                document.ReplaceObject(
+                    target,
+                    target with { Transform = new Transform3D(Basis.Identity, new Vector3(1, 2, 3)) }
                 )
         );
 

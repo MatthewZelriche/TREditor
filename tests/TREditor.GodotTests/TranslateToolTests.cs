@@ -201,6 +201,43 @@ public class TranslateToolTests
         AssertThat(fixture.Application.Gizmos.ProxyTransform.Origin).IsEqual(start.Origin);
     }
 
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task AStaleCapturedRecordFailsOnMouseUpWithoutCommitting()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D start = fixture.TransformOf(fixture.CubeId);
+        Vector2 handle = fixture.FindHandle();
+        int operationFailedCount = 0;
+        fixture.Application.OperationFailed += (_, _) => operationFailedCount++;
+
+        fixture.MouseDown(handle);
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        await ProcessFrames(1);
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D preview))
+            .IsTrue();
+        AssertBool(preview.Origin.IsEqualApprox(start.Origin)).IsFalse();
+
+        AssertBool(fixture.Application.Document!.TryGetObject(fixture.CubeId, out MeshObject current))
+            .IsTrue();
+        var intervening = current with
+        {
+            Transform = new Transform3D(start.Basis, start.Origin + new Vector3(0.0f, 3.0f, 0.0f)),
+        };
+        AssertBool(fixture.Application.CurrentDocument!.ReplaceObject(current, intervening)).IsTrue();
+        int historyBeforeUp = fixture.HistoryChanges;
+
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        AssertThat(operationFailedCount).IsEqual(1);
+        AssertThat(fixture.HistoryChanges).IsEqual(historyBeforeUp);
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(intervening.Transform);
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
+    }
+
     private static MainViewport CreateViewport()
     {
         MainViewport viewport = AutoFree(

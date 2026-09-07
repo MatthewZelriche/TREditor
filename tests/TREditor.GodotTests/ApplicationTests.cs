@@ -78,27 +78,28 @@ public class ApplicationTests
         Node3D mapRoot = AutoFree(new Node3D());
         using var application = new Application(mapRoot);
         Document document = application.CurrentDocument!;
-        var before = new Transform3D(Basis.Identity, new Vector3(1, 1, 1));
-        var after = new Transform3D(Basis.Identity, new Vector3(4, 5, 6));
-        MeshObject target = document.Add(
+        var beforeTransform = new Transform3D(Basis.Identity, new Vector3(1, 1, 1));
+        var afterTransform = new Transform3D(Basis.Identity, new Vector3(4, 5, 6));
+        MeshObject before = document.Add(
             "Movable",
-            before,
+            beforeTransform,
             new GDMesh(SpatialMeshBuilder.CreateAabb(NumericsVector3.Zero, NumericsVector3.One))
         );
+        MeshObject after = before with { Transform = afterTransform };
 
-        application.Commands.Submit(new MoveCommand(target.Id, before, after));
+        application.Commands.Submit(new MoveCommand(before, after));
 
-        AssertBool(application.Document!.TryGetMeshTransform(target.Id, out Transform3D moved)).IsTrue();
-        AssertThat(moved).IsEqual(after);
+        AssertBool(application.Document!.TryGetMeshTransform(before.Id, out Transform3D moved)).IsTrue();
+        AssertThat(moved).IsEqual(afterTransform);
         AssertBool(application.CanUndo).IsTrue();
 
         AssertBool(application.Undo()).IsTrue();
-        AssertBool(application.Document!.TryGetMeshTransform(target.Id, out Transform3D undone)).IsTrue();
-        AssertThat(undone).IsEqual(before);
+        AssertBool(application.Document!.TryGetMeshTransform(before.Id, out Transform3D undone)).IsTrue();
+        AssertThat(undone).IsEqual(beforeTransform);
 
         AssertBool(application.Redo()).IsTrue();
-        AssertBool(application.Document!.TryGetMeshTransform(target.Id, out Transform3D redone)).IsTrue();
-        AssertThat(redone).IsEqual(after);
+        AssertBool(application.Document!.TryGetMeshTransform(before.Id, out Transform3D redone)).IsTrue();
+        AssertThat(redone).IsEqual(afterTransform);
     }
 
     [TestCase]
@@ -117,7 +118,7 @@ public class ApplicationTests
         application.NewScene();
 
         AssertThrown(() => application.Commands.Submit(
-            new MoveCommand(stale.Id, Transform3D.Identity, Transform3D.Identity)
+            new MoveCommand(stale, stale with { Transform = Transform3D.Identity })
         )).IsInstanceOf<InvalidOperationException>();
         AssertBool(application.CanUndo).IsFalse();
     }
@@ -359,18 +360,19 @@ public class ApplicationTests
         public void Undo(Document _) => document.RemoveAt(document.Count - 1);
     }
 
-    private sealed class MoveCommand(MeshObjectId id, Transform3D before, Transform3D after)
-        : IEditorCommand
+    private sealed class MoveCommand(MeshObject before, MeshObject after) : IEditorCommand
     {
         public string DisplayName => "Move";
 
-        public void Execute(Document document) => Apply(document, after);
-
-        public void Undo(Document document) => Apply(document, before);
-
-        private void Apply(Document document, Transform3D transform)
+        public void Execute(Document document)
         {
-            if (!document.SetTransform(id, transform))
+            if (!document.ReplaceObject(before, after))
+                throw new InvalidOperationException("The target object no longer exists.");
+        }
+
+        public void Undo(Document document)
+        {
+            if (!document.ReplaceObject(after, before))
                 throw new InvalidOperationException("The target object no longer exists.");
         }
     }

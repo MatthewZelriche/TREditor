@@ -238,7 +238,13 @@ public class TranslateGizmoTests
             committed.Basis,
             committed.Origin + new Vector3(0.0f, 2.0f, 0.0f)
         );
-        AssertBool(application.CurrentDocument!.SetTransform(id, updatedCommitted)).IsTrue();
+        AssertBool(application.Document!.TryGetObject(id, out MeshObject current)).IsTrue();
+        AssertBool(
+            application.CurrentDocument!.ReplaceObject(
+                current,
+                current with { Transform = updatedCommitted }
+            )
+        ).IsTrue();
         AssertThat(application.Gizmos.ProxyTransform.Origin).IsEqual(updatedCommitted.Origin);
 
         // A preview moves the gizmo without the document changing.
