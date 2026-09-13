@@ -8,21 +8,28 @@ public partial class Root : Node
     private static readonly Vector2I MinimumWindowSize = new(640, 360);
     private const string SceneFilter = "*.res;TREditor Scene";
 
+    private OsLogger? _osLogger;
     private Application? _application;
     private KeybindingManager? _keybindings;
     private AppMenuBar? _menuBar;
     private KeybindingsDialog? _keybindingsDialog;
+    private LogWindow? _logWindow;
     private FileDialog? _openSceneDialog;
     private FileDialog? _saveSceneDialog;
     private AcceptDialog? _fileErrorDialog;
     private AcceptDialog? _fatalErrorDialog;
+    private bool _fatalShutdownRequested;
 
     internal Application? CurrentApplication => _application;
 
     internal KeybindingManager? CurrentKeybindings => _keybindings;
 
+    internal OsLogger? CurrentLogger => _osLogger;
+
     public override void _EnterTree()
     {
+        _osLogger = new OsLogger();
+        OS.AddLogger(_osLogger);
         _keybindings = new KeybindingManager();
         _keybindings.Load();
     }
@@ -30,9 +37,14 @@ public partial class Root : Node
     public override void _Ready()
     {
         GetWindow().MinSize = MinimumWindowSize;
-        _application = new Application(GetNode<Node3D>("%MapRoot"));
         _menuBar = GetNode<AppMenuBar>("UI/AppMenuBar");
         _keybindingsDialog = GetNode<KeybindingsDialog>("%KeybindingsDialog");
+        _logWindow = GetNode<LogWindow>("%LogWindow");
+        if (_osLogger is not null)
+            _logWindow.Bind(_osLogger);
+        _logWindow.FatalErrorLogged += OnFatalLog;
+
+        _application = new Application(GetNode<Node3D>("%MapRoot"));
         _openSceneDialog = GetNode<FileDialog>("%OpenSceneDialog");
         _saveSceneDialog = GetNode<FileDialog>("%SaveSceneDialog");
         _fileErrorDialog = GetNode<AcceptDialog>("%FileErrorDialog");
@@ -80,6 +92,9 @@ public partial class Root : Node
             _fatalErrorDialog.Canceled -= CloseAfterFatalError;
         }
 
+        if (_logWindow is not null)
+            _logWindow.FatalErrorLogged -= OnFatalLog;
+
         if (_application is not null)
         {
             _application.OperationFailed -= OnOperationFailed;
@@ -88,10 +103,18 @@ public partial class Root : Node
 
         _application?.Dispose();
         _keybindings?.Dispose();
+        if (_osLogger is not null)
+        {
+            OS.RemoveLogger(_osLogger);
+            _osLogger.Dispose();
+        }
+
+        _osLogger = null;
         _application = null;
         _keybindings = null;
         _menuBar = null;
         _keybindingsDialog = null;
+        _logWindow = null;
         _openSceneDialog = null;
         _saveSceneDialog = null;
         _fileErrorDialog = null;
@@ -138,6 +161,9 @@ public partial class Root : Node
                 if (_keybindings is not null)
                     _keybindingsDialog?.ShowDialog(_keybindings);
                 break;
+            case AppMenuBar.AppMenuAction.Logs:
+                _logWindow?.ShowDialog();
+                break;
         }
     }
 
@@ -183,7 +209,34 @@ public partial class Root : Node
 
     private void OnFatalError(string operation, Exception exception)
     {
-        GD.PushError($"Fatal scene service error while {operation}: {exception}");
+        string details = $"Fatal scene service error while {operation}: {exception}";
+        _osLogger?.LogFatal(details);
+        GD.PrintErr($"FATAL: {details}");
+        ShowFatalErrorDialog(
+            "A fatal error occurred while "
+                + operation
+                + ". The application cannot continue safely.\n\n"
+                + "Saving after a fatal error is not supported yet.\n\n"
+                + "Debug details:\n"
+                + exception
+        );
+    }
+
+    private void OnFatalLog(string message)
+    {
+        ShowFatalErrorDialog(
+            "An unexpected fatal error occurred. The application cannot continue safely.\n\n"
+                + "Debug details:\n"
+                + message
+        );
+    }
+
+    private void ShowFatalErrorDialog(string message)
+    {
+        if (_fatalShutdownRequested)
+            return;
+
+        _fatalShutdownRequested = true;
 
         if (_fatalErrorDialog is null)
         {
@@ -192,13 +245,7 @@ public partial class Root : Node
         }
 
         _fatalErrorDialog.Title = "Application crashed";
-        _fatalErrorDialog.DialogText =
-            "A fatal error occurred while "
-            + operation
-            + ". The application cannot continue safely.\n\n"
-            + "Saving after a fatal error is not supported yet.\n\n"
-            + "Debug details:\n"
-            + exception;
+        _fatalErrorDialog.DialogText = message;
         _fatalErrorDialog.GetOkButton().Text = "Close Application";
         _fatalErrorDialog.PopupCentered();
     }

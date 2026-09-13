@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="PackedScene" path="res://src/ui/window/WindowTitleBar.tscn" id="1_title_bar"]
 [ext_resource type="PackedScene" path="res://src/ui/window/WindowResizeHandles.tscn" id="2_resize_handles"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://src/ui/window/AppMenuBar.tscn" id="8_app_menu_bar"]
 [ext_resource type="Script" path="res://src/ui/SelectionModeToolbar.cs" id="9_selection_mode_toolbar"]
 [ext_resource type="Script" path="res://src/ui/ToolsToolbar.cs" id="10_tools_toolbar"]
+[ext_resource type="PackedScene" path="res://src/ui/window/LogWindow.tscn" id="11_log_window"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_toolbar_background"]
 bg_color = Color(0.117647, 0.12549, 0.141176, 1)
@@ -94,6 +95,9 @@ title = "Application Crashed"
 exclusive = true
 
 [node name="KeybindingsDialog" parent="." instance=ExtResource("7_keybindings_dialog")]
+unique_name_in_owner = true
+
+[node name="LogWindow" parent="." instance=ExtResource("11_log_window")]
 unique_name_in_owner = true
 
 [node name="UI" type="Control" parent="."]

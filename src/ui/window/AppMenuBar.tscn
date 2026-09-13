@@ -92,12 +92,14 @@ prefer_native_menu = false
 [node name="AboutMenu" type="PopupMenu" parent="MainMenu"]
 unique_name_in_owner = true
 title = "About"
-item_count = 3
+item_count = 4
 item_0/text = "Open Source Licenses..."
 item_0/id = 400
-item_1/separator = true
-item_2/text = "About TrembleEd..."
-item_2/id = 401
+item_1/text = "Logs..."
+item_1/id = 402
+item_2/separator = true
+item_3/text = "About TrembleEd..."
+item_3/id = 401
 prefer_native_menu = false
 
 [connection signal="id_pressed" from="MainMenu/AboutMenu" to="." method="OnMenuIdPressed"]

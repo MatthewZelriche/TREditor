@@ -135,7 +135,12 @@ public sealed class Application : IDisposable
 
     internal void UnregisterToolViewport(Camera3D camera)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        // Root begins disposing the application before descendant viewports receive their
+        // exit-tree notifications. At that point the gizmo registry is already gone and there is
+        // nothing left to unregister.
+        if (_disposed)
+            return;
+
         _toolContext.TranslateGizmos.UnregisterViewport(camera);
     }
 

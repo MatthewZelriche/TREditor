@@ -1,0 +1,70 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/ui/window/LogWindow.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://src/ui/window/WindowTitleBar.tscn" id="2_title_bar"]
+[ext_resource type="PackedScene" path="res://src/ui/window/WindowResizeHandles.tscn" id="3_resize_handles"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_window"]
+bg_color = Color(0.0705882, 0.0784314, 0.0901961, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.215686, 0.235294, 0.270588, 1)
+
+[node name="LogWindow" type="Window"]
+visible = false
+title = "Logs"
+initial_position = 2
+size = Vector2i(760, 480)
+min_size = Vector2i(480, 300)
+transient = true
+borderless = true
+minimize_disabled = true
+maximize_disabled = true
+script = ExtResource("1_script")
+
+[node name="Background" type="PanelContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBox_window")
+
+[node name="Margin" type="MarginContainer" parent="Background"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 50
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 14
+
+[node name="LogOutput" type="RichTextLabel" parent="Background/Margin"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_colors/default_color = Color(0.611765, 0.639216, 0.709804, 1)
+theme_override_colors/font_selected_color = Color(1, 1, 1, 1)
+theme_override_colors/selection_color = Color(0.176471, 0.435294, 0.439216, 0.55)
+theme_override_font_sizes/normal_font_size = 14
+text = "No warnings or errors have been logged."
+fit_content = false
+scroll_active = true
+scroll_following = true
+selection_enabled = true
+
+[node name="WindowTitleBar" parent="." instance=ExtResource("2_title_bar")]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 36.0
+grow_horizontal = 2
+ShowMinimizeButton = false
+ShowMaximizeButton = false
+
+[node name="WindowResizeHandles" parent="." instance=ExtResource("3_resize_handles")]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

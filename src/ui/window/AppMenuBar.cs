@@ -22,6 +22,7 @@ public partial class AppMenuBar : CenterContainer
 
         OpenSourceLicenses = 400,
         About = 401,
+        Logs = 402,
     }
 
     [Signal]
