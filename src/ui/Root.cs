@@ -146,10 +146,10 @@ public partial class Root : Node
                 _openSceneDialog?.PopupFileDialog();
                 break;
             case AppMenuBar.AppMenuAction.SaveDocument:
-                if (_application.CurrentFilePath is null)
-                    ShowSaveSceneDialog();
+                if (_application.CurrentFilePath is string path)
+                    ExecuteFileAction("Save scene", () => _application.SaveScene(path));
                 else
-                    ExecuteFileAction("Save scene", _application.SaveScene);
+                    ShowSaveSceneDialog();
                 break;
             case AppMenuBar.AppMenuAction.SaveDocumentAs:
                 ShowSaveSceneDialog();
@@ -186,10 +186,11 @@ public partial class Root : Node
             ExecuteFileAction("Open scene", () => _application.OpenScene(path));
     }
 
+    // Called when user selects a file location from the Save As.. File Dialog.
     private void OnSaveSceneSelected(string path)
     {
         if (_application is not null)
-            ExecuteFileAction("Save scene", () => _application.SaveSceneAs(path));
+            ExecuteFileAction("Save scene", () => _application.SaveScene(path));
     }
 
     private void ExecuteFileAction(string operation, Action action)

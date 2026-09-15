@@ -31,7 +31,7 @@ public sealed class TranslateCommand : IEditorCommand
         ArgumentNullException.ThrowIfNull(document);
         if (!document.ReplaceObject(expected, replacement))
         {
-            throw new InvalidOperationException(
+            throw new NonFatalCommandError(
                 $"Object {expected.Id.Value} is missing or stale and cannot be translated."
             );
         }

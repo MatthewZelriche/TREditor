@@ -55,6 +55,14 @@ public class SceneSerializerTests
         }
     }
 
+    [TestCase]
+    [RequireGodotRuntime]
+    public void LoadMissingFileThrowsNonFatalSceneError()
+    {
+        AssertThrown(() => SceneSerializer.Load("user://scene_serializer_missing.res"))
+            .IsInstanceOf<NonFatalSceneError>();
+    }
+
     private static void RemoveSceneFile()
     {
         if (Godot.FileAccess.FileExists(ScenePath))

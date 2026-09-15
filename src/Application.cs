@@ -61,7 +61,8 @@ public sealed class Application : IDisposable
         _currentDocument = initialDocument;
         _commandHistory.SetDocument(initialDocument);
         _commandHistory.Changed += OnCommandHistoryChanged;
-        SetUpDocumentForDebug();
+        _commandHistory.OperationFailed += OnCommandHistoryOperationFailed;
+        SetUpDocumentForDebug(initialDocument);
     }
 
     // Tool- and UI-facing document access. Only value snapshots leave this boundary.
@@ -98,8 +99,7 @@ public sealed class Application : IDisposable
     // Raised after a successful execute, undo, redo, or a non-empty clear of command history.
     public event Action? CommandHistoryChanged;
 
-    // Raised when a tool interaction fails so the UI can present the error and the interaction is
-    // already cancelled.
+    // Raised when a recoverable operation fails so the UI can present the error.
     public event Action<string, Exception>? OperationFailed;
 
     // A scene service failed after an authoritative document operation may already have completed.
@@ -164,31 +164,35 @@ public sealed class Application : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        Document loadedDocument = SceneSerializer.Load(path);
+        Document loadedDocument;
+        try
+        {
+            loadedDocument = SceneSerializer.Load(path);
+        }
+        catch (NonFatalSceneError exception)
+        {
+            OperationFailed?.Invoke("Open scene", exception);
+            return;
+        }
+
         ReplaceDocument(loadedDocument, path);
     }
 
-    public void SaveScene()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        Document document = _currentDocument
-            ?? throw new InvalidOperationException("There is no scene to save.");
-        string path = _currentFilePath
-            ?? throw new InvalidOperationException(
-                "The current scene has no file path. Use SaveSceneAs first."
-            );
-
-        SceneSerializer.Save(document, path);
-    }
-
-    public void SaveSceneAs(string path)
+    public void SaveScene(string path)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        Document document = _currentDocument
-            ?? throw new InvalidOperationException("There is no scene to save.");
 
-        SceneSerializer.Save(document, path);
+        try
+        {
+            SceneSerializer.Save(_currentDocument!, path);
+        }
+        catch (NonFatalSceneError exception)
+        {
+            OperationFailed?.Invoke("Save scene", exception);
+            return;
+        }
+
         _currentFilePath = path;
     }
 
@@ -196,19 +200,19 @@ public sealed class Application : IDisposable
     public void HandleToolMouseDown(EditorMouseInput input)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        RunProtectedToolOperation("Tool interaction", () => _toolRegistry.MouseDown(input));
+        _toolRegistry.MouseDown(input);
     }
 
     public void HandleToolMouseDrag(EditorMouseInput input)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        RunProtectedToolOperation("Tool interaction", () => _toolRegistry.MouseDrag(input));
+        _toolRegistry.MouseDrag(input);
     }
 
     public void HandleToolMouseUp(EditorMouseInput input)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        RunProtectedToolOperation("Tool interaction", () => _toolRegistry.MouseUp(input));
+        _toolRegistry.MouseUp(input);
     }
 
     public void Update(double delta)
@@ -229,6 +233,7 @@ public sealed class Application : IDisposable
             // Release retained commands before services or the current document are disposed so
             // disposable commands can still touch document-owned state during cleanup.
             _commandHistory.Changed -= OnCommandHistoryChanged;
+            _commandHistory.OperationFailed -= OnCommandHistoryOperationFailed;
             _services.FatalError -= OnSceneServicesFatalError;
             CommandHistoryChanged = null;
             FatalError = null;
@@ -249,23 +254,13 @@ public sealed class Application : IDisposable
 
     private void OnCommandHistoryChanged() => CommandHistoryChanged?.Invoke();
 
+    private void OnCommandHistoryOperationFailed(string operation, Exception exception) =>
+        OperationFailed?.Invoke(operation, exception);
+
     private void OnSceneServicesFatalError(string operation, Exception exception)
     {
         FatalFailure ??= (operation, exception);
         FatalError?.Invoke(operation, exception);
-    }
-
-    private void RunProtectedToolOperation(string operation, Action action)
-    {
-        try
-        {
-            action();
-        }
-        catch (Exception exception)
-        {
-            CancelActiveInteraction();
-            OperationFailed?.Invoke(operation, exception);
-        }
     }
 
     private void ReplaceDocument(Document document, string? path)
@@ -297,10 +292,8 @@ public sealed class Application : IDisposable
     }
 
     // TODO: Delete this when Primitive Creation is hooked up
-    private void SetUpDocumentForDebug()
+    private static void SetUpDocumentForDebug(Document document)
     {
-        Document document = _currentDocument
-            ?? throw new InvalidOperationException("A document must exist before adding debug geometry.");
         var cubeTransform = new Transform3D(
             Basis.Identity,
             new Vector3(-1.5f, 0.0f, 0.0f)

@@ -40,7 +40,7 @@ public class ApplicationTests
                 new GDMesh(SpatialMeshBuilder.CreateCylinder(2f, 1f, 8))
             );
 
-            application.SaveSceneAs(scenePath);
+            application.SaveScene(scenePath);
             application.NewScene();
             AssertThat(application.Document?.ObjectCount ?? -1).IsEqual(0);
             AssertThat(application.CurrentFilePath).IsNull();
@@ -62,7 +62,7 @@ public class ApplicationTests
             AssertThat(cylinder.Mesh.SpatialMesh.VertexCount).IsEqual(16);
             AssertThat(cylinder.Mesh.SpatialMesh.FaceCount).IsEqual(10);
 
-            application.SaveScene();
+            application.SaveScene(scenePath);
             application.Update(0.0);
         }
         finally
@@ -198,8 +198,8 @@ public class ApplicationTests
             int changedCount = 0;
             application.CommandHistoryChanged += () => changedCount++;
 
-            application.SaveSceneAs(scenePath);
-            application.SaveScene();
+            application.SaveScene(scenePath);
+            application.SaveScene(scenePath);
 
             AssertThat(changedCount).IsEqual(0);
             AssertBool(application.CanUndo).IsFalse();
@@ -224,7 +224,7 @@ public class ApplicationTests
             using var application = new Application(mapRoot);
             application.NewScene();
             string scenePath = ProjectSettings.GlobalizePath(ScenePath);
-            application.SaveSceneAs(scenePath);
+            application.SaveScene(scenePath);
 
             Document previousDocument = application.CurrentDocument!;
             var disposeLog = new List<string>();
@@ -268,18 +268,12 @@ public class ApplicationTests
         application.CommandHistoryChanged += () => changedCount++;
 
         Exception? failure = null;
-        try
-        {
-            application.OpenScene(
-                ProjectSettings.GlobalizePath("user://application_missing_scene.res")
-            );
-        }
-        catch (Exception exception)
-        {
-            failure = exception;
-        }
+        application.OperationFailed += (_, exception) => failure = exception;
+        application.OpenScene(
+            ProjectSettings.GlobalizePath("user://application_missing_scene.res")
+        );
 
-        AssertThat(failure).IsNotNull();
+        AssertThat(failure).IsInstanceOf<NonFatalSceneError>();
         AssertThat(changedCount).IsEqual(0);
         AssertBool(application.CanUndo).IsTrue();
         AssertThat(application.UndoDisplayName).IsEqual("Append kept");

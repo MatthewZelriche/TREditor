@@ -65,7 +65,7 @@ public sealed class TranslateCommandTests
         };
         Assert.True(document.ReplaceObject(before, intervening));
 
-        Assert.Throws<InvalidOperationException>(() => history.Redo());
+        Assert.False(history.Redo());
         Assert.False(history.CanUndo);
         Assert.True(history.CanRedo);
         Assert.True(document.TryGetObject(before.Id, out MeshObject current));
@@ -86,9 +86,17 @@ public sealed class TranslateCommandTests
         };
         Assert.True(document.ReplaceObject(before, intervening));
 
-        Assert.Throws<InvalidOperationException>(
-            () => history.Submit(new TranslateCommand(before, after))
-        );
+        string? failedOperation = null;
+        Exception? failedException = null;
+        history.OperationFailed += (operation, exception) =>
+        {
+            failedOperation = operation;
+            failedException = exception;
+        };
+
+        history.Submit(new TranslateCommand(before, after));
+        Assert.Equal("Translate", failedOperation);
+        Assert.IsType<NonFatalCommandError>(failedException);
         Assert.False(history.CanUndo);
         Assert.True(document.TryGetObject(before.Id, out MeshObject current));
         Assert.Same(intervening, current);
@@ -110,7 +118,17 @@ public sealed class TranslateCommandTests
         };
         Assert.True(document.ReplaceObject(after, intervening));
 
-        Assert.Throws<InvalidOperationException>(() => history.Undo());
+        string? failedOperation = null;
+        Exception? failedException = null;
+        history.OperationFailed += (operation, exception) =>
+        {
+            failedOperation = operation;
+            failedException = exception;
+        };
+
+        Assert.False(history.Undo());
+        Assert.Equal("Undo", failedOperation);
+        Assert.IsType<NonFatalCommandError>(failedException);
         Assert.True(history.CanUndo);
         Assert.False(history.CanRedo);
         Assert.True(document.TryGetObject(before.Id, out MeshObject current));
@@ -126,9 +144,7 @@ public sealed class TranslateCommandTests
         var before = new MeshObject(new MeshObjectId(12), "Missing", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
 
-        Assert.Throws<InvalidOperationException>(
-            () => history.Submit(new TranslateCommand(before, after))
-        );
+        history.Submit(new TranslateCommand(before, after));
         Assert.False(history.CanUndo);
     }
 
@@ -146,7 +162,9 @@ public sealed class TranslateCommandTests
         Assert.NotNull(removed);
         removed.Mesh?.Dispose();
 
-        Assert.Throws<InvalidOperationException>(() => history.Undo());
+        Assert.False(history.Undo());
+        Assert.True(history.CanUndo);
+        Assert.False(history.CanRedo);
     }
 
     [Fact]

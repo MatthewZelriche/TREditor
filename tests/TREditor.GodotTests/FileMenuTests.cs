@@ -46,7 +46,7 @@ public class FileMenuTests
             saveDialog.Hide();
 
             string scenePath = ProjectSettings.GlobalizePath(ScenePath);
-            application.SaveSceneAs(scenePath);
+            application.SaveScene(scenePath);
             DirAccess.RemoveAbsolute(scenePath);
             EmitFileAction(fileMenu, AppMenuBar.AppMenuAction.SaveDocument);
             AssertBool(Godot.FileAccess.FileExists(scenePath)).IsTrue();

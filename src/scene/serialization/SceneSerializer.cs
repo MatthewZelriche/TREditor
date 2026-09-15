@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using Godot;
 
 public sealed class SceneSerializer
@@ -31,7 +30,7 @@ public sealed class SceneSerializer
 
         Error error = ResourceSaver.Save(resource, path);
         if (error != Error.Ok)
-            throw new IOException($"Could not save scene to '{path}': {error}.");
+            throw new NonFatalSceneError($"Could not save scene to '{path}': {error}.");
     }
 
     public static Document Load(string path)
@@ -41,11 +40,11 @@ public sealed class SceneSerializer
         SceneResource resource = ResourceLoader.Load<SceneResource>(
             path,
             cacheMode: ResourceLoader.CacheMode.Ignore
-        ) ?? throw new FileNotFoundException($"Could not load a scene resource from '{path}'.", path);
+        ) ?? throw new NonFatalSceneError($"Could not load a scene resource from '{path}'.");
 
         if (resource.FormatVersion != SceneResource.CurrentFormatVersion)
         {
-            throw new InvalidDataException(
+            throw new NonFatalSceneError(
                 $"Unsupported scene format version {resource.FormatVersion}; "
                     + $"expected {SceneResource.CurrentFormatVersion}."
             );
@@ -57,11 +56,11 @@ public sealed class SceneSerializer
             foreach (SceneObjectResource sceneObject in resource.Objects)
             {
                 if (sceneObject is null)
-                    throw new InvalidDataException("The scene resource contains a null object entry.");
+                    throw new NonFatalSceneError("The scene resource contains a null object entry.");
 
                 if (sceneObject.Mesh is null)
                 {
-                    throw new InvalidDataException(
+                    throw new NonFatalSceneError(
                         $"Scene object '{sceneObject.Name}' does not contain a mesh."
                     );
                 }

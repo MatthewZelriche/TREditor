@@ -30,6 +30,9 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
     // Raised after a successful execute, undo, or redo, and after a clear that discarded commands.
     public event Action? Changed;
 
+    // Raised after a NonFatalCommandError was caught. Stacks are left unchanged.
+    public event Action<string, Exception>? OperationFailed;
+
     public int Capacity => _capacity;
 
     public bool CanUndo => _undo.Count > 0;
@@ -52,49 +55,87 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
     public void Submit(IEditorCommand command) => Execute(command);
 
     // Executes command and, on success, takes ownership of it and invalidates the redo stack. A command
-    // that fails to execute stays owned by the caller and leaves the history untouched.
+    // that fails with NonFatalCommandError leaves the history untouched. Any
+    // other failure propagates; the command stays owned by the caller.
     public void Execute(IEditorCommand command)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(command);
 
         Document document = RequireDocument();
+        NonFatalCommandError? nonFatal = null;
         BeginOperation();
         try
         {
-            command.Execute(document);
-            DisposeAll(_redo);
-            _undo.Add(command);
-            EnforceCapacity();
+            try
+            {
+                command.Execute(document);
+            }
+            catch (NonFatalCommandError exception)
+            {
+                nonFatal = exception;
+            }
+
+            if (nonFatal is null)
+            {
+                DisposeAll(_redo);
+                _undo.Add(command);
+                EnforceCapacity();
+            }
         }
         finally
         {
             _operationInProgress = false;
+        }
+
+        if (nonFatal is not null)
+        {
+            NotifyOperationFailed(command.DisplayName, nonFatal);
+            return;
         }
 
         NotifyChanged();
     }
 
     // Reverts the most recent command and moves it to the redo stack. Returns false when there is nothing
-    // to undo.
+    // to undo, or when undo fails with NonFatalCommandError (stacks stay put).
     public bool Undo()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        IEditorCommand? command = null;
+        NonFatalCommandError? nonFatal = null;
         BeginOperation();
         try
         {
             if (_undo.Count == 0)
                 return false;
 
-            IEditorCommand command = _undo[^1];
-            command.Undo(RequireDocument());
-            _undo.RemoveAt(_undo.Count - 1);
-            _redo.Add(command);
+            command = _undo[^1];
+            try
+            {
+                command.Undo(RequireDocument());
+            }
+            catch (NonFatalCommandError exception)
+            {
+                nonFatal = exception;
+            }
+
+            if (nonFatal is null)
+            {
+                _undo.RemoveAt(_undo.Count - 1);
+                _redo.Add(command);
+            }
         }
         finally
         {
             _operationInProgress = false;
+        }
+
+        if (nonFatal is not null)
+        {
+            NotifyOperationFailed("Undo", nonFatal);
+            return false;
         }
 
         NotifyChanged();
@@ -102,25 +143,44 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
     }
 
     // Re-executes the most recently undone command and moves it back to the undo stack. Returns false when
-    // there is nothing to redo.
+    // there is nothing to redo, or when redo fails with NonFatalCommandError (stacks stay put).
     public bool Redo()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        IEditorCommand? command = null;
+        NonFatalCommandError? nonFatal = null;
         BeginOperation();
         try
         {
             if (_redo.Count == 0)
                 return false;
 
-            IEditorCommand command = _redo[^1];
-            command.Execute(RequireDocument());
-            _redo.RemoveAt(_redo.Count - 1);
-            _undo.Add(command);
+            command = _redo[^1];
+            try
+            {
+                command.Execute(RequireDocument());
+            }
+            catch (NonFatalCommandError exception)
+            {
+                nonFatal = exception;
+            }
+
+            if (nonFatal is null)
+            {
+                _redo.RemoveAt(_redo.Count - 1);
+                _undo.Add(command);
+            }
         }
         finally
         {
             _operationInProgress = false;
+        }
+
+        if (nonFatal is not null)
+        {
+            NotifyOperationFailed("Redo", nonFatal);
+            return false;
         }
 
         NotifyChanged();
@@ -155,6 +215,7 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
 
         _disposed = true;
         Changed = null;
+        OperationFailed = null;
         _document = null;
         DisposeAll(_undo);
         DisposeAll(_redo);
@@ -178,6 +239,9 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
 
     // Raised outside the reentrancy guard so subscribers observe a consistent, usable history.
     private void NotifyChanged() => Changed?.Invoke();
+
+    private void NotifyOperationFailed(string operation, NonFatalCommandError exception) =>
+        OperationFailed?.Invoke(operation, exception);
 
     private void EnforceCapacity()
     {
