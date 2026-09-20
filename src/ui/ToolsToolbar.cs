@@ -62,7 +62,14 @@ public partial class ToolsToolbar : HBoxContainer
 
     private void OnNewPrimitivePressed()
     {
-        _tools?.Activate(PrimitiveTool.ToolId);
+        if (_tools is null)
+            return;
+
+        if (_tools.ActiveTool?.Id == PrimitiveTool.ToolId)
+            _tools.Deactivate();
+        else
+            _tools.Activate(PrimitiveTool.ToolId);
+
         SyncActiveTool();
     }
 }
