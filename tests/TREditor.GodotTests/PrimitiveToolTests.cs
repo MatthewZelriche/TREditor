@@ -92,6 +92,68 @@ public class PrimitiveToolTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task CancelDuringHeightDefinitionClearsThePreviewWithoutCommitting()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Application.Snap.SetGridSnap(null);
+        Vector2 start = fixture.Camera.UnprojectPosition(new Vector3(4.0f, 0.0f, 2.0f));
+        Vector2 end = fixture.Camera.UnprojectPosition(new Vector3(6.0f, 0.0f, 4.0f));
+
+        fixture.MouseDown(start);
+        fixture.MouseDrag(end);
+        fixture.MouseUp(end);
+        fixture.MouseMove(end + new Vector2(0.0f, -60.0f));
+
+        AssertBool(fixture.Tool.IsDefiningHeight).IsTrue();
+        AssertThat(fixture.Preview.Geometry).IsNotNull();
+
+        fixture.Application.CancelActiveInteraction();
+
+        AssertBool(fixture.Tool.IsDefiningBase).IsFalse();
+        AssertBool(fixture.Tool.IsDefiningHeight).IsFalse();
+        AssertThat(fixture.Preview.Geometry).IsNull();
+        AssertThat(fixture.Application.Document!.ObjectCount).IsEqual(0);
+        AssertThat(fixture.Application.Tools.ActiveTool?.Id).IsEqual(PrimitiveTool.ToolId);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void EscapeOnRootCancelsAnInProgressPrimitive()
+    {
+        PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");
+        Root root = AutoFree(rootScene.Instantiate<Root>());
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
+        Application application = root.CurrentApplication!;
+        application.Snap.SetGridSnap(null);
+        application.Tools.Activate(PrimitiveTool.ToolId);
+
+        MainViewport viewport = root.GetNode<MainViewportArea>("UI/MainViewportArea").ActiveViewport!;
+        Camera3D camera = viewport.Camera;
+        Vector2 start = camera.UnprojectPosition(new Vector3(4.0f, 0.0f, 2.0f));
+        Vector2 end = camera.UnprojectPosition(new Vector3(6.0f, 0.0f, 4.0f));
+        var tool = (PrimitiveTool)application.Tools.ActiveTool!;
+
+        application.HandleToolMouseDown(new EditorMouseInput(camera, start));
+        application.HandleToolMouseDrag(new EditorMouseInput(camera, end));
+        AssertBool(tool.IsDefiningBase).IsTrue();
+        AssertThat(application.ToolContext.Preview.Geometry).IsNotNull();
+
+        using var escape = new InputEventKey
+        {
+            Keycode = Key.Escape,
+            PhysicalKeycode = Key.Escape,
+            Pressed = true,
+        };
+        root._UnhandledInput(escape);
+
+        AssertBool(tool.IsDefiningBase).IsFalse();
+        AssertBool(tool.IsDefiningHeight).IsFalse();
+        AssertThat(application.ToolContext.Preview.Geometry).IsNull();
+        AssertThat(application.Tools.ActiveTool?.Id).IsEqual(PrimitiveTool.ToolId);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task CylinderSettingsControlTheCommittedTopology()
     {
         using Fixture fixture = await Fixture.Create();

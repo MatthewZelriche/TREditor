@@ -18,6 +18,7 @@ public partial class Root : Node
     private FileDialog? _saveSceneDialog;
     private AcceptDialog? _fileErrorDialog;
     private AcceptDialog? _fatalErrorDialog;
+    private MainViewportArea? _viewportArea;
     private bool _fatalShutdownRequested;
 
     internal Application? CurrentApplication => _application;
@@ -56,7 +57,8 @@ public partial class Root : Node
             .Bind(_application.SelectionMode, _application.Tools);
         GetNode<ToolSettingsSidebar>("UI/ToolSettingsSidebar").Bind(_application.Tools);
         GetNode<ViewportBottomBar>("UI/BottomBar").Bind(_application.Snap);
-        GetNode<MainViewportArea>("UI/MainViewportArea").Bind(_application);
+        _viewportArea = GetNode<MainViewportArea>("UI/MainViewportArea");
+        _viewportArea.Bind(_application);
         _application.OperationFailed += OnOperationFailed;
         _application.FatalError += OnFatalError;
         if (_application.FatalFailure is { } fatalFailure)
@@ -75,6 +77,25 @@ public partial class Root : Node
     public override void _Process(double delta)
     {
         _application?.Update(delta);
+    }
+
+    // Escape aborts the active tool gesture without changing which tool is selected. Shell-owned so
+    // dialogs can consume Escape first and multi-viewport layouts only cancel once.
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (
+            @event is not InputEventKey key
+            || !key.Pressed
+            || key.Echo
+            || (key.Keycode != Key.Escape && key.PhysicalKeycode != Key.Escape)
+        )
+        {
+            return;
+        }
+
+        _viewportArea?.ActiveViewport?.StopToolDrag();
+        _application?.CancelActiveInteraction();
+        GetViewport().SetInputAsHandled();
     }
 
     public override void _ExitTree()
@@ -121,6 +142,7 @@ public partial class Root : Node
         _saveSceneDialog = null;
         _fileErrorDialog = null;
         _fatalErrorDialog = null;
+        _viewportArea = null;
     }
 
     private static void ConfigureFileDialog(
