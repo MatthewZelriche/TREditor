@@ -294,9 +294,11 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
             return new GDMesh(SpatialMeshBuilder.CreateCylinder(height, diameter, _cylinderSides));
         }
 
+        // Centered on the local origin so the object transform (and therefore the translate gizmo)
+        // sits at the geometric center
         return new GDMesh(
             SpatialMeshBuilder.CreateAabb(
-                new NumericsVector3(-_baseSize.X * 0.5f, 0.0f, -_baseSize.Y * 0.5f),
+                new NumericsVector3(-_baseSize.X * 0.5f, -height * 0.5f, -_baseSize.Y * 0.5f),
                 new NumericsVector3(_baseSize.X, height, _baseSize.Y)
             )
         );
@@ -307,10 +309,9 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
         Vector3 yAxis = _planeNormal * direction;
         Vector3 zAxis = _planeZAxis * direction;
         var basis = new Basis(_planeXAxis, yAxis, zAxis);
-        Vector3 origin = _baseCenter;
-        if (_shape == PrimitiveShape.Cylinder)
-            origin += _planeNormal * direction * height * 0.5f;
-
+        // Mesh geometry is centered on the local origin; lift the transform so the primitive still
+        // rests on the base plane.
+        Vector3 origin = _baseCenter + (_planeNormal * direction * height * 0.5f);
         return new Transform3D(basis, origin);
     }
 

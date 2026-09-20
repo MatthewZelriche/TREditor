@@ -50,7 +50,8 @@ public class PrimitiveToolTests
         AssertThat(created.Name).IsEqual("Box");
         AssertThat(created.Mesh.SpatialMesh.VertexCount).IsEqual(8);
         AssertThat(created.Mesh.SpatialMesh.FaceCount).IsEqual(6);
-        AssertBool(Mathf.IsEqualApprox(created.Transform.Origin.Y, 0.0f)).IsTrue();
+        // 60px * 0.02 height units/px = 1.2; transform origin is the geometric center.
+        AssertBool(Mathf.IsEqualApprox(created.Transform.Origin.Y, 0.6f)).IsTrue();
 
         AssertBool(fixture.Application.Undo()).IsTrue();
         AssertThat(fixture.Application.Document.ObjectCount).IsEqual(0);
@@ -77,16 +78,16 @@ public class PrimitiveToolTests
 
         MeshObject created = fixture.Application.CurrentDocument!.GetObjects().Single();
         AssertBool(Mathf.IsEqualApprox(created.Transform.Origin.X, 4.0f)).IsTrue();
-        AssertBool(Mathf.IsEqualApprox(created.Transform.Origin.Y, 0.0f)).IsTrue();
+        AssertBool(Mathf.IsEqualApprox(created.Transform.Origin.Y, 1.0f)).IsTrue();
         AssertBool(Mathf.IsEqualApprox(created.Transform.Origin.Z, 4.0f)).IsTrue();
 
         NumericsVector3 min = created.Mesh.SpatialMesh.GetVertexData(0).position;
         NumericsVector3 max = created.Mesh.SpatialMesh.GetVertexData(6).position;
         AssertBool(Mathf.IsEqualApprox(min.X, -2.0f)).IsTrue();
-        AssertBool(Mathf.IsEqualApprox(min.Y, 0.0f)).IsTrue();
+        AssertBool(Mathf.IsEqualApprox(min.Y, -1.0f)).IsTrue();
         AssertBool(Mathf.IsEqualApprox(min.Z, -2.0f)).IsTrue();
         AssertBool(Mathf.IsEqualApprox(max.X, 2.0f)).IsTrue();
-        AssertBool(Mathf.IsEqualApprox(max.Y, 2.0f)).IsTrue();
+        AssertBool(Mathf.IsEqualApprox(max.Y, 1.0f)).IsTrue();
         AssertBool(Mathf.IsEqualApprox(max.Z, 2.0f)).IsTrue();
     }
 
@@ -238,8 +239,12 @@ public class PrimitiveToolTests
 
         MeshObject created = fixture.Application.CurrentDocument.GetObjects()
             .Single(value => value.Name == "Box");
+        float halfHeight = created.Mesh.SpatialMesh.GetVertexData(6).position.Y;
         AssertBool(
-            Mathf.Abs((created.Transform.Origin - hit.Position).Dot(hit.Normal)) < 0.001f
+            Mathf.IsEqualApprox(
+                (created.Transform.Origin - hit.Position).Dot(hit.Normal),
+                halfHeight
+            )
         ).IsTrue();
         AssertBool(created.Transform.Basis.Y.Dot(hit.Normal) > 0.999f).IsTrue();
     }
