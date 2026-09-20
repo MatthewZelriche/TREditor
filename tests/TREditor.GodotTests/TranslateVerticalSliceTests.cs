@@ -126,20 +126,19 @@ public class TranslateVerticalSliceTests
         private readonly Node3D _mapRoot;
         private readonly MainViewport _viewport;
 
-        private Fixture(Application application, Node3D mapRoot, MainViewport viewport)
+        private Fixture(
+            Application application,
+            Node3D mapRoot,
+            MainViewport viewport,
+            MeshObjectId cubeId,
+            MeshObjectId cylinderId
+        )
         {
             Application = application;
             _mapRoot = mapRoot;
             _viewport = viewport;
-
-            foreach (MeshObjectId id in application.Document!.GetObjectIds())
-            {
-                application.Document.TryGetMeshTransform(id, out Transform3D transform);
-                if (transform.Origin.X < 0.0f)
-                    CubeId = id;
-                else
-                    CylinderId = id;
-            }
+            CubeId = cubeId;
+            CylinderId = cylinderId;
         }
 
         public Application Application { get; }
@@ -157,11 +156,14 @@ public class TranslateVerticalSliceTests
             tree.Root.AddChild(mapRoot);
             var application = new Application(mapRoot);
             application.Snap.SetGridSnap(null);
+            (MeshObjectId cubeId, MeshObjectId cylinderId) = TestSceneObjects.AddCubeAndCylinder(
+                application.CurrentDocument!
+            );
             MainViewport viewport = CreateViewport();
             application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
             application.Update(0.0);
             await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
-            return new Fixture(application, mapRoot, viewport);
+            return new Fixture(application, mapRoot, viewport, cubeId, cylinderId);
         }
 
         public Transform3D TransformOf(MeshObjectId id)

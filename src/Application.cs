@@ -1,7 +1,5 @@
 using System;
 using Godot;
-using TRMesh.Mesh;
-using NumericsVector3 = System.Numerics.Vector3;
 
 public sealed class Application : IDisposable
 {
@@ -71,7 +69,6 @@ public sealed class Application : IDisposable
         _commandHistory.SetDocument(initialDocument);
         _commandHistory.Changed += OnCommandHistoryChanged;
         _commandHistory.OperationFailed += OnCommandHistoryOperationFailed;
-        SetUpDocumentForDebug(initialDocument);
     }
 
     // Tool- and UI-facing document access. Only value snapshots leave this boundary.
@@ -313,34 +310,5 @@ public sealed class Application : IDisposable
         // Retarget only after the old history is gone so a discarded command cannot reach the new document.
         _commandHistory.SetDocument(document);
         previousDocument?.Dispose();
-    }
-
-    // TODO: Delete this when Primitive Creation is hooked up
-    private static void SetUpDocumentForDebug(Document document)
-    {
-        var cubeTransform = new Transform3D(
-            Basis.Identity,
-            new Vector3(-1.5f, 0.0f, 0.0f)
-        );
-        var cylinderTransform = new Transform3D(
-            Basis.Identity,
-            new Vector3(1.5f, 0.0f, 0.0f)
-        );
-
-        document.Add(
-            "Debug Cube",
-            cubeTransform,
-            new GDMesh(
-                SpatialMeshBuilder.CreateAabb(
-                    new NumericsVector3(-1.0f, -1.0f, -1.0f),
-                    new NumericsVector3(2.0f, 2.0f, 2.0f)
-                )
-            )
-        );
-        document.Add(
-            "Debug Cylinder",
-            cylinderTransform,
-            new GDMesh(SpatialMeshBuilder.CreateCylinder(2.5f, 1.75f, 16))
-        );
     }
 }

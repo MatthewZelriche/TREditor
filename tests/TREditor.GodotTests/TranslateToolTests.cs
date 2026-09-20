@@ -279,26 +279,24 @@ public class TranslateToolTests
             await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
     }
 
-    // Everything a translate test needs: a running application with the debug scene, one registered
-    // viewport, and the tool under test driven exactly the way the viewport drives it.
+    // Everything a translate test needs: a running application with a seeded cube and cylinder, one
+    // registered viewport, and the tool under test driven exactly the way the viewport drives it.
     private sealed class Fixture : IDisposable
     {
         private readonly MainViewport _viewport;
 
-        private Fixture(Application application, MainViewport viewport)
+        private Fixture(
+            Application application,
+            MainViewport viewport,
+            MeshObjectId cubeId,
+            MeshObjectId cylinderId
+        )
         {
             Application = application;
             _viewport = viewport;
+            CubeId = cubeId;
+            CylinderId = cylinderId;
             application.CommandHistoryChanged += () => HistoryChanges++;
-
-            foreach (MeshObjectId id in application.Document!.GetObjectIds())
-            {
-                application.Document.TryGetMeshTransform(id, out Transform3D transform);
-                if (transform.Origin.X < 0.0f)
-                    CubeId = id;
-                else
-                    CylinderId = id;
-            }
         }
 
         public Application Application { get; }
@@ -327,13 +325,16 @@ public class TranslateToolTests
             var application = new Application(mapRoot);
             // Freehand translate tests need snap off; the dedicated snap case turns it back on.
             application.Snap.SetGridSnap(null);
+            (MeshObjectId cubeId, MeshObjectId cylinderId) = TestSceneObjects.AddCubeAndCylinder(
+                application.CurrentDocument!
+            );
             MainViewport viewport = CreateViewport();
             application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
 
             // Colliders only exist after a flush, and the ray they answer needs a physics frame.
             application.Update(0.0);
             await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
-            return new Fixture(application, viewport);
+            return new Fixture(application, viewport, cubeId, cylinderId);
         }
 
         public void Select(MeshObjectId id) => Selection.Select(id);

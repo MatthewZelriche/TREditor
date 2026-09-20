@@ -226,7 +226,8 @@ public class TranslateGizmoTests
 
         AssertBool(application.Gizmos.IsVisible).IsFalse();
 
-        MeshObjectId id = FirstObjectId(application);
+        MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
+        application.Update(0.0);
         application.ToolContext.Selection.Select(id);
         AssertBool(application.Document!.TryGetMeshTransform(id, out Transform3D committed)).IsTrue();
 
@@ -273,7 +274,8 @@ public class TranslateGizmoTests
         using var application = new Application(mapRoot);
         MainViewport viewport = CreateViewport(new Vector3(9.0f, 7.0f, 9.0f));
         application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
-        MeshObjectId id = FirstObjectId(application);
+        MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
+        application.Update(0.0);
         application.ToolContext.Selection.Select(id);
         await ProcessFrames(2);
         AssertBool(application.Gizmos.IsVisible).IsTrue();
@@ -295,7 +297,9 @@ public class TranslateGizmoTests
         using var application = new Application(mapRoot);
         MainViewport viewport = CreateViewport(new Vector3(9.0f, 7.0f, 9.0f));
         application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
-        application.ToolContext.Selection.Select(FirstObjectId(application));
+        MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
+        application.Update(0.0);
+        application.ToolContext.Selection.Select(id);
         await ProcessFrames(2);
         AssertBool(application.Gizmos.IsVisible).IsTrue();
 
@@ -303,15 +307,6 @@ public class TranslateGizmoTests
 
         AssertBool(application.Gizmos.IsVisible).IsFalse();
         AssertThat(application.ToolContext.Selection.Selected).IsNull();
-    }
-
-    private static MeshObjectId FirstObjectId(Application application)
-    {
-        foreach (MeshObjectId id in application.Document!.GetObjectIds())
-            return id;
-
-        AssertThat("the debug scene has objects").IsEqual("no objects were found");
-        return default;
     }
 
     // Walks outward along the projected +X axis and reports the farthest offset that still grabs a
