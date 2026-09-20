@@ -266,6 +266,28 @@ public class TranslateGizmoTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task SwitchingAwayFromTranslateHidesTheGizmoUntilTranslateReturns()
+    {
+        Node3D mapRoot = AutoFree(new Node3D());
+        AddToTree(mapRoot);
+        using var application = new Application(mapRoot);
+        MainViewport viewport = CreateViewport(new Vector3(9.0f, 7.0f, 9.0f));
+        application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
+        MeshObjectId id = FirstObjectId(application);
+        application.ToolContext.Selection.Select(id);
+        await ProcessFrames(2);
+        AssertBool(application.Gizmos.IsVisible).IsTrue();
+
+        application.Tools.Activate(PrimitiveTool.ToolId);
+        AssertBool(application.Gizmos.IsVisible).IsFalse();
+        AssertThat(application.ToolContext.Selection.Selected).IsEqual(id);
+
+        application.Tools.Activate(TranslateTool.ToolId);
+        AssertBool(application.Gizmos.IsVisible).IsTrue();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task ReplacingTheSceneHidesTheGizmo()
     {
         Node3D mapRoot = AutoFree(new Node3D());

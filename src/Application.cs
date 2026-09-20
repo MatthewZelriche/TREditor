@@ -55,6 +55,7 @@ public sealed class Application : IDisposable
             _toolRegistry.Register(new TranslateTool());
             _toolRegistry.Register(new PrimitiveTool());
             _toolRegistry.SetDefaultTool(TranslateTool.ToolId);
+            _toolRegistry.ActiveToolChanged += OnActiveToolChanged;
             _toolRegistry.Activate(TranslateTool.ToolId);
         }
         catch
@@ -253,6 +254,7 @@ public sealed class Application : IDisposable
             _services.FatalError -= OnSceneServicesFatalError;
             CommandHistoryChanged = null;
             FatalError = null;
+            _toolRegistry.ActiveToolChanged -= OnActiveToolChanged;
             _toolRegistry.CancelActiveTool();
             _selectionMode.ClearChangedListeners();
             _selectionState.Clear();
@@ -272,6 +274,12 @@ public sealed class Application : IDisposable
 
     private void OnCommandHistoryOperationFailed(string operation, Exception exception) =>
         OperationFailed?.Invoke(operation, exception);
+
+    private void OnActiveToolChanged() =>
+        // Hide gizmo when not translate tool
+        _toolContext.TranslateGizmos.SetEnabled(
+            _toolRegistry.ActiveTool?.Id == TranslateTool.ToolId
+        );
 
     private void OnSceneServicesFatalError(string operation, Exception exception)
     {

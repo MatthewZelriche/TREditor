@@ -18,6 +18,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     private Document? _document;
     private Camera3D? _interactionCamera;
     private bool _attached;
+    private bool _enabled = true;
     private bool _disposed;
 
     public TranslateGizmoCoordinator(
@@ -153,10 +154,27 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         registration.Host.QueueFree();
     }
 
+    // Whether the translate tool currently owns interaction. When false the gizmo stays hidden even
+    // if a selection exists, so a create tool cannot leave a dead gizmo on screen.
+    public void SetEnabled(bool enabled)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_enabled == enabled)
+            return;
+
+        _enabled = enabled;
+        if (_enabled)
+            Synchronize();
+        else
+            Hide();
+    }
+
     // Places the shared proxy and shows a gizmo in every viewport.
     public void ShowAt(Transform3D transform)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_enabled)
+            return;
 
         _proxy.GlobalTransform = transform;
         _attached = true;
@@ -262,7 +280,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     // active preview over the committed transform. A drag already owns the proxy, so it is left alone.
     private void Synchronize()
     {
-        if (_disposed || IsInteracting)
+        if (_disposed || IsInteracting || !_enabled)
             return;
 
         if (
