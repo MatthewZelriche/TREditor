@@ -97,8 +97,9 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
         _planeOrigin = point;
         _planeNormal = normal.Normalized();
         BuildPlaneAxes(_planeNormal, out _planeXAxis, out _planeZAxis);
-        _baseStart = point;
-        _baseCenter = point;
+        _baseStart = SnapOnPlane(context, point);
+        _planeOrigin = _baseStart;
+        _baseCenter = _baseStart;
         _baseSize = Vector2.Zero;
         _signedHeight = 0.0f;
         _phase = InteractionPhase.DefiningBase;
@@ -153,7 +154,10 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
             return;
         }
 
-        _signedHeight = (_heightStartScreen.Y - input.ScreenPosition.Y) * HeightUnitsPerPixel;
+        _signedHeight = SnapScalar(
+            context,
+            (_heightStartScreen.Y - input.ScreenPosition.Y) * HeightUnitsPerPixel
+        );
         UpdatePreview(context);
     }
 
@@ -193,13 +197,14 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
                 screenPosition,
                 _planeOrigin,
                 _planeNormal,
-                out Vector3 current
+                out Vector3 unsnapped
             )
         )
         {
             return;
         }
 
+        Vector3 current = SnapOnPlane(context, unsnapped);
         Vector3 delta = current - _baseStart;
         float width = delta.Dot(_planeXAxis);
         float depth = delta.Dot(_planeZAxis);
@@ -209,6 +214,34 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
             UpdatePreview(context);
         else
             context.Preview.ClearGeometry();
+    }
+
+    // Snaps within the base plane so surface height along the normal is preserved while X/Z (or
+    // whatever the plane axes are) lock to the shared grid increment.
+    private Vector3 SnapOnPlane(IEditorToolContext context, Vector3 point)
+    {
+        if (!TryGetGridSnap(context, out float snap))
+            return point;
+
+        float u = Mathf.Snapped(_planeXAxis.Dot(point), snap);
+        float v = Mathf.Snapped(_planeZAxis.Dot(point), snap);
+        float alongNormal = _planeNormal.Dot(point);
+        return (_planeXAxis * u) + (_planeZAxis * v) + (_planeNormal * alongNormal);
+    }
+
+    private static float SnapScalar(IEditorToolContext context, float value) =>
+        TryGetGridSnap(context, out float snap) ? Mathf.Snapped(value, snap) : value;
+
+    private static bool TryGetGridSnap(IEditorToolContext context, out float snap)
+    {
+        if (context.Snap.GridSnap is float value && value > 0.0f)
+        {
+            snap = value;
+            return true;
+        }
+
+        snap = 0.0f;
+        return false;
     }
 
     private void UpdatePreview(IEditorToolContext context)

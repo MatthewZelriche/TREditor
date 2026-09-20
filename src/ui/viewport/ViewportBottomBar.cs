@@ -28,43 +28,75 @@ public partial class ViewportBottomBar : PanelContainer
         ("90°", 90.0f),
     ];
 
-    public event Action<float?>? GridSnapChanged;
-    public event Action<float?>? AngleSnapChanged;
+    private SnapSettings? _snap;
+    private MenuButton _gridButton = null!;
+    private MenuButton _angleButton = null!;
+    private MenuButton _spaceButton = null!;
+    private bool _menusConfigured;
+
     public event Action<bool>? LocalSpaceChanged;
 
-    public float? GridSnap { get; private set; } = 16.0f;
-    public float? AngleSnap { get; private set; }
     public bool IsLocalSpace { get; private set; } = true;
 
     public override void _Ready()
     {
-        MenuButton gridButton = GetNode<MenuButton>("BarMargin/Controls/GridSnapButton");
-        MenuButton angleButton = GetNode<MenuButton>("BarMargin/Controls/AngleSnapButton");
-        MenuButton spaceButton = GetNode<MenuButton>("BarMargin/Controls/SpaceButton");
+        _gridButton = GetNode<MenuButton>("BarMargin/Controls/GridSnapButton");
+        _angleButton = GetNode<MenuButton>("BarMargin/Controls/AngleSnapButton");
+        _spaceButton = GetNode<MenuButton>("BarMargin/Controls/SpaceButton");
+        ConfigureSpaceMenu(_spaceButton);
+        TryConfigureSnapMenus();
+    }
+
+    public override void _ExitTree() => Unbind();
+
+    public void Bind(SnapSettings snap)
+    {
+        ArgumentNullException.ThrowIfNull(snap);
+        Unbind();
+        _snap = snap;
+        _snap.Changed += SyncSnapMenus;
+        TryConfigureSnapMenus();
+        SyncSnapMenus();
+    }
+
+    private void Unbind()
+    {
+        if (_snap is null)
+            return;
+
+        _snap.Changed -= SyncSnapMenus;
+        _snap = null;
+    }
+
+    private void TryConfigureSnapMenus()
+    {
+        if (_menusConfigured || _gridButton is null || _angleButton is null || _snap is null)
+            return;
 
         ConfigureSnapMenu(
-            gridButton,
+            _gridButton,
             "Grid",
             GridSnapOptions,
-            GridSnap,
-            value =>
-            {
-                GridSnap = value;
-                GridSnapChanged?.Invoke(value);
-            }
+            _snap.GridSnap,
+            value => _snap?.SetGridSnap(value)
         );
         ConfigureSnapMenu(
-            angleButton,
+            _angleButton,
             "Angle",
             AngleSnapOptions,
-            AngleSnap,
-            value =>
-            {
-                AngleSnap = value;
-                AngleSnapChanged?.Invoke(value);
-            }
+            _snap.AngleSnap,
+            value => _snap?.SetAngleSnap(value)
         );
-        ConfigureSpaceMenu(spaceButton);
+        _menusConfigured = true;
+    }
+
+    private void SyncSnapMenus()
+    {
+        if (_snap is null || !_menusConfigured)
+            return;
+
+        SetSnapSelection(_gridButton, "Grid", GridSnapOptions, _snap.GridSnap);
+        SetSnapSelection(_angleButton, "Angle", AngleSnapOptions, _snap.AngleSnap);
     }
 
     private static void ConfigureSnapMenu(

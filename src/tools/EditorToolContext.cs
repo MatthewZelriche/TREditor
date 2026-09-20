@@ -13,7 +13,8 @@ public sealed class EditorToolContext : IEditorToolContext
         PickingService picking,
         SelectionState selection,
         PreviewState preview,
-        TranslateGizmoCoordinator translateGizmos
+        TranslateGizmoCoordinator translateGizmos,
+        SnapSettings snap
     )
     {
         ArgumentNullException.ThrowIfNull(documentAccessor);
@@ -22,6 +23,7 @@ public sealed class EditorToolContext : IEditorToolContext
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(preview);
         ArgumentNullException.ThrowIfNull(translateGizmos);
+        ArgumentNullException.ThrowIfNull(snap);
 
         _documentAccessor = documentAccessor;
         Commands = commands;
@@ -29,6 +31,7 @@ public sealed class EditorToolContext : IEditorToolContext
         Selection = selection;
         Preview = preview;
         TranslateGizmos = translateGizmos;
+        Snap = snap;
     }
 
     public IEditorDocumentReader Document =>
@@ -44,4 +47,6 @@ public sealed class EditorToolContext : IEditorToolContext
     public PreviewState Preview { get; }
 
     public TranslateGizmoCoordinator TranslateGizmos { get; }
+
+    public SnapSettings Snap { get; }
 }

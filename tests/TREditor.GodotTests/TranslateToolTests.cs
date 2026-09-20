@@ -377,6 +377,8 @@ public class TranslateToolTests
 
         public TranslateGizmoCoordinator TranslateGizmos => inner.TranslateGizmos;
 
+        public SnapSettings Snap => inner.Snap;
+
         public void Submit(IEditorCommand command) =>
             throw new InvalidOperationException("The command could not be submitted.");
     }

@@ -12,6 +12,7 @@ public sealed class Application : IDisposable
     private readonly SelectionModeState _selectionMode = new();
     private readonly SelectionState _selectionState = new();
     private readonly PreviewState _previewState = new();
+    private readonly SnapSettings _snapSettings = new();
     private Document? _currentDocument;
     private string? _currentFilePath;
     private bool _disposed;
@@ -42,7 +43,8 @@ public sealed class Application : IDisposable
                 pickingService,
                 _selectionState,
                 _previewState,
-                gizmos
+                gizmos,
+                _snapSettings
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
             _toolRegistry.Register(new TranslateTool());
@@ -88,6 +90,8 @@ public sealed class Application : IDisposable
     public string? CurrentFilePath => _currentFilePath;
 
     public SelectionModeState SelectionMode => _selectionMode;
+
+    public SnapSettings Snap => _snapSettings;
 
     public bool CanUndo => _commandHistory.CanUndo;
 

@@ -17,4 +17,7 @@ public interface IEditorToolContext
     // Editor-owned translate gizmo hosts, reached by camera. Tools drive interaction through this
     // coordinator rather than touching viewport-local Gizmo3D nodes.
     TranslateGizmoCoordinator TranslateGizmos { get; }
+
+    // Shared snap increments from the bottom bar. Tools read these; they do not own the settings.
+    SnapSettings Snap { get; }
 }
