@@ -26,7 +26,12 @@ public sealed class Application : IDisposable
         TranslateGizmoCoordinator? gizmos = null;
         try
         {
-            gizmos = new TranslateGizmoCoordinator(mapRoot, _selectionState, _previewState);
+            gizmos = new TranslateGizmoCoordinator(
+                mapRoot,
+                _selectionState,
+                _previewState,
+                _snapSettings
+            );
             renderService = new RenderService(initialDocument, mapRoot, _previewState);
             pickingService = new PickingService(initialDocument, mapRoot, _previewState);
             _services = new SceneServices(

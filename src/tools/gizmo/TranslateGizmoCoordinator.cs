@@ -14,6 +14,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     private readonly Node3D _proxy;
     private readonly SelectionState _selection;
     private readonly PreviewState _previews;
+    private readonly SnapSettings _snap;
     private Document? _document;
     private Camera3D? _interactionCamera;
     private bool _attached;
@@ -22,15 +23,18 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     public TranslateGizmoCoordinator(
         Node3D proxyParent,
         SelectionState selection,
-        PreviewState previews
+        PreviewState previews,
+        SnapSettings snap
     )
     {
         ArgumentNullException.ThrowIfNull(proxyParent);
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(previews);
+        ArgumentNullException.ThrowIfNull(snap);
 
         _selection = selection;
         _previews = previews;
+        _snap = snap;
         _proxy = new Node3D { Name = "TranslateGizmoProxy" };
         try
         {
@@ -68,7 +72,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
 
         uint layerMask = _layers.Allocate();
         uint previousCullMask = camera.CullMask;
-        var host = new TranslateGizmoHost();
+        var host = new TranslateGizmoHost(_snap);
         host.SetRenderLayer(layerMask);
         try
         {

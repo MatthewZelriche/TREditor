@@ -52,6 +52,30 @@ public class TranslateToolTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task GridSnapQuantizesTranslationDeltas()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Application.Snap.SetGridSnap(2.0f);
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D start = fixture.TransformOf(fixture.CubeId);
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle);
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        await ProcessFrames(1);
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        Transform3D after = fixture.TransformOf(fixture.CubeId);
+        Vector3 delta = after.Origin - start.Origin;
+        AssertBool(delta.IsEqualApprox(Vector3.Zero)).IsFalse();
+        AssertBool(Mathf.IsEqualApprox(delta.X, Mathf.Snapped(delta.X, 2.0f))).IsTrue();
+        AssertBool(Mathf.IsEqualApprox(delta.Y, Mathf.Snapped(delta.Y, 2.0f))).IsTrue();
+        AssertBool(Mathf.IsEqualApprox(delta.Z, Mathf.Snapped(delta.Z, 2.0f))).IsTrue();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task APressOffTheGizmoChangesSelectionWithoutTranslating()
     {
         using Fixture fixture = await Fixture.Create();
@@ -301,6 +325,8 @@ public class TranslateToolTests
             Node3D mapRoot = AutoFree(new Node3D());
             tree.Root.AddChild(mapRoot);
             var application = new Application(mapRoot);
+            // Freehand translate tests need snap off; the dedicated snap case turns it back on.
+            application.Snap.SetGridSnap(null);
             MainViewport viewport = CreateViewport();
             application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
 

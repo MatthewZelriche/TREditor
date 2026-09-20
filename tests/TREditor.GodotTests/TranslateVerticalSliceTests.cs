@@ -156,6 +156,7 @@ public class TranslateVerticalSliceTests
             Node3D mapRoot = AutoFree(new Node3D());
             tree.Root.AddChild(mapRoot);
             var application = new Application(mapRoot);
+            application.Snap.SetGridSnap(null);
             MainViewport viewport = CreateViewport();
             application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
             application.Update(0.0);

@@ -1,3 +1,4 @@
+using System;
 using Gizmo3DPlugin;
 using Godot;
 
@@ -7,11 +8,14 @@ using Godot;
 // here rather than in the vendored node.
 public partial class TranslateGizmoHost : Gizmo3D
 {
+    private readonly SnapSettings _snap;
     private uint _layerMask = 1;
     private Vector2 _lastPosition;
 
-    public TranslateGizmoHost()
+    public TranslateGizmoHost(SnapSettings snap)
     {
+        ArgumentNullException.ThrowIfNull(snap);
+        _snap = snap;
         Name = "TranslateGizmo";
         Mode = ToolMode.Move;
         // Selection feedback and infinite axis lines belong to the editor's own selection rendering,
@@ -93,5 +97,15 @@ public partial class TranslateGizmoHost : Gizmo3D
             Position = _lastPosition,
         };
         _UnhandledInput(release);
+    }
+
+    // Gizmo3D's built-in Ctrl snapping never reaches us because the coordinator feeds mouse events
+    // only. Honor the shared bottom-bar grid increment on the translation delta instead.
+    protected override Vector3 EditTranslate(Vector3 translation)
+    {
+        if (_snap.GridSnap is float step && step > 0.0f)
+            return translation.Snapped(step);
+
+        return translation;
     }
 }

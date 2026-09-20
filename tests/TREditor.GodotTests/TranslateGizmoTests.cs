@@ -18,7 +18,7 @@ public class TranslateGizmoTests
         AddToTree(proxyParent);
         var selection = new SelectionState();
         using var previews = new PreviewState();
-        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews);
+        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews, NoSnap());
         MainViewport first = CreateViewport(new Vector3(8.0f, 6.0f, 8.0f));
         MainViewport second = CreateViewport(new Vector3(-9.0f, 4.0f, 7.0f));
 
@@ -76,7 +76,7 @@ public class TranslateGizmoTests
         AddToTree(proxyParent);
         var selection = new SelectionState();
         using var previews = new PreviewState();
-        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews);
+        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews, NoSnap());
         MainViewport first = CreateViewport(new Vector3(8.0f, 6.0f, 8.0f));
         MainViewport second = CreateViewport(new Vector3(-9.0f, 4.0f, 7.0f));
         coordinator.RegisterViewport(first.Camera, first.ToolOverlayRoot);
@@ -110,7 +110,7 @@ public class TranslateGizmoTests
         AddToTree(proxyParent);
         var selection = new SelectionState();
         using var previews = new PreviewState();
-        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews);
+        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews, NoSnap());
         MainViewport near = CreateViewport(new Vector3(4.0f, 3.0f, 4.0f));
         MainViewport far = CreateViewport(new Vector3(24.0f, 18.0f, 24.0f));
         coordinator.RegisterViewport(near.Camera, near.ToolOverlayRoot);
@@ -135,7 +135,7 @@ public class TranslateGizmoTests
         AddToTree(proxyParent);
         var selection = new SelectionState();
         using var previews = new PreviewState();
-        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews);
+        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews, NoSnap());
         MainViewport first = CreateViewport(new Vector3(6.0f, 5.0f, 6.0f));
         MainViewport second = CreateViewport(new Vector3(-7.0f, 5.0f, 6.0f));
         coordinator.RegisterViewport(first.Camera, first.ToolOverlayRoot);
@@ -165,7 +165,7 @@ public class TranslateGizmoTests
         AddToTree(proxyParent);
         var selection = new SelectionState();
         using var previews = new PreviewState();
-        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews);
+        using var coordinator = new TranslateGizmoCoordinator(proxyParent, selection, previews, NoSnap());
         MainViewport viewport = CreateViewport(new Vector3(6.0f, 5.0f, 6.0f));
         coordinator.RegisterViewport(viewport.Camera, viewport.ToolOverlayRoot);
         coordinator.ShowAt(Transform3D.Identity);
@@ -192,7 +192,7 @@ public class TranslateGizmoTests
         AddToTree(mapRoot);
         var selection = new SelectionState();
         using var previews = new PreviewState();
-        using var coordinator = new TranslateGizmoCoordinator(mapRoot, selection, previews);
+        using var coordinator = new TranslateGizmoCoordinator(mapRoot, selection, previews, NoSnap());
         MainViewport viewport = CreateViewport(new Vector3(6.0f, 5.0f, 6.0f));
         coordinator.RegisterViewport(viewport.Camera, viewport.ToolOverlayRoot);
         coordinator.ShowAt(Transform3D.Identity);
@@ -337,6 +337,13 @@ public class TranslateGizmoTests
         Vector2 center = camera.UnprojectPosition(Vector3.Zero);
         Vector2 axis = (camera.UnprojectPosition(Vector3.Right) - center).Normalized();
         return center + (axis * offset);
+    }
+
+    private static SnapSettings NoSnap()
+    {
+        var snap = new SnapSettings();
+        snap.SetGridSnap(null);
+        return snap;
     }
 
     private static float[] Offsets()
