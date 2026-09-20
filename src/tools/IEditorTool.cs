@@ -10,6 +10,10 @@ public interface IEditorTool
 
     void OnMouseDrag(IEditorToolContext context, EditorMouseInput input);
 
+    // Pointer motion with no tool button held. Creation tools use it for a staged interaction after
+    // the base drag has ended; most tools do not need to override it.
+    void OnMouseMove(IEditorToolContext context, EditorMouseInput input) { }
+
     void OnMouseUp(IEditorToolContext context, EditorMouseInput input);
 
     // Abandons any in-progress interaction without committing it. Must be safe to call when the tool

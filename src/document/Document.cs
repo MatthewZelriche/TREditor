@@ -69,6 +69,21 @@ public sealed class Document : IDisposable, IEditorDocumentReader
         return meshObject;
     }
 
+    // Re-inserts the exact record retained by an undoable create command. Object IDs are never
+    // reused, so restoration cannot silently replace a different object.
+    internal bool Restore(MeshObject meshObject)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(meshObject);
+        if (_objects.ContainsKey(meshObject.Id))
+            return false;
+
+        _objects.Add(meshObject.Id, meshObject);
+        _nextObjectId = Math.Max(_nextObjectId, checked(meshObject.Id.Value + 1));
+        Publish(new DocumentObjectChange(meshObject.Id, DocumentChangeKind.Added));
+        return true;
+    }
+
     // Removes the object from the document without disposing its mesh. The returned record's mesh is
     // owned by the caller (e.g. an undo command) until they dispose it or re-insert it.
     internal MeshObject? Remove(MeshObjectId id)

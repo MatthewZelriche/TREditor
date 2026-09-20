@@ -46,6 +46,7 @@ public sealed class Application : IDisposable
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
             _toolRegistry.Register(new TranslateTool());
+            _toolRegistry.Register(new PrimitiveTool());
             _toolRegistry.SetDefaultTool(TranslateTool.ToolId);
             _toolRegistry.Activate(TranslateTool.ToolId);
         }
@@ -207,6 +208,12 @@ public sealed class Application : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _toolRegistry.MouseDrag(input);
+    }
+
+    public void HandleToolMouseMove(EditorMouseInput input)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _toolRegistry.MouseMove(input);
     }
 
     public void HandleToolMouseUp(EditorMouseInput input)

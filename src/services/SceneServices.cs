@@ -33,6 +33,7 @@ public sealed class SceneServices : IDisposable
         _previews = previews;
         _services = serviceCopy;
         _previews.TransformChanged += OnPreviewTransformChanged;
+        _previews.PreviewGeometryChanged += OnPreviewGeometryChanged;
 
         try
         {
@@ -108,6 +109,7 @@ public sealed class SceneServices : IDisposable
         _disposed = true;
         FatalError = null;
         _previews.TransformChanged -= OnPreviewTransformChanged;
+        _previews.PreviewGeometryChanged -= OnPreviewGeometryChanged;
         Unsubscribe(_document);
 
         List<Exception>? disposalExceptions = null;
@@ -148,6 +150,15 @@ public sealed class SceneServices : IDisposable
         {
             foreach (ISceneService service in _services)
                 service.OnPreviewTransformChanged(id);
+        });
+    }
+
+    private void OnPreviewGeometryChanged()
+    {
+        RunServiceOperation("updating preview geometry", () =>
+        {
+            foreach (ISceneService service in _services)
+                service.OnPreviewGeometryChanged();
         });
     }
 

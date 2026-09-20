@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using Godot;
 
 public partial class ToolSettingsSidebar : Control
@@ -28,6 +29,10 @@ public partial class ToolSettingsSidebar : Control
     private float _sidebarWidth;
     private float _resizeStartMouseX;
     private float _resizeStartWidth;
+    private EditorToolRegistry? _tools;
+    private Label _emptyLabel = null!;
+    private VBoxContainer _settingsHost = null!;
+    private Control? _settingsControl;
 
     public override void _Ready()
     {
@@ -35,6 +40,7 @@ public partial class ToolSettingsSidebar : Control
         _adjacentContent = GetNode<Control>(AdjacentContentPath);
         _toggleButton = GetNode<Button>(ToggleButtonPath);
         _resizeHandle = GetNode<Control>("ResizeHandle");
+        BuildSettingsUi();
 
         _sidebarWidth = GetDefaultWidth();
         _toggleButton.Pressed += Toggle;
@@ -73,6 +79,20 @@ public partial class ToolSettingsSidebar : Control
             _isResizing = false;
             GetViewport().SetInputAsHandled();
         }
+    }
+
+    public override void _ExitTree()
+    {
+        Unbind();
+    }
+
+    public void Bind(EditorToolRegistry tools)
+    {
+        ArgumentNullException.ThrowIfNull(tools);
+        Unbind();
+        _tools = tools;
+        _tools.ActiveToolChanged += OnActiveToolChanged;
+        OnActiveToolChanged();
     }
 
     public void Toggle()
@@ -149,5 +169,76 @@ public partial class ToolSettingsSidebar : Control
                 _layoutParent.Size.X - MinimumAdjacentContentWidth - SeparatorWidth
             )
         );
+    }
+
+    // Creates the initial container for tool settings - tools provide the contents themselves
+    private void BuildSettingsUi()
+    {
+        PanelContainer panel = GetNode<PanelContainer>("Panel");
+        var margin = new MarginContainer();
+        margin.AddThemeConstantOverride("margin_left", 14);
+        margin.AddThemeConstantOverride("margin_top", 14);
+        margin.AddThemeConstantOverride("margin_right", 14);
+        margin.AddThemeConstantOverride("margin_bottom", 14);
+        panel.AddChild(margin);
+
+        var root = new VBoxContainer();
+        root.AddThemeConstantOverride("separation", 10);
+        margin.AddChild(root);
+        root.AddChild(new Label { Text = "Tool Settings" });
+
+        _emptyLabel = new Label { Text = "No settings for the active tool." };
+        root.AddChild(_emptyLabel);
+
+        _settingsHost = new VBoxContainer();
+        _settingsHost.AddThemeConstantOverride("separation", 8);
+        root.AddChild(_settingsHost);
+    }
+
+    private void OnActiveToolChanged()
+    {
+        ClearSettingsControl();
+        if (_tools?.ActiveTool is not IEditorToolSettingsProvider provider)
+        {
+            _emptyLabel.Visible = true;
+            return;
+        }
+
+        Control settingsControl = provider.CreateSettingsControl()
+            ?? throw new InvalidOperationException(
+                "A tool settings provider returned a null control."
+            );
+        try
+        {
+            _settingsHost.AddChild(settingsControl);
+        }
+        catch
+        {
+            settingsControl.Free();
+            throw;
+        }
+
+        _settingsControl = settingsControl;
+        _emptyLabel.Visible = false;
+    }
+
+    private void Unbind()
+    {
+        if (_tools is not null)
+            _tools.ActiveToolChanged -= OnActiveToolChanged;
+
+        ClearSettingsControl();
+        _tools = null;
+    }
+
+    private void ClearSettingsControl()
+    {
+        if (_settingsControl is null)
+            return;
+
+        if (_settingsControl.GetParent() is not null)
+            _settingsHost.RemoveChild(_settingsControl);
+        _settingsControl.Free();
+        _settingsControl = null;
     }
 }

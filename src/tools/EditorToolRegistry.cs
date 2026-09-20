@@ -81,6 +81,8 @@ public sealed class EditorToolRegistry
 
     public void MouseDrag(EditorMouseInput input) => _activeTool?.OnMouseDrag(_context, input);
 
+    public void MouseMove(EditorMouseInput input) => _activeTool?.OnMouseMove(_context, input);
+
     public void MouseUp(EditorMouseInput input) => _activeTool?.OnMouseUp(_context, input);
 
     private void SetActiveTool(IEditorTool? tool)

@@ -93,6 +93,8 @@ public sealed class PickingService : ISceneService
         ApplyTransform(id);
     }
 
+    public void OnPreviewGeometryChanged() => ObjectDisposedException.ThrowIf(_disposed, this);
+
     private void AddObject(MeshObjectId id)
     {
         if (!_document.TryGetObject(id, out MeshObject meshObject))
@@ -174,16 +176,7 @@ public sealed class PickingService : ISceneService
 
     public MeshObjectId? Raycast(Camera3D camera, Vector2 screenPosition)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(camera);
-
-        Vector3 origin = camera.ProjectRayOrigin(screenPosition);
-        Vector3 destination = origin + camera.ProjectRayNormal(screenPosition) * RayLength;
-        using PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(
-            origin,
-            destination
-        );
-        return Raycast(query);
+        return TryRaycast(camera, screenPosition, out PickingHit hit) ? hit.ObjectId : null;
     }
 
     public MeshObjectId? Raycast(PhysicsRayQueryParameters3D query)
@@ -202,6 +195,41 @@ public sealed class PickingService : ISceneService
 
         ulong colliderId = result["collider_id"].AsUInt64();
         return _colliderIds.TryGetValue(colliderId, out MeshObjectId id) ? id : null;
+    }
+
+    public bool TryRaycast(Camera3D camera, Vector2 screenPosition, out PickingHit hit)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(camera);
+
+        Vector3 origin = camera.ProjectRayOrigin(screenPosition);
+        Vector3 destination = origin + camera.ProjectRayNormal(screenPosition) * RayLength;
+        using PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(
+            origin,
+            destination
+        );
+        query.CollisionMask = PickingCollisionLayer;
+        query.CollideWithBodies = true;
+        query.CollideWithAreas = false;
+
+        PhysicsDirectSpaceState3D spaceState = _mapRoot.GetWorld3D().DirectSpaceState;
+        Godot.Collections.Dictionary result = spaceState.IntersectRay(query);
+        if (result.Count != 0)
+        {
+            ulong colliderId = result["collider_id"].AsUInt64();
+            if (_colliderIds.TryGetValue(colliderId, out MeshObjectId id))
+            {
+                hit = new PickingHit(
+                    id,
+                    result["position"].AsVector3(),
+                    result["normal"].AsVector3()
+                );
+                return true;
+            }
+        }
+
+        hit = default;
+        return false;
     }
 
     private void ClearDocumentState()

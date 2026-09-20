@@ -57,6 +57,8 @@ public partial class MainViewport : SubViewportContainer
 
     public event Action<EditorMouseInput>? ToolMouseDrag;
 
+    public event Action<EditorMouseInput>? ToolMouseMove;
+
     public event Action<EditorMouseInput>? ToolMouseUp;
 
     // Raised when a drag is taken away from the tool rather than completed, so its owner can cancel
@@ -119,7 +121,10 @@ public partial class MainViewport : SubViewportContainer
         {
             ToolMouseDrag?.Invoke(CreateToolInput(mouseMotion));
             GetViewport().SetInputAsHandled();
+            return;
         }
+
+        ToolMouseMove?.Invoke(CreateToolInput(mouseMotion));
     }
 
     public override void _Process(double delta)

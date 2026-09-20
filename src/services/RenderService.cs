@@ -8,6 +8,9 @@ public sealed class RenderService : ISceneService
     private readonly Dictionary<MeshObjectId, RenderEntry> _entries = [];
     private readonly HashSet<MeshObjectId> _dirtyMeshes = [];
     private readonly PreviewState _previews;
+    // TODO: Consider moving this to PreviewState. Maybe RenderService should only be a "dumb renderer"
+    // that takes in renderdata and renders it.
+    private readonly PreviewGeometryRenderer _previewGeometryRenderer;
     private Document _document;
     private bool _disposed;
 
@@ -20,15 +23,20 @@ public sealed class RenderService : ISceneService
         _document = document;
         _previews = previews;
         _renderRoot = new Node3D { Name = "Render" };
+        PreviewGeometryRenderer? previewGeometryRenderer = null;
         try
         {
             mapRoot.AddChild(_renderRoot);
+            previewGeometryRenderer = new PreviewGeometryRenderer(_renderRoot);
         }
         catch
         {
+            previewGeometryRenderer?.Dispose();
             _renderRoot.Free();
             throw;
         }
+
+        _previewGeometryRenderer = previewGeometryRenderer;
     }
 
     public void SetDocument(Document document)
@@ -39,6 +47,7 @@ public sealed class RenderService : ISceneService
             return;
 
         ClearDocumentState();
+        _previewGeometryRenderer.Clear();
         _document = document;
     }
 
@@ -49,6 +58,7 @@ public sealed class RenderService : ISceneService
 
         _disposed = true;
         ClearDocumentState();
+        _previewGeometryRenderer.Dispose();
         _renderRoot.Free();
     }
 
@@ -85,6 +95,12 @@ public sealed class RenderService : ISceneService
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ApplyTransform(id);
+    }
+
+    public void OnPreviewGeometryChanged()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _previewGeometryRenderer.Update(_previews.Geometry);
     }
 
     private void AddObject(MeshObjectId id)
@@ -171,7 +187,7 @@ public sealed class RenderService : ISceneService
         _dirtyMeshes.Clear();
     }
 
-    private static void UpdateArrayMesh(ArrayMesh arrayMesh, MeshSurface surface)
+    internal static void UpdateArrayMesh(ArrayMesh arrayMesh, MeshSurface surface)
     {
         var arrays = new Godot.Collections.Array();
         arrays.Resize((int)Mesh.ArrayType.Max);

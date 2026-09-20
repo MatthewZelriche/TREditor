@@ -53,7 +53,8 @@ public partial class Root : Node
         GetNode<SelectionModeToolbar>("UI/ToolbarStrip/ToolbarMargin/SelectionModes")
             .Bind(_application.SelectionMode);
         GetNode<ToolsToolbar>("UI/Toolbar/ToolbarMargin/Tools")
-            .Bind(_application.SelectionMode);
+            .Bind(_application.SelectionMode, _application.Tools);
+        GetNode<ToolSettingsSidebar>("UI/ToolSettingsSidebar").Bind(_application.Tools);
         GetNode<MainViewportArea>("UI/MainViewportArea").Bind(_application);
         _application.OperationFailed += OnOperationFailed;
         _application.FatalError += OnFatalError;

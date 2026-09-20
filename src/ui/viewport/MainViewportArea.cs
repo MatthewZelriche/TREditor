@@ -51,6 +51,7 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
         viewport.ActivationRequested += OnViewportActivationRequested;
         viewport.ToolMouseDown += OnToolMouseDown;
         viewport.ToolMouseDrag += OnToolMouseDrag;
+        viewport.ToolMouseMove += OnToolMouseMove;
         viewport.ToolMouseUp += OnToolMouseUp;
         viewport.ToolInteractionCancelled += OnToolInteractionCancelled;
         _application?.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
@@ -67,6 +68,7 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
         viewport.ActivationRequested -= OnViewportActivationRequested;
         viewport.ToolMouseDown -= OnToolMouseDown;
         viewport.ToolMouseDrag -= OnToolMouseDrag;
+        viewport.ToolMouseMove -= OnToolMouseMove;
         viewport.ToolMouseUp -= OnToolMouseUp;
         viewport.StopNavigation();
         viewport.StopToolDrag();
@@ -86,6 +88,9 @@ public partial class MainViewportArea : TilingPaneContainer<MainViewport>
 
     private void OnToolMouseDrag(EditorMouseInput input) =>
         _application?.HandleToolMouseDrag(input);
+
+    private void OnToolMouseMove(EditorMouseInput input) =>
+        _application?.HandleToolMouseMove(input);
 
     private void OnToolMouseUp(EditorMouseInput input) =>
         _application?.HandleToolMouseUp(input);
