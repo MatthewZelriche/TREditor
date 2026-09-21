@@ -76,6 +76,8 @@ public class RenderServiceTests
                 .GetNode<Node3D>("Render")
                 .GetNode<MeshInstance3D>($"MeshObject_{meshObject.Id.Value}");
             AssertThat(instance.Transform).IsEqual(initialTransform);
+            AssertThat(instance.MaterialOverride).IsNotNull();
+            AssertBool(instance.MaterialOverride is ShaderMaterial).IsTrue();
 
             var firstPreview = new Transform3D(Basis.Identity, new Vector3(2.0f, 0.0f, 0.0f));
             previews.SetTransform(meshObject.Id, firstPreview);

@@ -11,6 +11,7 @@ public sealed class RenderService : ISceneService
     // TODO: Consider moving this to PreviewState. Maybe RenderService should only be a "dumb renderer"
     // that takes in renderdata and renders it.
     private readonly PreviewGeometryRenderer _previewGeometryRenderer;
+    private readonly DefaultMeshMaterial _defaultMaterial;
     private Document _document;
     private bool _disposed;
 
@@ -24,19 +25,23 @@ public sealed class RenderService : ISceneService
         _previews = previews;
         _renderRoot = new Node3D { Name = "Render" };
         PreviewGeometryRenderer? previewGeometryRenderer = null;
+        DefaultMeshMaterial? defaultMaterial = null;
         try
         {
             mapRoot.AddChild(_renderRoot);
             previewGeometryRenderer = new PreviewGeometryRenderer(_renderRoot);
+            defaultMaterial = new DefaultMeshMaterial();
         }
         catch
         {
+            defaultMaterial?.Dispose();
             previewGeometryRenderer?.Dispose();
             _renderRoot.Free();
             throw;
         }
 
         _previewGeometryRenderer = previewGeometryRenderer;
+        _defaultMaterial = defaultMaterial;
     }
 
     public void SetDocument(Document document)
@@ -59,6 +64,7 @@ public sealed class RenderService : ISceneService
         _disposed = true;
         ClearDocumentState();
         _previewGeometryRenderer.Dispose();
+        _defaultMaterial.Dispose();
         _renderRoot.Free();
     }
 
@@ -110,7 +116,12 @@ public sealed class RenderService : ISceneService
 
         ArgumentNullException.ThrowIfNull(meshObject.Mesh);
 
-        var entry = new RenderEntry(meshObject, _renderRoot, EffectiveTransform(meshObject));
+        var entry = new RenderEntry(
+            meshObject,
+            _renderRoot,
+            EffectiveTransform(meshObject),
+            _defaultMaterial.Material
+        );
         try
         {
             _entries.Add(meshObject.Id, entry);
@@ -229,7 +240,12 @@ public sealed class RenderService : ISceneService
     {
         private bool _disposed;
 
-        public RenderEntry(MeshObject meshObject, Node3D renderRoot, Transform3D transform)
+        public RenderEntry(
+            MeshObject meshObject,
+            Node3D renderRoot,
+            Transform3D transform,
+            Material material
+        )
         {
             ArrayMesh = new ArrayMesh();
             Instance = new MeshInstance3D
@@ -237,6 +253,7 @@ public sealed class RenderService : ISceneService
                 Name = $"MeshObject_{meshObject.Id.Value}",
                 Mesh = ArrayMesh,
                 Transform = transform,
+                MaterialOverride = material,
             };
 
             try
@@ -245,6 +262,7 @@ public sealed class RenderService : ISceneService
             }
             catch
             {
+                Instance.MaterialOverride = null;
                 Instance.Mesh = null;
                 Instance.Free();
                 ArrayMesh.Dispose();
@@ -262,6 +280,7 @@ public sealed class RenderService : ISceneService
                 return;
 
             _disposed = true;
+            Instance.MaterialOverride = null;
             Instance.Mesh = null;
             Instance.Free();
             ArrayMesh.Dispose();
