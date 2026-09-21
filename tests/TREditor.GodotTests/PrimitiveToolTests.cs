@@ -249,6 +249,68 @@ public class PrimitiveToolTests
         AssertBool(created.Transform.Basis.Y.Dot(hit.Normal) > 0.999f).IsTrue();
     }
 
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task HeightDragFollowsTheOnScreenDirectionOfTheFaceNormal()
+    {
+        // Elevated camera looking at a vertical face so +normal often points down on screen; without
+        // screen-sense correction, mouse-up would extrude the wrong way.
+        using Fixture fixture = await Fixture.Create(
+            new Vector3(6.0f, 5.0f, 0.0f),
+            new Vector3(0.0f, 1.0f, 0.0f)
+        );
+        fixture.Application.Snap.SetGridSnap(null);
+        fixture.Application.CurrentDocument!.Add(
+            "Wall",
+            Transform3D.Identity,
+            new GDMesh(
+                SpatialMeshBuilder.CreateAabb(
+                    new NumericsVector3(-1.0f, 0.0f, -1.0f),
+                    new NumericsVector3(2.0f, 2.0f, 2.0f)
+                )
+            )
+        );
+        fixture.Application.Update(0.0);
+        var tree = (SceneTree)Engine.GetMainLoop();
+        await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
+
+        Vector2 start = fixture.Camera.UnprojectPosition(new Vector3(1.0f, 1.0f, 0.0f));
+        AssertBool(
+            fixture.Application.ToolContext.Picking.TryRaycast(
+                fixture.Camera,
+                start,
+                out PickingHit hit
+            )
+        ).IsTrue();
+        AssertBool(Mathf.Abs(hit.Normal.X) > 0.9f).IsTrue();
+
+        Vector3 xAxis = Vector3.Right - (hit.Normal * hit.Normal.Dot(Vector3.Right));
+        if (xAxis.IsZeroApprox())
+            xAxis = Vector3.Up - (hit.Normal * hit.Normal.Dot(Vector3.Up));
+        xAxis = xAxis.Normalized();
+        Vector3 zAxis = xAxis.Cross(hit.Normal).Normalized();
+        Vector2 end = fixture.Camera.UnprojectPosition(hit.Position + xAxis + zAxis);
+
+        fixture.MouseDown(start);
+        fixture.MouseDrag(end);
+        fixture.MouseUp(end);
+
+        // Drag the height handle in the screen-space direction of +normal; extrusion must grow
+        // outward along the face normal regardless of whether that reads as mouse-up or mouse-down.
+        Vector2 normalScreen =
+            fixture.Camera.UnprojectPosition(hit.Position + hit.Normal)
+            - fixture.Camera.UnprojectPosition(hit.Position);
+        AssertBool(normalScreen.Length() > 0.1f).IsTrue();
+        Vector2 heightPointer = end + (normalScreen.Normalized() * 50.0f);
+        fixture.MouseMove(heightPointer);
+        fixture.MouseDown(heightPointer);
+
+        MeshObject created = fixture.Application.CurrentDocument.GetObjects()
+            .Single(value => value.Name == "Box");
+        AssertBool((created.Transform.Origin - hit.Position).Dot(hit.Normal) > 0.0f).IsTrue();
+        AssertBool(created.Transform.Basis.Y.Dot(hit.Normal) > 0.999f).IsTrue();
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly MainViewport _viewport;

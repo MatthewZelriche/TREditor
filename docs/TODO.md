@@ -31,7 +31,7 @@
 ## Mesh Operations
 
 - [ ] Translation gizmo for all three component types
-- [ ] Create new Primitive
+- [x] Create new Primitive
 
 ### Vertices
 - [ ] Merge

@@ -30,6 +30,7 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
     private Vector3 _baseCenter;
     private Vector2 _baseSize;
     private Vector2 _heightStartScreen;
+    private float _heightScreenSense = 1.0f;
     private float _signedHeight;
     private PrimitiveShape _shape;
     private int _cylinderSides = 16;
@@ -138,6 +139,7 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
         }
 
         _heightStartScreen = input.ScreenPosition;
+        _heightScreenSense = HeightScreenSense(input.Camera);
         _signedHeight = 0.0f;
         _phase = InteractionPhase.DefiningHeight;
         UpdatePreview(context);
@@ -154,9 +156,13 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
             return;
         }
 
+        // Screen Y grows downward; invert with _heightScreenSense so dragging toward the on-screen
+        // direction of +planeNormal always increases extrusion along that normal.
         _signedHeight = SnapScalar(
             context,
-            (_heightStartScreen.Y - input.ScreenPosition.Y) * HeightUnitsPerPixel
+            (_heightStartScreen.Y - input.ScreenPosition.Y)
+                * HeightUnitsPerPixel
+                * _heightScreenSense
         );
         UpdatePreview(context);
     }
@@ -324,6 +330,24 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
         _sourceCamera = null;
         _baseSize = Vector2.Zero;
         _signedHeight = 0.0f;
+        _heightScreenSense = 1.0f;
+    }
+
+    // +1 when +planeNormal points up on screen (mouse-up grows along the normal). -1 when it points
+    // down, which is common on side faces viewed from above.
+    private float HeightScreenSense(Camera3D camera)
+    {
+        Vector2 originScreen = camera.UnprojectPosition(_baseCenter);
+        Vector2 tipScreen = camera.UnprojectPosition(_baseCenter + _planeNormal);
+        float deltaY = tipScreen.Y - originScreen.Y;
+        if (!Mathf.IsZeroApprox(deltaY))
+            return deltaY < 0.0f ? 1.0f : -1.0f;
+
+        Vector3 towardCamera = camera.GlobalPosition - _baseCenter;
+        if (towardCamera.IsZeroApprox())
+            return 1.0f;
+
+        return _planeNormal.Dot(towardCamera.Normalized()) >= 0.0f ? 1.0f : -1.0f;
     }
 
     private static void BuildPlaneAxes(Vector3 normal, out Vector3 xAxis, out Vector3 zAxis)
