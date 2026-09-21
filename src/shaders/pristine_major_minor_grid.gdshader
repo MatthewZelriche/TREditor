@@ -70,11 +70,19 @@ vec2 pristine_grid_coverages(
 		cell_size,
 		divisions
 	);
+	// Only the origin-line masks need absolute coordinates. Keeping the repeating grid camera-local
+	// preserves precision, while suppressing the origin line here prevents a coarse LOD's wider
+	// white major line from showing around the fixed-width colored axes during a transition.
+	vec2 axis_uv = (camera_position + relative_position) / cell_size;
 	vec2 uv_derivative = world_derivative / cell_size;
 
 	vec2 major_derivative = uv_derivative / divisions;
 	float scaled_major_width = major_line_width / divisions;
 	vec2 major_distance = 1.0 - abs(fract(grid_uv / divisions) * 2.0 - 1.0);
+	vec2 major_axis_offset = (
+		1.0 - clamp(abs(axis_uv / divisions * 2.0), vec2(0.0), vec2(1.0))
+	) * 2.0;
+	major_distance += major_axis_offset;
 	vec2 major_grid = antialiased_line(
 		major_distance,
 		vec2(scaled_major_width),
@@ -116,6 +124,7 @@ vec2 pristine_grid_coverages(
 	if (invert_minor_line) {
 		minor_grid = 1.0 - minor_grid;
 	}
+	minor_grid *= step(vec2(0.5), abs(axis_uv));
 
 	float minor_coverage = mix(minor_grid.x, 1.0, minor_grid.y);
 	float major_coverage = mix(major_grid.x, 1.0, major_grid.y);
@@ -216,8 +225,6 @@ void fragment() {
 		vec2(effective_axis_width),
 		axis_derivative
 	);
-	float axis_mask = max(axis_coverage.x, axis_coverage.y);
-	grid_color *= 1.0 - axis_mask;
 
 	vec2 axis_dash_uv = abs(
 		fract((axis_uv + effective_axis_width * 0.5) * axis_dash_scale) * 2.0 - 1.0
