@@ -1,17 +1,17 @@
 using System;
 
-// Every viewport shares one World3D, so a gizmo drawn for one pane would otherwise appear in all of
+// Every viewport shares one World3D, so overlays drawn for one pane would otherwise appear in all of
 // them. Each host takes a private render layer from this pool and only the matching camera keeps that
-// layer in its cull mask. Godot's inspector exposes layers 1-20 for ordinary scene rendering, while
-// scripts can address the internal layers 21-32. The pool uses only that internal range so registering
-// a viewport never hides a legitimate scene object.
+// layer in its cull mask. The grid shares its viewport's gizmo layer. Godot's inspector exposes layers
+// 1-20 for ordinary scene rendering, while scripts can address the internal layers 21-32. The pool
+// uses only that internal range so registering a viewport never hides a legitimate scene object.
 public sealed class GizmoLayerPool
 {
     public const int FirstLayer = 21;
     public const int LayerCount = 12;
 
     // The layers this pool may hand out. Cameras clear this whole range before receiving their own
-    // layer, so a camera can never see another pane's gizmo.
+    // layer, so a camera can never see another pane's overlays.
     public static readonly uint ReservedMask = BuildReservedMask();
 
     private uint _allocated;

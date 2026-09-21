@@ -63,13 +63,15 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     // The proxy's absolute transform, which is what a drag produces and what the tool previews.
     public Transform3D ProxyTransform => _proxy.GlobalTransform;
 
-    public void RegisterViewport(Camera3D camera, Node3D overlayRoot)
+    // Returns the private render layer allocated to this viewport. Other viewport-local overlays
+    // may share it and remain isolated by the camera cull mask configured here.
+    public uint RegisterViewport(Camera3D camera, Node3D overlayRoot)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(camera);
         ArgumentNullException.ThrowIfNull(overlayRoot);
-        if (_hosts.ContainsKey(camera))
-            return;
+        if (_hosts.TryGetValue(camera, out HostRegistration existingRegistration))
+            return existingRegistration.LayerMask;
 
         uint layerMask = _layers.Allocate();
         uint previousCullMask = camera.CullMask;
@@ -92,6 +94,8 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         _hosts.Add(camera, new HostRegistration(host, layerMask, previousCullMask));
         if (_attached)
             host.Attach(_proxy);
+
+        return layerMask;
     }
 
     // SceneServices owns document and preview lifecycle. Committed transforms arrive through

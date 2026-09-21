@@ -4,6 +4,7 @@ using Godot;
 public sealed class Application : IDisposable
 {
     private readonly SceneServices _services;
+    private readonly GridRenderService _gridRenderer;
     private readonly EditorToolContext _toolContext;
     private readonly EditorToolRegistry _toolRegistry;
     private readonly CommandHistory _commandHistory = new();
@@ -31,7 +32,8 @@ public sealed class Application : IDisposable
                 _previewState,
                 _snapSettings
             );
-            gridRenderer = new GridRenderService(mapRoot);
+            gridRenderer = new GridRenderService();
+            _gridRenderer = gridRenderer;
             renderService = new RenderService(initialDocument, mapRoot, _previewState);
             pickingService = new PickingService(initialDocument, mapRoot, _previewState);
             _services = new SceneServices(
@@ -137,12 +139,22 @@ public sealed class Application : IDisposable
         return _commandHistory.Redo();
     }
 
-    // Registers a viewport's camera and 3D overlay root so it gets its own gizmos. The viewport area
-    // calls this as panes enter and leave; neither it nor the pane knows which overlays appear.
+    // Registers a viewport's camera and 3D overlay root so it gets its own isolated grid and gizmos.
+    // The viewport area calls this as panes enter and leave; neither it nor the pane knows which
+    // overlays appear.
     internal void RegisterToolViewport(Camera3D camera, Node3D toolOverlayRoot)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _toolContext.TranslateGizmos.RegisterViewport(camera, toolOverlayRoot);
+        uint layerMask = _toolContext.TranslateGizmos.RegisterViewport(camera, toolOverlayRoot);
+        try
+        {
+            _gridRenderer.RegisterViewport(camera, toolOverlayRoot, layerMask);
+        }
+        catch
+        {
+            _toolContext.TranslateGizmos.UnregisterViewport(camera);
+            throw;
+        }
     }
 
     internal void UnregisterToolViewport(Camera3D camera)
@@ -153,6 +165,7 @@ public sealed class Application : IDisposable
         if (_disposed)
             return;
 
+        _gridRenderer.UnregisterViewport(camera);
         _toolContext.TranslateGizmos.UnregisterViewport(camera);
     }
 

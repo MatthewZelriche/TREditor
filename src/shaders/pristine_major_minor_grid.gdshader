@@ -1,5 +1,7 @@
 // Godot port of "Pristine Major Minor Grid" by Ben Golus.
 // Original: https://gist.githubusercontent.com/bgolus/3a561077c86b5bfead0d6cc521097bae/raw/2f1dcffc84bd0b9a0293f685c5136e55257f54d2/PristineMajorMinorGrid.shader
+// LOD technique adapted from "Infinite Grid" by Ben Golus.
+// LOD source: https://gist.github.com/bgolus/455a3666188f12cf13189839480e7120
 // Original License: Unlicense.
 
 shader_type spatial;
@@ -8,6 +10,8 @@ render_mode unshaded, cull_disabled, blend_premul_alpha, depth_draw_never, fog_d
 uniform float plane_height = 0.0;
 uniform float grid_scale : hint_range(0.001, 1024.0, 0.001) = 1.0;
 uniform float major_grid_divisions : hint_range(2.0, 25.0, 1.0) = 10.0;
+uniform float lod_bias : hint_range(-2.0, 2.0, 0.05) = 0.5;
+uniform float lod_level_count : hint_range(3.0, 12.0, 1.0) = 8.0;
 
 uniform float axis_line_width : hint_range(0.0, 1.0) = 0.04;
 uniform float major_line_width : hint_range(0.0, 1.0) = 0.02;
@@ -39,6 +43,83 @@ vec4 composite_line(vec4 below, vec4 line_color, float coverage) {
 	float line_alpha = line_color.a * clamp(coverage, 0.0, 1.0);
 	vec4 line = vec4(line_color.rgb * line_alpha, line_alpha);
 	return line + below * (1.0 - line_alpha);
+}
+
+vec2 grid_uv_at_scale(
+	vec2 camera_position,
+	vec2 relative_position,
+	float cell_size,
+	float divisions
+) {
+	float major_cell_size = cell_size * divisions;
+	vec2 camera_cell = camera_position
+		- floor(camera_position / major_cell_size) * major_cell_size;
+	return (camera_cell + relative_position) / cell_size;
+}
+
+vec2 pristine_grid_coverages(
+	vec2 camera_position,
+	vec2 relative_position,
+	vec2 world_derivative,
+	float cell_size,
+	float divisions
+) {
+	vec2 grid_uv = grid_uv_at_scale(
+		camera_position,
+		relative_position,
+		cell_size,
+		divisions
+	);
+	vec2 uv_derivative = world_derivative / cell_size;
+
+	vec2 major_derivative = uv_derivative / divisions;
+	float scaled_major_width = major_line_width / divisions;
+	vec2 major_distance = 1.0 - abs(fract(grid_uv / divisions) * 2.0 - 1.0);
+	vec2 major_grid = antialiased_line(
+		major_distance,
+		vec2(scaled_major_width),
+		major_derivative
+	);
+	major_grid = mix(
+		major_grid,
+		vec2(scaled_major_width),
+		clamp(major_derivative * 2.0 - 1.0, vec2(0.0), vec2(1.0))
+	);
+
+	float effective_minor_width = min(minor_line_width, major_line_width);
+	bool invert_minor_line = effective_minor_width > 0.5;
+	float minor_target_width = invert_minor_line
+		? 1.0 - effective_minor_width
+		: effective_minor_width;
+	vec2 minor_distance = abs(fract(grid_uv) * 2.0 - 1.0);
+	if (!invert_minor_line) {
+		minor_distance = 1.0 - minor_distance;
+	}
+	vec2 minor_major_offset = (
+		1.0 - clamp(
+			(1.0 - abs(fract(grid_uv / divisions) * 2.0 - 1.0)) * divisions,
+			vec2(0.0),
+			vec2(1.0)
+		)
+	) * 2.0;
+	minor_distance += minor_major_offset;
+	vec2 minor_grid = antialiased_line(
+		minor_distance,
+		vec2(minor_target_width),
+		uv_derivative
+	);
+	minor_grid = mix(
+		minor_grid,
+		vec2(minor_target_width),
+		clamp(uv_derivative * 2.0 - 1.0, vec2(0.0), vec2(1.0))
+	);
+	if (invert_minor_line) {
+		minor_grid = 1.0 - minor_grid;
+	}
+
+	float minor_coverage = mix(minor_grid.x, 1.0, minor_grid.y);
+	float major_coverage = mix(major_grid.x, 1.0, major_grid.y);
+	return vec2(minor_coverage, major_coverage);
 }
 
 void vertex() {
@@ -76,90 +157,72 @@ void fragment() {
 	vec4 clip_position = PROJECTION_MATRIX * vec4(view_position, 1.0);
 	DEPTH = clip_position.z / clip_position.w;
 
-	float divisions = max(2.0, floor(major_grid_divisions + 0.5));
 	float safe_grid_scale = max(grid_scale, 0.000001);
-	float major_world_size = safe_grid_scale * divisions;
-	vec2 camera_cell = CAMERA_POSITION_WORLD.xz
-		- floor(CAMERA_POSITION_WORLD.xz / major_world_size) * major_world_size;
-
-	// grid_uv remains close to the camera. axis_uv is absolute because only the two origin axes need
-	// it, matching the camera-centering strategy in the source shader.
-	vec2 grid_uv = (camera_cell + relative_position.xz) / safe_grid_scale;
-	vec2 axis_uv = (CAMERA_POSITION_WORLD.xz + relative_position.xz) / safe_grid_scale;
-	vec2 uv_derivative = max(
+	float divisions = max(2.0, floor(major_grid_divisions + 0.5));
+	vec2 camera_position = CAMERA_POSITION_WORLD.xz;
+	vec2 world_derivative = max(
 		vec2(
-			length(vec2(dFdx(grid_uv.x), dFdy(grid_uv.x))),
-			length(vec2(dFdx(grid_uv.y), dFdy(grid_uv.y)))
+			length(vec2(dFdx(relative_position.x), dFdy(relative_position.x))),
+			length(vec2(dFdx(relative_position.z), dFdy(relative_position.z)))
 		),
 		vec2(0.000001)
 	);
 
+	// Select one logarithmic LOD blend for the entire viewport from the camera's height above the
+	// plane. Both complete pristine grids use that same blend everywhere, so looking toward the
+	// horizon cannot introduce a spatial LOD boundary or change the apparent line width.
+	float camera_height = max(
+		abs(CAMERA_POSITION_WORLD.y - plane_height),
+		safe_grid_scale
+	);
+	float raw_lod = log(camera_height / safe_grid_scale) / log(divisions) - lod_bias;
+	float level_count = max(3.0, floor(lod_level_count + 0.5));
+	float lod_position = clamp(raw_lod, 0.0, level_count - 1.0);
+	float lod_a = min(floor(lod_position), level_count - 2.0);
+	float lod_blend = smoothstep(0.0, 1.0, lod_position - lod_a);
+	float scale_a = safe_grid_scale * pow(divisions, lod_a);
+	float scale_b = scale_a * divisions;
+
+	vec2 coverage_a = pristine_grid_coverages(
+		camera_position,
+		relative_position.xz,
+		world_derivative,
+		scale_a,
+		divisions
+	);
+	vec2 coverage_b = pristine_grid_coverages(
+		camera_position,
+		relative_position.xz,
+		world_derivative,
+		scale_b,
+		divisions
+	);
+
+	vec4 grid_a = vec4(0.0);
+	grid_a = composite_line(grid_a, minor_line_color, coverage_a.x);
+	grid_a = composite_line(grid_a, major_line_color, coverage_a.y);
+	vec4 grid_b = vec4(0.0);
+	grid_b = composite_line(grid_b, minor_line_color, coverage_b.x);
+	grid_b = composite_line(grid_b, major_line_color, coverage_b.y);
+	vec4 grid_color = mix(grid_a, grid_b, lod_blend);
+
+	// axis_uv is absolute because only the two origin axes need it. All repeating LOD grids above
+	// use camera-centered coordinates, preserving precision far from the world origin.
+	vec2 axis_uv = (CAMERA_POSITION_WORLD.xz + relative_position.xz) / safe_grid_scale;
+	vec2 axis_derivative = world_derivative / safe_grid_scale;
 	float effective_axis_width = max(major_line_width, axis_line_width);
 	vec2 axis_coverage = antialiased_line(
 		abs(axis_uv * 2.0),
 		vec2(effective_axis_width),
-		uv_derivative
+		axis_derivative
 	);
-
-	vec2 major_derivative = uv_derivative / divisions;
-	float scaled_major_width = major_line_width / divisions;
-	vec2 major_distance = 1.0 - abs(fract(grid_uv / divisions) * 2.0 - 1.0);
-	vec2 major_axis_offset = (
-		1.0 - clamp(abs(axis_uv / divisions * 2.0), vec2(0.0), vec2(1.0))
-	) * 2.0;
-	major_distance += major_axis_offset;
-	vec2 major_grid = antialiased_line(
-		major_distance,
-		vec2(scaled_major_width),
-		major_derivative
-	);
-	major_grid = clamp(major_grid - axis_coverage, vec2(0.0), vec2(1.0));
-	major_grid = mix(
-		major_grid,
-		vec2(scaled_major_width),
-		clamp(major_derivative * 2.0 - 1.0, vec2(0.0), vec2(1.0))
-	);
-
-	float effective_minor_width = min(minor_line_width, major_line_width);
-	bool invert_minor_line = effective_minor_width > 0.5;
-	float minor_target_width = invert_minor_line
-		? 1.0 - effective_minor_width
-		: effective_minor_width;
-	vec2 minor_distance = abs(fract(grid_uv) * 2.0 - 1.0);
-	if (!invert_minor_line) {
-		minor_distance = 1.0 - minor_distance;
-	}
-	vec2 minor_major_offset = (
-		1.0 - clamp(
-			(1.0 - abs(fract(axis_uv / divisions) * 2.0 - 1.0)) * divisions,
-			vec2(0.0),
-			vec2(1.0)
-		)
-	) * 2.0;
-	minor_distance += minor_major_offset;
-	vec2 minor_grid = antialiased_line(
-		minor_distance,
-		vec2(minor_target_width),
-		uv_derivative
-	);
-	minor_grid = clamp(minor_grid - axis_coverage, vec2(0.0), vec2(1.0));
-	minor_grid = mix(
-		minor_grid,
-		vec2(minor_target_width),
-		clamp(uv_derivative * 2.0 - 1.0, vec2(0.0), vec2(1.0))
-	);
-	if (invert_minor_line) {
-		minor_grid = 1.0 - minor_grid;
-	}
-	minor_grid *= step(vec2(0.5), abs(axis_uv));
-
-	float minor_coverage = mix(minor_grid.x, 1.0, minor_grid.y);
-	float major_coverage = mix(major_grid.x, 1.0, major_grid.y);
+	float axis_mask = max(axis_coverage.x, axis_coverage.y);
+	grid_color *= 1.0 - axis_mask;
 
 	vec2 axis_dash_uv = abs(
 		fract((axis_uv + effective_axis_width * 0.5) * axis_dash_scale) * 2.0 - 1.0
 	) - 0.5;
-	vec2 axis_dash_derivative = uv_derivative * axis_dash_scale * 1.5;
+	vec2 axis_dash_derivative = axis_derivative * axis_dash_scale * 1.5;
 	vec2 axis_dash = smoothstep(
 		-axis_dash_derivative,
 		axis_dash_derivative,
@@ -173,8 +236,7 @@ void fragment() {
 	float center_coverage = axis_coverage.x * axis_coverage.y;
 
 	vec4 color = vec4(base_color.rgb * base_color.a, base_color.a);
-	color = composite_line(color, minor_line_color, minor_coverage);
-	color = composite_line(color, major_line_color, major_coverage);
+	color = grid_color + color * (1.0 - grid_color.a);
 	color = composite_line(color, z_color, axis_coverage.x);
 	color = composite_line(color, x_color, axis_coverage.y);
 	color = composite_line(color, center_color, center_coverage);
