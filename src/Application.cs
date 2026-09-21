@@ -19,6 +19,7 @@ public sealed class Application : IDisposable
     {
         ArgumentNullException.ThrowIfNull(mapRoot);
         var initialDocument = new Document();
+        GridRenderService? gridRenderer = null;
         RenderService? renderService = null;
         PickingService? pickingService = null;
         TranslateGizmoCoordinator? gizmos = null;
@@ -30,11 +31,13 @@ public sealed class Application : IDisposable
                 _previewState,
                 _snapSettings
             );
+            gridRenderer = new GridRenderService(mapRoot);
             renderService = new RenderService(initialDocument, mapRoot, _previewState);
             pickingService = new PickingService(initialDocument, mapRoot, _previewState);
             _services = new SceneServices(
                 initialDocument,
                 _previewState,
+                gridRenderer,
                 renderService,
                 pickingService,
                 gizmos
@@ -61,6 +64,7 @@ public sealed class Application : IDisposable
             gizmos?.Dispose();
             pickingService?.Dispose();
             renderService?.Dispose();
+            gridRenderer?.Dispose();
             initialDocument.Dispose();
             throw;
         }
