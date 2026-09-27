@@ -85,7 +85,7 @@ public class TranslateToolTests
 
         fixture.MouseDown(fixture.ScreenPositionOf(fixture.CylinderId));
 
-        AssertThat(fixture.Selection.Selected).IsEqual(fixture.CylinderId);
+        AssertThat(fixture.Selection.Current.ObjectId).IsEqual(fixture.CylinderId);
         AssertThat(fixture.HistoryChanges).IsEqual(1);
         AssertThat(fixture.Application.UndoDisplayName).IsEqual("Select Object");
         AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
@@ -108,7 +108,7 @@ public class TranslateToolTests
         Vector2 cylinder = fixture.ScreenPositionOf(fixture.CylinderId);
 
         fixture.MouseDown(cylinder);
-        AssertThat(fixture.Selection.Selected).IsEqual(fixture.CylinderId);
+        AssertThat(fixture.Selection.Current.ObjectId).IsEqual(fixture.CylinderId);
         AssertThat(fixture.HistoryChanges).IsEqual(1);
 
         // Re-picking the current selection is not a change, so it produces no command.
@@ -117,7 +117,7 @@ public class TranslateToolTests
         AssertThat(fixture.HistoryChanges).IsEqual(1);
 
         fixture.MouseDown(new Vector2(4.0f, 4.0f));
-        AssertThat(fixture.Selection.Selected).IsNull();
+        AssertThat(fixture.Selection.Current.ObjectId).IsNull();
         AssertThat(fixture.HistoryChanges).IsEqual(2);
         AssertThat(fixture.Application.UndoDisplayName).IsEqual("Clear Selection");
 
@@ -178,7 +178,7 @@ public class TranslateToolTests
         fixture.Application.CancelActiveInteraction();
 
         AssertThat(fixture.HistoryChanges).IsEqual(0);
-        AssertThat(fixture.Selection.Selected).IsEqual(fixture.CubeId);
+        AssertThat(fixture.Selection.Current.ObjectId).IsEqual(fixture.CubeId);
         AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
         AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
         AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();

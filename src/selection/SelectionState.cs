@@ -1,31 +1,32 @@
 using System;
 
-// Single-object selection. Selection is transient editor state and is never serialized, but user-driven
+// Single-item selection. Selection is transient editor state and is never serialized, but user-driven
 // changes go through SelectionCommand so they undo and redo with the rest of the history. The direct
 // Select and Clear calls remain for application lifecycle cleanup such as New, Open, and disposal.
 public sealed class SelectionState
 {
-    public MeshObjectId? Selected { get; private set; }
+    public SelectionValue Current { get; private set; }
 
     public event Action? Changed;
 
-    public void Select(MeshObjectId id) => SetSelected(id);
+    public void Select(MeshObjectId id) => SetSelected(SelectionValue.ForObject(id));
 
-    public void Clear() => SetSelected(null);
+    public void Select(MeshComponentId component) =>
+        SetSelected(SelectionValue.ForComponent(component));
+
+    public void Clear() => SetSelected(SelectionValue.Empty);
 
     public void ClearChangedListeners() => Changed = null;
 
-    // The route SelectionCommand uses so it can restore either an object or an empty selection.
-    // TODO: This will change in the future as we expand on the complexity of what SelectionState is capable
-    // of holding - eg multiple selections, different type of selections (component vs object), etc.
-    internal void Apply(MeshObjectId? id) => SetSelected(id);
+    // The route SelectionCommand uses so it can restore an object, component, or empty selection.
+    internal void Apply(SelectionValue selection) => SetSelected(selection);
 
-    private void SetSelected(MeshObjectId? id)
+    private void SetSelected(SelectionValue selection)
     {
-        if (Selected == id)
+        if (Current == selection)
             return;
 
-        Selected = id;
+        Current = selection;
         Changed?.Invoke();
     }
 }

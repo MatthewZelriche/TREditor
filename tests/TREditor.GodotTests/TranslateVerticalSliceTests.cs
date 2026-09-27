@@ -23,16 +23,16 @@ public class TranslateVerticalSliceTests
 
         // A scene click selects without starting translation.
         fixture.MouseDown(cubeScreen);
-        AssertThat(fixture.Application.Selection.Selected).IsEqual(fixture.CubeId);
+        AssertThat(fixture.Application.Selection.Current.ObjectId).IsEqual(fixture.CubeId);
         AssertThat(fixture.Application.CanUndo).IsTrue();
         AssertThat(fixture.Application.UndoDisplayName).IsEqual("Select Object");
         AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
         await ProcessFrames(2);
 
         AssertBool(fixture.Application.Undo()).IsTrue();
-        AssertThat(fixture.Application.Selection.Selected).IsNull();
+        AssertThat(fixture.Application.Selection.Current.ObjectId).IsNull();
         AssertBool(fixture.Application.Redo()).IsTrue();
-        AssertThat(fixture.Application.Selection.Selected).IsEqual(fixture.CubeId);
+        AssertThat(fixture.Application.Selection.Current.ObjectId).IsEqual(fixture.CubeId);
         AssertThat(selectionChangedCount).IsEqual(3);
 
         await ProcessFrames(3);

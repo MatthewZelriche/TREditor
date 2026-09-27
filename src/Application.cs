@@ -55,7 +55,7 @@ public sealed class Application : IDisposable
                 _snapSettings
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
-            _toolRegistry.Register(new TranslateTool());
+            _toolRegistry.Register(new TranslateTool(_selectionMode));
             _toolRegistry.Register(new PrimitiveTool());
             _toolRegistry.SetDefaultTool(TranslateTool.ToolId);
             _toolRegistry.ActiveToolChanged += OnActiveToolChanged;
@@ -75,6 +75,7 @@ public sealed class Application : IDisposable
         _commandHistory.SetDocument(initialDocument);
         _commandHistory.Changed += OnCommandHistoryChanged;
         _commandHistory.OperationFailed += OnCommandHistoryOperationFailed;
+        _selectionMode.Changed += OnSelectionModeChanged;
     }
 
     // Tool- and UI-facing document access. Only value snapshots leave this boundary.
@@ -265,6 +266,7 @@ public sealed class Application : IDisposable
             // disposable commands can still touch document-owned state during cleanup.
             _commandHistory.Changed -= OnCommandHistoryChanged;
             _commandHistory.OperationFailed -= OnCommandHistoryOperationFailed;
+            _selectionMode.Changed -= OnSelectionModeChanged;
             _services.FatalError -= OnSceneServicesFatalError;
             CommandHistoryChanged = null;
             FatalError = null;
@@ -285,6 +287,15 @@ public sealed class Application : IDisposable
     }
 
     private void OnCommandHistoryChanged() => CommandHistoryChanged?.Invoke();
+
+    private void OnSelectionModeChanged()
+    {
+        // A component is not a transformable object selection and an object is not a component
+        // selection. Mode changes therefore end the active interaction and discard the incompatible
+        // transient selection immediately.
+        CancelActiveInteraction();
+        _selectionState.Clear();
+    }
 
     private void OnCommandHistoryOperationFailed(string operation, Exception exception) =>
         OperationFailed?.Invoke(operation, exception);

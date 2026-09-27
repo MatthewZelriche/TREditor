@@ -119,11 +119,11 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         switch (change.Kind)
         {
             case DocumentChangeKind.Removed:
-                if (_selection.Selected == change.ObjectId)
+                if (_selection.Current.ObjectId == change.ObjectId)
                     Hide();
                 break;
             case DocumentChangeKind.TransformChanged:
-                if (_selection.Selected == change.ObjectId)
+                if (_selection.Current.ObjectId == change.ObjectId)
                     Synchronize();
                 break;
         }
@@ -132,7 +132,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     public void OnPreviewTransformChanged(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_selection.Selected == id)
+        if (_selection.Current.ObjectId == id)
             Synchronize();
     }
 
@@ -289,7 +289,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
 
         if (
             _document is Document document
-            && _selection.Selected is MeshObjectId id
+            && _selection.Current.ObjectId is MeshObjectId id
             && TryGetDisplayedTransform(document, id, out Transform3D transform)
         )
         {

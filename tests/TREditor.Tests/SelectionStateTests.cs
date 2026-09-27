@@ -7,7 +7,7 @@ public sealed class SelectionStateTests
     {
         var selection = new SelectionState();
 
-        Assert.Null(selection.Selected);
+        Assert.True(selection.Current.IsEmpty);
     }
 
     [Fact]
@@ -20,7 +20,7 @@ public sealed class SelectionStateTests
 
         selection.Select(id);
 
-        Assert.Equal(id, selection.Selected);
+        Assert.Equal(id, selection.Current.ObjectId);
         Assert.Equal(1, changedCount);
     }
 
@@ -35,7 +35,7 @@ public sealed class SelectionStateTests
 
         selection.Select(id);
 
-        Assert.Equal(id, selection.Selected);
+        Assert.Equal(id, selection.Current.ObjectId);
         Assert.Equal(0, changedCount);
     }
 
@@ -50,7 +50,7 @@ public sealed class SelectionStateTests
 
         selection.Select(replacement);
 
-        Assert.Equal(replacement, selection.Selected);
+        Assert.Equal(replacement, selection.Current.ObjectId);
         Assert.Equal(1, changedCount);
     }
 
@@ -65,7 +65,7 @@ public sealed class SelectionStateTests
         selection.Clear();
         selection.Clear();
 
-        Assert.Null(selection.Selected);
+        Assert.True(selection.Current.IsEmpty);
         Assert.Equal(1, changedCount);
     }
 
@@ -80,5 +80,26 @@ public sealed class SelectionStateTests
         selection.Select(new MeshObjectId(5));
 
         Assert.Equal(0, changedCount);
+    }
+
+    [Fact]
+    public void ComponentSelectionIsDistinctFromObjectSelection()
+    {
+        var selection = new SelectionState();
+        var component = new MeshComponentId(
+            new MeshObjectId(5),
+            MeshComponentType.Edge,
+            12
+        );
+
+        selection.Select(component);
+
+        Assert.Equal(component, selection.Current.Component);
+        Assert.Null(selection.Current.ObjectId);
+
+        selection.Select(component.ObjectId);
+
+        Assert.Equal(component.ObjectId, selection.Current.ObjectId);
+        Assert.Null(selection.Current.Component);
     }
 }

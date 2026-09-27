@@ -81,8 +81,8 @@
 
 ## Selections
 - [x] Mesh Object Selection
-- [ ] Mesh Component Selection (Free, can select or multi-select combinations of component types)
-- [ ] Single-Component Mesh Selection (Select Vertices, Edges, or Faces only)
+- [x] Mesh Component Selection (Free, can select or multi-select combinations of component types)
+- [x] Single-Component Mesh Selection (Select Vertices, Edges, or Faces only)
 - [ ] X-Ray Selection
 - [ ] Multi-selection
 - [ ] Box-Selection

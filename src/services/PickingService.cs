@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-public sealed class PickingService : ISceneService
+public sealed partial class PickingService : ISceneService
 {
     private const uint PickingCollisionLayer = 1u << 31;
     private const float RayLength = 100_000.0f;
@@ -168,6 +168,7 @@ public sealed class PickingService : ISceneService
             {
                 meshObject.Mesh.RebuildSurfaceIfDirty();
                 entry.Shape.Data = CreateCollisionFaces(meshObject.Mesh.Surface);
+                entry.UpdateComponentGeometry(meshObject.Mesh);
             }
         }
 
@@ -256,7 +257,7 @@ public sealed class PickingService : ISceneService
         return faces;
     }
 
-    private sealed class PickingEntry : IDisposable
+    private sealed partial class PickingEntry : IDisposable
     {
         private bool _disposed;
 

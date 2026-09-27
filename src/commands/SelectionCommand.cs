@@ -7,12 +7,17 @@ using System;
 public sealed class SelectionCommand : IEditorCommand
 {
     private readonly SelectionState _selection;
-    // TODO: This will change in the future as we expand on the complexity of what SelectionState is capable
-    // of holding - eg multiple selections, different type of selections (component vs object), etc.
-    private readonly MeshObjectId? _before;
-    private readonly MeshObjectId? _after;
+    private readonly SelectionValue _before;
+    private readonly SelectionValue _after;
 
     public SelectionCommand(SelectionState selection, MeshObjectId? before, MeshObjectId? after)
+        : this(selection, ToSelection(before), ToSelection(after)) { }
+
+    public SelectionCommand(
+        SelectionState selection,
+        SelectionValue before,
+        SelectionValue after
+    )
     {
         ArgumentNullException.ThrowIfNull(selection);
         if (before == after)
@@ -28,7 +33,11 @@ public sealed class SelectionCommand : IEditorCommand
         _after = after;
     }
 
-    public string DisplayName => _after is null ? "Clear Selection" : "Select Object";
+    public string DisplayName => _after.IsEmpty
+        ? "Clear Selection"
+        : _after.Component is not null
+            ? "Select Component"
+            : "Select Object";
 
     public void Execute(Document document)
     {
@@ -39,4 +48,9 @@ public sealed class SelectionCommand : IEditorCommand
     {
         _selection.Apply(_before);
     }
+
+    private static SelectionValue ToSelection(MeshObjectId? id) =>
+        id is MeshObjectId objectId
+            ? SelectionValue.ForObject(objectId)
+            : SelectionValue.Empty;
 }

@@ -282,7 +282,7 @@ public class TranslateGizmoTests
 
         application.Tools.Activate(PrimitiveTool.ToolId);
         AssertBool(application.Gizmos.IsVisible).IsFalse();
-        AssertThat(application.ToolContext.Selection.Selected).IsEqual(id);
+        AssertThat(application.ToolContext.Selection.Current.ObjectId).IsEqual(id);
 
         application.Tools.Activate(TranslateTool.ToolId);
         AssertBool(application.Gizmos.IsVisible).IsTrue();
@@ -306,7 +306,7 @@ public class TranslateGizmoTests
         application.NewScene();
 
         AssertBool(application.Gizmos.IsVisible).IsFalse();
-        AssertThat(application.ToolContext.Selection.Selected).IsNull();
+        AssertThat(application.ToolContext.Selection.Current.ObjectId).IsNull();
     }
 
     // Walks outward along the projected +X axis and reports the farthest offset that still grabs a

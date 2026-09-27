@@ -11,6 +11,12 @@ public sealed class TranslateTool : IEditorTool
     private bool _dragging;
     private MeshObject? _before;
     private Camera3D? _sourceCamera;
+    private readonly SelectionModeState? _selectionMode;
+
+    public TranslateTool(SelectionModeState? selectionMode = null)
+    {
+        _selectionMode = selectionMode;
+    }
 
     public string Id => ToolId;
 
@@ -27,7 +33,28 @@ public sealed class TranslateTool : IEditorTool
         if (_dragging)
             Cancel(context);
 
-        MeshObjectId? selected = context.Selection.Selected;
+        if (_selectionMode?.Mode == EditorMode.Component)
+        {
+            ComponentPickingHit? componentHit = context.Picking.PickComponent(
+                input.Camera,
+                input.ScreenPosition,
+                _selectionMode.Components
+            );
+            SelectionValue beforeSelection = context.Selection.Current;
+            SelectionValue afterSelection = componentHit is ComponentPickingHit hit
+                ? SelectionValue.ForComponent(hit.Component)
+                : SelectionValue.Empty;
+            if (beforeSelection != afterSelection)
+            {
+                context.Commands.Submit(
+                    new SelectionCommand(context.Selection, beforeSelection, afterSelection)
+                );
+            }
+
+            return;
+        }
+
+        MeshObjectId? selected = context.Selection.Current.ObjectId;
         if (
             selected is MeshObjectId id
             && context.Document.TryGetObject(id, out MeshObject before)
