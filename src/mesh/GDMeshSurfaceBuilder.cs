@@ -12,25 +12,29 @@ internal sealed class GDMeshSurfaceBuilder
         Clear();
         var surface = new MeshSurface();
 
-        foreach (var face in mesh.Faces)
+        mesh.WithFaces((faceSlots, _, normals) =>
         {
-            _triangulatedHalfEdges.Clear();
-            if (!mesh.TriangulateFace(face.Slot, _triangulatedHalfEdges))
+            for (int faceIndex = 0; faceIndex < faceSlots.Length; faceIndex++)
             {
-                surface.SkippedFaceCount++;
-                continue;
-            }
+                int faceSlot = faceSlots[faceIndex];
+                _triangulatedHalfEdges.Clear();
+                if (!mesh.TriangulateFace(faceSlot, _triangulatedHalfEdges))
+                {
+                    surface.SkippedFaceCount++;
+                    continue;
+                }
 
-            Vector3 normal = face.normal;
-            for (int i = 0; i < _triangulatedHalfEdges.Count; i += 3)
-            {
-                // TRMesh emits CCW triangles. Godot considers clockwise triangles front-facing.
-                AppendIndex(mesh, surface, _triangulatedHalfEdges[i], normal);
-                AppendIndex(mesh, surface, _triangulatedHalfEdges[i + 2], normal);
-                AppendIndex(mesh, surface, _triangulatedHalfEdges[i + 1], normal);
-                surface.FaceSlots.Add(face.Slot);
+                Vector3 normal = normals[faceIndex];
+                for (int i = 0; i < _triangulatedHalfEdges.Count; i += 3)
+                {
+                    // TRMesh emits CCW triangles. Godot considers clockwise triangles front-facing.
+                    AppendIndex(mesh, surface, _triangulatedHalfEdges[i], normal);
+                    AppendIndex(mesh, surface, _triangulatedHalfEdges[i + 2], normal);
+                    AppendIndex(mesh, surface, _triangulatedHalfEdges[i + 1], normal);
+                    surface.FaceSlots.Add(faceSlot);
+                }
             }
-        }
+        });
 
         return surface;
     }

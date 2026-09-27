@@ -116,18 +116,21 @@ internal sealed class PreviewGeometryRenderer : IDisposable
     {
         ArgumentNullException.ThrowIfNull(mesh);
         var vertices = new List<Vector3>(checked(mesh.EdgeCount * 2));
-        foreach (var halfEdge in mesh.HalfEdges)
+        mesh.WithHalfEdges((slots, topology, _) =>
         {
-            TRMesh.Mesh.HalfEdge topology = halfEdge.topology;
-            if (halfEdge.Slot > topology.TwinHalfEdge)
-                continue;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                TRMesh.Mesh.HalfEdge halfEdge = topology[i];
+                if (slots[i] > halfEdge.TwinHalfEdge)
+                    continue;
 
-            System.Numerics.Vector3 source = mesh.GetVertexData(topology.SourceVertex).position;
-            int targetVertex = mesh.GetHalfEdgeData(topology.TwinHalfEdge).topology.SourceVertex;
-            System.Numerics.Vector3 target = mesh.GetVertexData(targetVertex).position;
-            vertices.Add(new Vector3(source.X, source.Y, source.Z));
-            vertices.Add(new Vector3(target.X, target.Y, target.Z));
-        }
+                System.Numerics.Vector3 source = mesh.GetVertexData(halfEdge.SourceVertex).position;
+                int targetVertex = mesh.GetHalfEdgeData(halfEdge.TwinHalfEdge).topology.SourceVertex;
+                System.Numerics.Vector3 target = mesh.GetVertexData(targetVertex).position;
+                vertices.Add(new Vector3(source.X, source.Y, source.Z));
+                vertices.Add(new Vector3(target.X, target.Y, target.Z));
+            }
+        });
 
         return vertices.ToArray();
     }
