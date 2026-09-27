@@ -8,8 +8,8 @@
 - [x] Quit
 
 ### Edit
-- [ ] Undo
-- [ ] Redo
+- [x] Undo
+- [x] Redo
 
 ### Settings
 - [x] Keybindings...
@@ -24,6 +24,7 @@
 - [x] Implement the main View area via TilingContainer, allow for arbitrary splitting of main view area into subviews
 - [x] Camera movement controls for the views
 - [x] Perspective 3D View
+- [x] Scene Grid
 - [ ] Orthographic 3D View
 - [ ] Orthographic 2D View
 - [ ] Display Wireframe Overlay
@@ -31,6 +32,9 @@
 ## Mesh Operations
 
 - [ ] Translation gizmo for all three component types
+- [x] Object Translate
+- [ ] Object Rotate
+- [ ] Object Scale
 - [x] Create new Primitive
 
 ### Vertices
@@ -76,7 +80,7 @@
 
 
 ## Selections
-- [ ] Mesh Object Selection
+- [x] Mesh Object Selection
 - [ ] Mesh Component Selection (Free, can select or multi-select combinations of component types)
 - [ ] Single-Component Mesh Selection (Select Vertices, Edges, or Faces only)
 - [ ] X-Ray Selection

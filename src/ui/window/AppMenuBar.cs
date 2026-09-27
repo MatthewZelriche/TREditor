@@ -44,6 +44,29 @@ public partial class AppMenuBar : CenterContainer
             item.Menu.SetItemDisabled(item.Index, disabled);
     }
 
+    public void SetMenuActionText(AppMenuAction action, string text)
+    {
+        if (_menuItems.TryGetValue(action, out var item))
+            item.Menu.SetItemText(item.Index, text);
+    }
+
+    // Keeps Edit → Undo/Redo labels and enabled state aligned with command history.
+    public void UpdateUndoRedo(
+        bool canUndo,
+        string? undoDisplayName,
+        bool canRedo,
+        string? redoDisplayName
+    )
+    {
+        SetMenuActionText(AppMenuAction.Undo, FormatHistoryAction("Undo", undoDisplayName));
+        SetMenuActionDisabled(AppMenuAction.Undo, !canUndo);
+        SetMenuActionText(AppMenuAction.Redo, FormatHistoryAction("Redo", redoDisplayName));
+        SetMenuActionDisabled(AppMenuAction.Redo, !canRedo);
+    }
+
+    private static string FormatHistoryAction(string verb, string? displayName) =>
+        string.IsNullOrEmpty(displayName) ? verb : $"{verb} {displayName}";
+
     private void IndexMenuItems()
     {
         _menuItems.Clear();

@@ -68,6 +68,8 @@ public partial class Root : Node
         ConfigureFileDialog(_saveSceneDialog, FileDialog.FileModeEnum.SaveFile);
 
         _menuBar.MenuActionRequested += OnMenuActionRequested;
+        _application.CommandHistoryChanged += OnCommandHistoryChanged;
+        RefreshUndoRedoMenu();
         _openSceneDialog.FileSelected += OnOpenSceneSelected;
         _saveSceneDialog.FileSelected += OnSaveSceneSelected;
         _fatalErrorDialog.Confirmed += CloseAfterFatalError;
@@ -120,6 +122,7 @@ public partial class Root : Node
 
         if (_application is not null)
         {
+            _application.CommandHistoryChanged -= OnCommandHistoryChanged;
             _application.OperationFailed -= OnOperationFailed;
             _application.FatalError -= OnFatalError;
         }
@@ -181,6 +184,12 @@ public partial class Root : Node
             case AppMenuBar.AppMenuAction.Quit:
                 GetTree().Quit();
                 break;
+            case AppMenuBar.AppMenuAction.Undo:
+                _application.Undo();
+                break;
+            case AppMenuBar.AppMenuAction.Redo:
+                _application.Redo();
+                break;
             case AppMenuBar.AppMenuAction.Keybindings:
                 if (_keybindings is not null)
                     _keybindingsDialog?.ShowDialog(_keybindings);
@@ -189,6 +198,21 @@ public partial class Root : Node
                 _logWindow?.ShowDialog();
                 break;
         }
+    }
+
+    private void OnCommandHistoryChanged() => RefreshUndoRedoMenu();
+
+    private void RefreshUndoRedoMenu()
+    {
+        if (_menuBar is null || _application is null)
+            return;
+
+        _menuBar.UpdateUndoRedo(
+            _application.CanUndo,
+            _application.UndoDisplayName,
+            _application.CanRedo,
+            _application.RedoDisplayName
+        );
     }
 
     private void ShowSaveSceneDialog()
