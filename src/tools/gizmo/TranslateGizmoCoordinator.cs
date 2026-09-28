@@ -119,11 +119,11 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         switch (change.Kind)
         {
             case DocumentChangeKind.Removed:
-                if (_selection.Current.ObjectId == change.ObjectId)
-                    Hide();
+                if (_selection.Current.ObjectIds.Contains(change.ObjectId))
+                    Synchronize();
                 break;
             case DocumentChangeKind.TransformChanged:
-                if (_selection.Current.ObjectId == change.ObjectId)
+                if (_selection.Current.ObjectIds.Contains(change.ObjectId))
                     Synchronize();
                 break;
         }
@@ -132,7 +132,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     public void OnPreviewTransformChanged(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_selection.Current.ObjectId == id)
+        if (_selection.Current.ObjectIds.Contains(id))
             Synchronize();
     }
 
@@ -280,24 +280,48 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         _proxy.QueueFree();
     }
 
-    // Places the shared proxy on whatever the selected object currently looks like, preferring an
-    // active preview over the committed transform. A drag already owns the proxy, so it is left alone.
+    // Places the shared proxy on the selected object's transform or at the world-space centroid of
+    // multiple selected objects. Active previews participate in that centroid. A drag already owns
+    // the proxy, so it is left alone.
     private void Synchronize()
     {
         if (_disposed || IsInteracting || !_enabled)
             return;
 
-        if (
-            _document is Document document
-            && _selection.Current.ObjectId is MeshObjectId id
-            && TryGetDisplayedTransform(document, id, out Transform3D transform)
-        )
+        if (_document is Document document && TryGetSelectionTransform(document, out Transform3D transform))
         {
             ShowAt(transform);
             return;
         }
 
         Hide();
+    }
+
+    private bool TryGetSelectionTransform(Document document, out Transform3D transform)
+    {
+        Vector3 originSum = Vector3.Zero;
+        Transform3D onlyTransform = default;
+        int count = 0;
+        foreach (MeshObjectId id in _selection.Current.ObjectIds)
+        {
+            if (!TryGetDisplayedTransform(document, id, out Transform3D displayed))
+                continue;
+
+            onlyTransform = displayed;
+            originSum += displayed.Origin;
+            count++;
+        }
+
+        if (count == 0)
+        {
+            transform = default;
+            return false;
+        }
+
+        transform = count == 1
+            ? onlyTransform
+            : new Transform3D(Basis.Identity, originSum / count);
+        return true;
     }
 
     private bool TryGetDisplayedTransform(Document document, MeshObjectId id, out Transform3D transform)

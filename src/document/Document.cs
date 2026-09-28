@@ -109,6 +109,42 @@ public sealed class Document : IDisposable, IEditorDocumentReader
         return true;
     }
 
+    // Atomically validates and replaces a group of object records. All authoritative values are
+    // installed before notifications are published, so consumers never observe a partially moved
+    // selection. Every change set from the group shares one mutation serial.
+    internal bool ReplaceObjects(
+        IReadOnlyList<MeshObject> expected,
+        IReadOnlyList<MeshObject> replacements
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(expected);
+        ArgumentNullException.ThrowIfNull(replacements);
+        if (expected.Count == 0 || expected.Count != replacements.Count)
+            return false;
+
+        var ids = new HashSet<MeshObjectId>();
+        for (int index = 0; index < expected.Count; index++)
+        {
+            if (!ids.Add(expected[index].Id) || !IsValidReplacement(expected[index], replacements[index]))
+                return false;
+        }
+
+        var changes = new DocumentObjectChange[expected.Count];
+        for (int index = 0; index < expected.Count; index++)
+        {
+            MeshObject replacement = replacements[index];
+            _objects[replacement.Id] = replacement;
+            changes[index] = new DocumentObjectChange(
+                replacement.Id,
+                DocumentChangeKind.TransformChanged
+            );
+        }
+
+        Publish(changes);
+        return true;
+    }
+
     private bool IsValidReplacement(MeshObject expected, MeshObject replacement) =>
         expected is not null
         && replacement is not null
@@ -145,8 +181,14 @@ public sealed class Document : IDisposable, IEditorDocumentReader
 
     private void Publish(DocumentObjectChange change)
     {
+        Publish([change]);
+    }
+
+    private void Publish(IReadOnlyList<DocumentObjectChange> changes)
+    {
         long serial = checked(_mutationSerial + 1);
         _mutationSerial = serial;
-        Changed?.Invoke(new DocumentChangeSet(serial, change));
+        foreach (DocumentObjectChange change in changes)
+            Changed?.Invoke(new DocumentChangeSet(serial, change));
     }
 }

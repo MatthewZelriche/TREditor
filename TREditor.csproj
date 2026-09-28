@@ -1,4 +1,4 @@
-<Project Sdk="Godot.NET.Sdk/4.7.0-beta.1">
+<Project Sdk="Godot.NET.Sdk/4.7.2">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
@@ -34,9 +34,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" PrivateAssets="all" />
     <PackageReference Include="gdUnit4.test.adapter" Version="3.1.1" PrivateAssets="all" />
   </ItemGroup>
-  <Target Name="EnsureGdUnit4Installed"
-          BeforeTargets="PrepareForBuild"
-          Condition="!Exists('$(MSBuildProjectDirectory)\addons\gdUnit4\plugin.cfg')">
+  <Target Name="EnsureGdUnit4Installed" BeforeTargets="PrepareForBuild" Condition="!Exists('$(MSBuildProjectDirectory)\addons\gdUnit4\plugin.cfg')">
     <Error Text="GdUnit4 is not initialized. Follow the setup instructions in BUILD.md." />
   </Target>
 </Project>

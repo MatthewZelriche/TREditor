@@ -22,8 +22,10 @@ public sealed class Application : IDisposable
         var initialDocument = new Document();
         GridRenderService? gridRenderer = null;
         RenderService? renderService = null;
+        ComponentSelectionRenderService? componentSelectionRenderer = null;
         PickingService? pickingService = null;
         TranslateGizmoCoordinator? gizmos = null;
+        var stencilReferences = new MeshStencilReferences();
         try
         {
             gizmos = new TranslateGizmoCoordinator(
@@ -34,13 +36,27 @@ public sealed class Application : IDisposable
             );
             gridRenderer = new GridRenderService();
             _gridRenderer = gridRenderer;
-            renderService = new RenderService(initialDocument, mapRoot, _previewState);
+            renderService = new RenderService(
+                initialDocument,
+                mapRoot,
+                _previewState,
+                stencilReferences
+            );
+            componentSelectionRenderer = new ComponentSelectionRenderService(
+                initialDocument,
+                mapRoot,
+                _previewState,
+                _selectionMode,
+                _selectionState,
+                stencilReferences
+            );
             pickingService = new PickingService(initialDocument, mapRoot, _previewState);
             _services = new SceneServices(
                 initialDocument,
                 _previewState,
                 gridRenderer,
                 renderService,
+                componentSelectionRenderer,
                 pickingService,
                 gizmos
             );
@@ -65,6 +81,7 @@ public sealed class Application : IDisposable
         {
             gizmos?.Dispose();
             pickingService?.Dispose();
+            componentSelectionRenderer?.Dispose();
             renderService?.Dispose();
             gridRenderer?.Dispose();
             initialDocument.Dispose();
@@ -168,6 +185,7 @@ public sealed class Application : IDisposable
 
         _gridRenderer.UnregisterViewport(camera);
         _toolContext.TranslateGizmos.UnregisterViewport(camera);
+        _selectionState.ClearHover();
     }
 
     // Abandons whatever interaction is in flight without committing. Used when the pointer is taken
@@ -273,6 +291,7 @@ public sealed class Application : IDisposable
             _toolRegistry.ActiveToolChanged -= OnActiveToolChanged;
             _toolRegistry.CancelActiveTool();
             _selectionMode.ClearChangedListeners();
+            _selectionState.ClearHover();
             _selectionState.Clear();
             _selectionState.ClearChangedListeners();
             _commandHistory.Dispose();
@@ -290,21 +309,21 @@ public sealed class Application : IDisposable
 
     private void OnSelectionModeChanged()
     {
-        // A component is not a transformable object selection and an object is not a component
-        // selection. Mode changes therefore end the active interaction and discard the incompatible
-        // transient selection immediately.
         CancelActiveInteraction();
-        _selectionState.Clear();
+        _selectionState.ClearHover();
     }
 
     private void OnCommandHistoryOperationFailed(string operation, Exception exception) =>
         OperationFailed?.Invoke(operation, exception);
 
-    private void OnActiveToolChanged() =>
-        // Hide gizmo when not translate tool
-        _toolContext.TranslateGizmos.SetEnabled(
-            _toolRegistry.ActiveTool?.Id == TranslateTool.ToolId
-        );
+    private void OnActiveToolChanged()
+    {
+        bool isTranslateTool = _toolRegistry.ActiveTool?.Id == TranslateTool.ToolId;
+        // Hide gizmo when not translate tool.
+        _toolContext.TranslateGizmos.SetEnabled(isTranslateTool);
+        if (!isTranslateTool)
+            _selectionState.ClearHover();
+    }
 
     private void OnSceneServicesFatalError(string operation, Exception exception)
     {
@@ -317,6 +336,7 @@ public sealed class Application : IDisposable
         Document? previousDocument = _currentDocument;
         // Nothing a tool was interacting with survives the document it belonged to.
         CancelActiveInteraction();
+        _selectionState.ClearHover();
 
         try
         {

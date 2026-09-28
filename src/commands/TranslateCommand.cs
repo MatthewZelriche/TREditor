@@ -1,6 +1,7 @@
 using System;
+using System.Collections.Generic;
 
-// A committed move of one object. Exact before and after MeshObject records are retained so undo and
+// A committed move of one or more objects. Exact before and after MeshObject records are retained so undo and
 // redo replace the same instances the command observed; a stale intervening replacement fails rather
 // than overwriting unrelated state.
 public sealed class TranslateCommand : IEditorCommand
@@ -9,15 +10,33 @@ public sealed class TranslateCommand : IEditorCommand
     // GDMesh. However, for commands that require TopologyPatches, we will need to be more careful
     // with what we store to avoid bloating memory. We store a lot of commands for history and they need
     // to be lightweight.
-    private readonly MeshObject _before;
-    private readonly MeshObject _after;
+    private readonly MeshObject[] _before;
+    private readonly MeshObject[] _after;
 
     public TranslateCommand(MeshObject before, MeshObject after)
+        : this([before], [after]) { }
+
+    public TranslateCommand(
+        IReadOnlyList<MeshObject> before,
+        IReadOnlyList<MeshObject> after
+    )
     {
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
-        _before = before;
-        _after = after;
+        if (before.Count == 0)
+            throw new ArgumentException("At least one object must be translated.", nameof(before));
+        if (before.Count != after.Count)
+            throw new ArgumentException("Before and after object counts must match.", nameof(after));
+
+        _before = new MeshObject[before.Count];
+        _after = new MeshObject[after.Count];
+        for (int index = 0; index < before.Count; index++)
+        {
+            _before[index] = before[index]
+                ?? throw new ArgumentException("Before objects cannot contain null.", nameof(before));
+            _after[index] = after[index]
+                ?? throw new ArgumentException("After objects cannot contain null.", nameof(after));
+        }
     }
 
     public string DisplayName => "Translate";
@@ -26,13 +45,17 @@ public sealed class TranslateCommand : IEditorCommand
 
     public void Undo(Document document) => Replace(document, _after, _before);
 
-    private static void Replace(Document document, MeshObject expected, MeshObject replacement)
+    private static void Replace(
+        Document document,
+        IReadOnlyList<MeshObject> expected,
+        IReadOnlyList<MeshObject> replacements
+    )
     {
         ArgumentNullException.ThrowIfNull(document);
-        if (!document.ReplaceObject(expected, replacement))
+        if (!document.ReplaceObjects(expected, replacements))
         {
             throw new NonFatalCommandError(
-                $"Object {expected.Id.Value} is missing or stale and cannot be translated."
+                "One or more selected objects are missing or stale and cannot be translated."
             );
         }
     }

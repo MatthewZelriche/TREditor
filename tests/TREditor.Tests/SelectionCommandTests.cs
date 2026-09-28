@@ -18,7 +18,7 @@ public sealed class SelectionCommandTests
 
         sink.Submit(new SelectionCommand(selection, null, First));
 
-        Assert.Equal(First, selection.Current.ObjectId);
+        Assert.Equal([First], selection.Current.ObjectIds);
         Assert.True(history.CanUndo);
         Assert.Equal("Select Object", history.UndoDisplayName);
     }
@@ -33,13 +33,13 @@ public sealed class SelectionCommandTests
         history.Submit(new SelectionCommand(selection, null, First));
 
         history.Submit(new SelectionCommand(selection, First, Second));
-        Assert.Equal(Second, selection.Current.ObjectId);
+        Assert.Equal([Second], selection.Current.ObjectIds);
 
         Assert.True(history.Undo());
-        Assert.Equal(First, selection.Current.ObjectId);
+        Assert.Equal([First], selection.Current.ObjectIds);
 
         Assert.True(history.Redo());
-        Assert.Equal(Second, selection.Current.ObjectId);
+        Assert.Equal([Second], selection.Current.ObjectIds);
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public sealed class SelectionCommandTests
         Assert.Equal("Clear Selection", history.UndoDisplayName);
 
         Assert.True(history.Undo());
-        Assert.Equal(Second, selection.Current.ObjectId);
+        Assert.Equal([Second], selection.Current.ObjectIds);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class SelectionCommandTests
         history.SetDocument(second);
         history.Submit(new SelectionCommand(selection, First, Second));
 
-        Assert.Equal(Second, selection.Current.ObjectId);
+        Assert.Equal([Second], selection.Current.ObjectIds);
         Assert.Equal(0, first.ObjectCount);
         Assert.Equal(0, second.ObjectCount);
     }
@@ -145,11 +145,34 @@ public sealed class SelectionCommandTests
             )
         );
 
-        Assert.Equal(component, selection.Current.Component);
+        Assert.Equal([component], selection.Current.Components);
         Assert.Equal("Select Component", history.UndoDisplayName);
         Assert.True(history.Undo());
         Assert.True(selection.Current.IsEmpty);
         Assert.True(history.Redo());
-        Assert.Equal(component, selection.Current.Component);
+        Assert.Equal([component], selection.Current.Components);
+    }
+
+    [Fact]
+    public void UndoAndRedoRestoreCompleteMixedSelections()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        var selection = new SelectionState();
+        var component = new MeshComponentId(First, MeshComponentType.Edge, 3);
+        SelectionValue before = SelectionValue.ForSelections([First], [component]);
+        SelectionValue after = before.Toggle(Second);
+        selection.Apply(before);
+
+        history.Submit(new SelectionCommand(selection, before, after));
+
+        Assert.Equal(2, selection.Current.ObjectIds.Count);
+        Assert.Contains(component, selection.Current.Components);
+        Assert.Equal("Select Object", history.UndoDisplayName);
+        Assert.True(history.Undo());
+        Assert.Equal(before, selection.Current);
+        Assert.True(history.Redo());
+        Assert.Equal(after, selection.Current);
     }
 }

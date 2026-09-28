@@ -20,7 +20,7 @@ public sealed class SelectionStateTests
 
         selection.Select(id);
 
-        Assert.Equal(id, selection.Current.ObjectId);
+        Assert.Equal([id], selection.Current.ObjectIds);
         Assert.Equal(1, changedCount);
     }
 
@@ -35,7 +35,7 @@ public sealed class SelectionStateTests
 
         selection.Select(id);
 
-        Assert.Equal(id, selection.Current.ObjectId);
+        Assert.Equal([id], selection.Current.ObjectIds);
         Assert.Equal(0, changedCount);
     }
 
@@ -50,7 +50,7 @@ public sealed class SelectionStateTests
 
         selection.Select(replacement);
 
-        Assert.Equal(replacement, selection.Current.ObjectId);
+        Assert.Equal([replacement], selection.Current.ObjectIds);
         Assert.Equal(1, changedCount);
     }
 
@@ -94,12 +94,85 @@ public sealed class SelectionStateTests
 
         selection.Select(component);
 
-        Assert.Equal(component, selection.Current.Component);
-        Assert.Null(selection.Current.ObjectId);
+        Assert.Equal([component], selection.Current.Components);
+        Assert.Empty(selection.Current.ObjectIds);
 
         selection.Select(component.ObjectId);
 
-        Assert.Equal(component.ObjectId, selection.Current.ObjectId);
-        Assert.Null(selection.Current.Component);
+        Assert.Equal([component.ObjectId], selection.Current.ObjectIds);
+        Assert.Empty(selection.Current.Components);
+    }
+
+    [Fact]
+    public void ToggleBuildsMixedObjectAndComponentSelections()
+    {
+        var selection = new SelectionState();
+        var firstObject = new MeshObjectId(5);
+        var secondObject = new MeshObjectId(6);
+        var component = new MeshComponentId(firstObject, MeshComponentType.Edge, 12);
+        int changedCount = 0;
+        selection.Changed += () => changedCount++;
+
+        selection.Toggle(firstObject);
+        selection.Toggle(secondObject);
+        selection.Toggle(component);
+
+        Assert.Equal(2, selection.Current.ObjectIds.Count);
+        Assert.Contains(firstObject, selection.Current.ObjectIds);
+        Assert.Contains(secondObject, selection.Current.ObjectIds);
+        Assert.Contains(component, selection.Current.Components);
+        Assert.Equal(3, changedCount);
+
+        selection.Toggle(firstObject);
+        selection.Toggle(component);
+
+        Assert.Equal([secondObject], selection.Current.ObjectIds);
+        Assert.Empty(selection.Current.Components);
+        Assert.Equal(5, changedCount);
+    }
+
+    [Fact]
+    public void SelectionValuesUseSetEqualityRegardlessOfInsertionOrder()
+    {
+        var firstObject = new MeshObjectId(5);
+        var secondObject = new MeshObjectId(6);
+        var firstComponent = new MeshComponentId(firstObject, MeshComponentType.Vertex, 1);
+        var secondComponent = new MeshComponentId(secondObject, MeshComponentType.Face, 2);
+
+        SelectionValue first = SelectionValue.ForSelections(
+            [firstObject, secondObject],
+            [firstComponent, secondComponent]
+        );
+        SelectionValue second = SelectionValue.ForSelections(
+            [secondObject, firstObject],
+            [secondComponent, firstComponent]
+        );
+
+        Assert.Equal(first, second);
+        Assert.Equal(first.GetHashCode(), second.GetHashCode());
+    }
+
+    [Fact]
+    public void HoverOnlyNotifiesWhenTheComponentChanges()
+    {
+        var selection = new SelectionState();
+        var component = new MeshComponentId(
+            new MeshObjectId(2),
+            MeshComponentType.Vertex,
+            4
+        );
+        int selectionChangedCount = 0;
+        int hoverChangedCount = 0;
+        selection.Changed += () => selectionChangedCount++;
+        selection.HoverChanged += () => hoverChangedCount++;
+
+        selection.SetHoveredComponent(component);
+        selection.SetHoveredComponent(component);
+        selection.ClearHover();
+        selection.ClearHover();
+
+        Assert.Null(selection.HoveredComponent);
+        Assert.Equal(0, selectionChangedCount);
+        Assert.Equal(2, hoverChangedCount);
     }
 }

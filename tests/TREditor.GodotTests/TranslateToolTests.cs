@@ -85,7 +85,7 @@ public class TranslateToolTests
 
         fixture.MouseDown(fixture.ScreenPositionOf(fixture.CylinderId));
 
-        AssertThat(fixture.Selection.Current.ObjectId).IsEqual(fixture.CylinderId);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CylinderId)).IsTrue();
         AssertThat(fixture.HistoryChanges).IsEqual(1);
         AssertThat(fixture.Application.UndoDisplayName).IsEqual("Select Object");
         AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
@@ -102,13 +102,95 @@ public class TranslateToolTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task ShiftClickTogglesObjectsAndPlacesTheGizmoAtTheirCentroid()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.MouseDown(fixture.ScreenPositionOf(fixture.CylinderId));
+        await ProcessFrames(2);
+
+        fixture.MouseDown(fixture.ScreenPositionOf(fixture.CubeId), shiftPressed: true);
+
+        AssertThat(fixture.Selection.Current.ObjectIds.Count).IsEqual(2);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CubeId)).IsTrue();
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CylinderId)).IsTrue();
+        Vector3 expectedCentroid = (
+            fixture.TransformOf(fixture.CubeId).Origin
+            + fixture.TransformOf(fixture.CylinderId).Origin
+        ) / 2.0f;
+        AssertBool(fixture.Application.Gizmos.IsVisible).IsTrue();
+        AssertThat(fixture.Application.Gizmos.ProxyTransform.Origin).IsEqual(expectedCentroid);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Select Object");
+
+        fixture.MouseDown(fixture.ScreenPositionOf(fixture.CylinderId), shiftPressed: true);
+
+        AssertThat(fixture.Selection.Current.ObjectIds.Count).IsEqual(1);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CubeId)).IsTrue();
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Deselect Object");
+
+        int changesBeforeEmptyClick = fixture.HistoryChanges;
+        fixture.MouseDown(new Vector2(4.0f, 4.0f), shiftPressed: true);
+        AssertThat(fixture.HistoryChanges).IsEqual(changesBeforeEmptyClick);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CubeId)).IsTrue();
+
+        AssertBool(fixture.Application.Undo()).IsTrue();
+        AssertThat(fixture.Selection.Current.ObjectIds.Count).IsEqual(2);
+        AssertBool(fixture.Application.Redo()).IsTrue();
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CubeId)).IsTrue();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task CentroidGizmoTranslatesEverySelectedObjectAsOneCommand()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.MouseDown(fixture.ScreenPositionOf(fixture.CylinderId));
+        await ProcessFrames(2);
+        fixture.MouseDown(fixture.ScreenPositionOf(fixture.CubeId), shiftPressed: true);
+        await ProcessFrames(3);
+        Transform3D cubeStart = fixture.TransformOf(fixture.CubeId);
+        Transform3D cylinderStart = fixture.TransformOf(fixture.CylinderId);
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle);
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        await ProcessFrames(1);
+
+        AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D cubePreview))
+            .IsTrue();
+        AssertBool(
+                fixture.Preview.TryGetTransform(
+                    fixture.CylinderId,
+                    out Transform3D cylinderPreview
+                )
+            )
+            .IsTrue();
+        Vector3 cubeDelta = cubePreview.Origin - cubeStart.Origin;
+        Vector3 cylinderDelta = cylinderPreview.Origin - cylinderStart.Origin;
+        AssertBool(cubeDelta.IsZeroApprox()).IsFalse();
+        AssertBool(cylinderDelta.IsEqualApprox(cubeDelta)).IsTrue();
+
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(cubePreview);
+        AssertThat(fixture.TransformOf(fixture.CylinderId)).IsEqual(cylinderPreview);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Translate");
+        AssertBool(fixture.Application.Undo()).IsTrue();
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(cubeStart);
+        AssertThat(fixture.TransformOf(fixture.CylinderId)).IsEqual(cylinderStart);
+        AssertBool(fixture.Application.Redo()).IsTrue();
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(cubePreview);
+        AssertThat(fixture.TransformOf(fixture.CylinderId)).IsEqual(cylinderPreview);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task PressingTheSameObjectAgainAndEmptySpaceOnlyCommitsRealChanges()
     {
         using Fixture fixture = await Fixture.Create();
         Vector2 cylinder = fixture.ScreenPositionOf(fixture.CylinderId);
 
         fixture.MouseDown(cylinder);
-        AssertThat(fixture.Selection.Current.ObjectId).IsEqual(fixture.CylinderId);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CylinderId)).IsTrue();
         AssertThat(fixture.HistoryChanges).IsEqual(1);
 
         // Re-picking the current selection is not a change, so it produces no command.
@@ -117,7 +199,7 @@ public class TranslateToolTests
         AssertThat(fixture.HistoryChanges).IsEqual(1);
 
         fixture.MouseDown(new Vector2(4.0f, 4.0f));
-        AssertThat(fixture.Selection.Current.ObjectId).IsNull();
+        AssertThat(fixture.Selection.Current.ObjectIds.Count).IsEqual(0);
         AssertThat(fixture.HistoryChanges).IsEqual(2);
         AssertThat(fixture.Application.UndoDisplayName).IsEqual("Clear Selection");
 
@@ -178,7 +260,7 @@ public class TranslateToolTests
         fixture.Application.CancelActiveInteraction();
 
         AssertThat(fixture.HistoryChanges).IsEqual(0);
-        AssertThat(fixture.Selection.Current.ObjectId).IsEqual(fixture.CubeId);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CubeId)).IsTrue();
         AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
         AssertBool(fixture.Preview.TryGetTransform(fixture.CubeId, out Transform3D _)).IsFalse();
         AssertBool(fixture.Application.Gizmos.IsInteracting).IsFalse();
@@ -351,6 +433,11 @@ public class TranslateToolTests
 
         public void MouseDown(Vector2 position) =>
             Application.HandleToolMouseDown(new EditorMouseInput(Camera, position));
+
+        public void MouseDown(Vector2 position, bool shiftPressed) =>
+            Application.HandleToolMouseDown(
+                new EditorMouseInput(Camera, position, IsShiftPressed: shiftPressed)
+            );
 
         public void MouseDrag(Vector2 position) =>
             Application.HandleToolMouseDrag(new EditorMouseInput(Camera, position));

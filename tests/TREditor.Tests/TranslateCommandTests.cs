@@ -49,6 +49,84 @@ public sealed class TranslateCommandTests
     }
 
     [Fact]
+    public void MultipleObjectsTranslateAtomicallyWithOneMutationSerial()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        MeshObject first = document.Add("First", BeforeTransform, null!);
+        MeshObject second = document.Add(
+            "Second",
+            new Transform3D(Basis.Identity, new Vector3(-3, 2, 1)),
+            null!
+        );
+        Vector3 delta = new(2, -1, 4);
+        MeshObject firstAfter = first with
+        {
+            Transform = new Transform3D(first.Transform.Basis, first.Transform.Origin + delta),
+        };
+        MeshObject secondAfter = second with
+        {
+            Transform = new Transform3D(second.Transform.Basis, second.Transform.Origin + delta),
+        };
+        long serialBefore = document.MutationSerial;
+        var observedSerials = new List<long>();
+        document.Changed += changeSet => observedSerials.Add(changeSet.MutationSerial);
+
+        history.Submit(
+            new TranslateCommand([first, second], [firstAfter, secondAfter])
+        );
+
+        Assert.Equal(firstAfter.Transform, ReadTransform(document, first.Id));
+        Assert.Equal(secondAfter.Transform, ReadTransform(document, second.Id));
+        Assert.Equal(serialBefore + 1, document.MutationSerial);
+        Assert.Equal([serialBefore + 1, serialBefore + 1], observedSerials);
+
+        Assert.True(history.Undo());
+        Assert.Equal(first.Transform, ReadTransform(document, first.Id));
+        Assert.Equal(second.Transform, ReadTransform(document, second.Id));
+        Assert.True(history.Redo());
+        Assert.Equal(firstAfter.Transform, ReadTransform(document, first.Id));
+        Assert.Equal(secondAfter.Transform, ReadTransform(document, second.Id));
+    }
+
+    [Fact]
+    public void AStaleGroupMemberPreventsEveryObjectFromMoving()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        MeshObject first = document.Add("First", BeforeTransform, null!);
+        MeshObject second = document.Add(
+            "Second",
+            new Transform3D(Basis.Identity, new Vector3(-3, 2, 1)),
+            null!
+        );
+        Vector3 delta = new(2, -1, 4);
+        MeshObject firstAfter = first with
+        {
+            Transform = new Transform3D(first.Transform.Basis, first.Transform.Origin + delta),
+        };
+        MeshObject secondAfter = second with
+        {
+            Transform = new Transform3D(second.Transform.Basis, second.Transform.Origin + delta),
+        };
+        MeshObject intervening = second with
+        {
+            Transform = new Transform3D(Basis.Identity, new Vector3(20, 20, 20)),
+        };
+        Assert.True(document.ReplaceObject(second, intervening));
+
+        history.Submit(
+            new TranslateCommand([first, second], [firstAfter, secondAfter])
+        );
+
+        Assert.False(history.CanUndo);
+        Assert.Equal(first.Transform, ReadTransform(document, first.Id));
+        Assert.Equal(intervening.Transform, ReadTransform(document, second.Id));
+    }
+
+    [Fact]
     public void InterveningReplaceObjectMakesRedoFailWithoutMovingStacks()
     {
         using var document = new Document();

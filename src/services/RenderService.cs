@@ -12,17 +12,28 @@ public sealed class RenderService : ISceneService
     // that takes in renderdata and renders it.
     private readonly PreviewGeometryRenderer _previewGeometryRenderer;
     private readonly DefaultMeshMaterial _defaultMaterial;
+    private readonly MeshStencilReferences _stencilReferences;
     private Document _document;
     private bool _disposed;
 
     public RenderService(Document document, Node3D mapRoot, PreviewState previews)
+        : this(document, mapRoot, previews, new MeshStencilReferences()) { }
+
+    internal RenderService(
+        Document document,
+        Node3D mapRoot,
+        PreviewState previews,
+        MeshStencilReferences stencilReferences
+    )
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(mapRoot);
         ArgumentNullException.ThrowIfNull(previews);
+        ArgumentNullException.ThrowIfNull(stencilReferences);
 
         _document = document;
         _previews = previews;
+        _stencilReferences = stencilReferences;
         _renderRoot = new Node3D { Name = "Render" };
         PreviewGeometryRenderer? previewGeometryRenderer = null;
         DefaultMeshMaterial? defaultMaterial = null;
@@ -116,11 +127,12 @@ public sealed class RenderService : ISceneService
 
         ArgumentNullException.ThrowIfNull(meshObject.Mesh);
 
+        int stencilReference = _stencilReferences.Acquire(id);
         var entry = new RenderEntry(
             meshObject,
             _renderRoot,
             EffectiveTransform(meshObject),
-            _defaultMaterial.Material
+            _defaultMaterial.GetMaterial(stencilReference)
         );
         try
         {
@@ -129,6 +141,7 @@ public sealed class RenderService : ISceneService
         catch
         {
             entry.Dispose();
+            _stencilReferences.Release(id);
             throw;
         }
 
@@ -142,6 +155,7 @@ public sealed class RenderService : ISceneService
             return;
 
         entry.Dispose();
+        _stencilReferences.Release(id);
     }
 
     private void MarkGeometryDirty(MeshObjectId id)
@@ -196,6 +210,7 @@ public sealed class RenderService : ISceneService
 
         _entries.Clear();
         _dirtyMeshes.Clear();
+        _stencilReferences.Clear();
     }
 
     internal static void UpdateArrayMesh(ArrayMesh arrayMesh, MeshSurface surface)

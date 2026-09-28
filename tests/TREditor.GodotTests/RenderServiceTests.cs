@@ -78,6 +78,13 @@ public class RenderServiceTests
             AssertThat(instance.Transform).IsEqual(initialTransform);
             AssertThat(instance.MaterialOverride).IsNotNull();
             AssertBool(instance.MaterialOverride is ShaderMaterial).IsTrue();
+            var surfaceMaterial = (ShaderMaterial)instance.MaterialOverride!;
+            AssertBool(
+                surfaceMaterial.Shader.Code.Contains(
+                    "stencil_mode write, compare_always, 1;",
+                    StringComparison.Ordinal
+                )
+            ).IsTrue();
 
             var firstPreview = new Transform3D(Basis.Identity, new Vector3(2.0f, 0.0f, 0.0f));
             previews.SetTransform(meshObject.Id, firstPreview);
