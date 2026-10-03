@@ -5,7 +5,7 @@ using Godot;
 // Moves the selected objects with the viewport gizmos. The tool owns the three-phase flow only: the
 // coordinator owns the gizmo nodes, previews carry the drag feedback, and the document changes once,
 // on mouse up, through a single command that replaces the MeshObject records captured at drag start.
-public sealed class TranslateTool : IEditorTool
+public sealed class TranslateTool : ToolBase
 {
     public const string ToolId = "tool.translate";
 
@@ -13,90 +13,42 @@ public sealed class TranslateTool : IEditorTool
     private MeshObject[]? _before;
     private Transform3D _gizmoStart;
     private Camera3D? _sourceCamera;
-    private readonly SelectionModeState? _selectionMode;
 
     public TranslateTool(SelectionModeState? selectionMode = null)
+        : base(selectionMode)
     {
-        _selectionMode = selectionMode;
     }
 
-    public string Id => ToolId;
+    public override string Id => ToolId;
 
-    // A press is either a gizmo grab or a selection click, never both. Classifying it before any
-    // state changes keeps a selection click from starting a translation of the object it just
-    // selected.
-    // TODO: Base Tool class that handles selection for all tools
-    public void OnMouseDown(IEditorToolContext context, EditorMouseInput input)
+    // Classifying the press as a gizmo grab before selection keeps a selection click from starting
+    // a translation of the object it just selected.
+    protected override void OnPreMouseDown(IEditorToolContext context, EditorMouseInput input)
     {
-        ArgumentNullException.ThrowIfNull(context);
-        if (input.Camera is null)
-            return;
-
         if (_dragging)
             Cancel(context);
+    }
 
-        if (_selectionMode?.Mode == EditorMode.Component)
-        {
-            ComponentPickingHit? componentHit = context.Picking.PickComponent(
-                input.Camera,
-                input.ScreenPosition,
-                _selectionMode.Components
-            );
-            context.Selection.SetHoveredComponent(componentHit?.Component);
-            SelectionValue beforeComponentSelection = context.Selection.Current;
-            SelectionValue afterComponentSelection = input.IsShiftPressed
-                ? componentHit is ComponentPickingHit toggledHit
-                    ? beforeComponentSelection.Toggle(toggledHit.Component)
-                    : beforeComponentSelection
-                : componentHit is ComponentPickingHit hit
-                    ? SelectionValue.ForComponent(hit.Component)
-                    : SelectionValue.Empty;
-            if (beforeComponentSelection != afterComponentSelection)
-            {
-                context.Commands.Submit(
-                    new SelectionCommand(
-                        context.Selection,
-                        beforeComponentSelection,
-                        afterComponentSelection
-                    )
-                );
-            }
-
-            return;
-        }
-
+    protected override bool TryBeginInteraction(IEditorToolContext context, EditorMouseInput input)
+    {
         SelectionValue beforeSelection = context.Selection.Current;
         if (
             !input.IsShiftPressed
-            &&
-            TryCaptureSelectedObjects(context, beforeSelection.ObjectIds, out MeshObject[] selected)
-            && context.TranslateGizmos.BeginInteraction(input.Camera, input.ScreenPosition)
+            && TryCaptureSelectedObjects(context, beforeSelection.ObjectIds, out MeshObject[] selected)
+            && context.TranslateGizmos.BeginInteraction(input.Camera!, input.ScreenPosition)
         )
         {
             _dragging = true;
             _before = selected;
             _gizmoStart = context.TranslateGizmos.ProxyTransform;
             _sourceCamera = input.Camera;
-            return;
+            return true;
         }
 
-        MeshObjectId? picked = context.Picking.Raycast(input.Camera, input.ScreenPosition);
-        SelectionValue afterSelection = input.IsShiftPressed
-            ? picked is MeshObjectId toggledId
-                ? beforeSelection.Toggle(toggledId)
-                : beforeSelection
-            : picked is MeshObjectId pickedId
-                ? SelectionValue.ForObject(pickedId)
-                : SelectionValue.Empty;
-        if (afterSelection != beforeSelection)
-        {
-            context.Commands.Submit(
-                new SelectionCommand(context.Selection, beforeSelection, afterSelection)
-            );
-        }
+        return false;
     }
 
-    public void OnMouseDrag(IEditorToolContext context, EditorMouseInput input)
+    public override void OnMouseDrag(IEditorToolContext context, EditorMouseInput input)
     {
         ArgumentNullException.ThrowIfNull(context);
         if (!_dragging || _before is null || !ReferenceEquals(input.Camera, _sourceCamera))
@@ -117,24 +69,7 @@ public sealed class TranslateTool : IEditorTool
         }
     }
 
-    public void OnMouseMove(IEditorToolContext context, EditorMouseInput input)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        if (input.Camera is null || _selectionMode?.Mode != EditorMode.Component)
-        {
-            context.Selection.ClearHover();
-            return;
-        }
-
-        ComponentPickingHit? hit = context.Picking.PickComponent(
-            input.Camera,
-            input.ScreenPosition,
-            _selectionMode.Components
-        );
-        context.Selection.SetHoveredComponent(hit?.Component);
-    }
-
-    public void OnMouseUp(IEditorToolContext context, EditorMouseInput input)
+    public override void OnMouseUp(IEditorToolContext context, EditorMouseInput input)
     {
         ArgumentNullException.ThrowIfNull(context);
         if (!_dragging || _before is null || !ReferenceEquals(input.Camera, _sourceCamera))
@@ -172,10 +107,8 @@ public sealed class TranslateTool : IEditorTool
 
     // The one place a translate interaction is torn down. Lifecycle transitions cancel through the
     // registry rather than reaching for the coordinator or previews themselves.
-    public void Cancel(IEditorToolContext context)
+    protected override void OnCancel(IEditorToolContext context)
     {
-        ArgumentNullException.ThrowIfNull(context);
-        context.Selection.ClearHover();
         if (!_dragging || _before is null)
             return;
 
