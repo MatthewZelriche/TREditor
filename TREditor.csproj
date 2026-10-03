@@ -34,6 +34,17 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" PrivateAssets="all" />
     <PackageReference Include="gdUnit4.test.adapter" Version="3.1.1" PrivateAssets="all" />
   </ItemGroup>
+  <!-- Build-time analysis only: PrivateAssets keeps these out of compile/publish output and
+       dependency graphs. Gated to Debug by default; Release can opt in with
+       -p:EnableDevCodeAnalysis=true (e.g. for `dotnet build -t:Metrics`). Analyzers emit
+       diagnostics only — they do not rewrite IL. -->
+  <ItemGroup Condition=" '$(Configuration)' == 'Debug' or '$(EnableDevCodeAnalysis)' == 'true' ">
+    <PackageReference Include="Roslynator.Analyzers" Version="5.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.Metrics" Version="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
   <Target Name="EnsureGdUnit4Installed" BeforeTargets="PrepareForBuild" Condition="!Exists('$(MSBuildProjectDirectory)\addons\gdUnit4\plugin.cfg')">
     <Error Text="GdUnit4 is not initialized. Follow the setup instructions in BUILD.md." />
   </Target>

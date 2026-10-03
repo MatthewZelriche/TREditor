@@ -50,7 +50,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
     private readonly ArrayMesh _hoverFaceMesh = new();
     private readonly ShaderMaterial _hoverFaceMaterial;
     private readonly ShaderMaterial _selectedFaceMaterial;
-    private readonly List<SelectedVisual> _selectedVisuals = [];
+    private readonly List<(MeshInstance3D Instance, IDisposable Owned)> _selectedVisuals = [];
     private readonly HoverOverlay _hoverVertex;
     private readonly HoverOverlay _hoverEdge;
     private readonly MeshInstance3D _hoverFaceInstance;
@@ -59,22 +59,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
     private ComponentMask _renderedMask;
     private bool _selectedVisualsDirty = true;
     private bool _disposed;
-
-    public ComponentSelectionRenderService(
-        Document document,
-        Node3D mapRoot,
-        PreviewState previews,
-        SelectionModeState selectionMode,
-        SelectionState selection
-    )
-        : this(
-            document,
-            mapRoot,
-            previews,
-            selectionMode,
-            selection,
-            new MeshStencilReferences()
-        ) { }
 
     internal ComponentSelectionRenderService(
         Document document,
@@ -207,8 +191,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
         ApplyTransform(id);
     }
 
-    public void OnPreviewGeometryChanged() => ObjectDisposedException.ThrowIf(_disposed, this);
-
     public void Flush()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -317,19 +299,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
             {
                 if (!Includes(mask, selected.Type))
                     continue;
-
-                switch (selected.Type)
-                {
-                    case MeshComponentType.Vertex:
-                        AddSelectedVertex(selected);
-                        break;
-                    case MeshComponentType.Edge:
-                        AddSelectedEdge(selected);
-                        break;
-                    case MeshComponentType.Face:
-                        AddSelectedFace(selected);
-                        break;
-                }
+                AddSelectedVisual(selected);
             }
 
             _renderedSelection = _selection.Current;
@@ -342,182 +312,163 @@ public sealed class ComponentSelectionRenderService : ISceneService
             && !_selection.Current.Components.Contains(hovered)
                 ? hovered
                 : null;
-        SynchronizeHoveredVertex(hover);
-        SynchronizeHoveredEdge(hover);
-        SynchronizeHoveredFace(hover);
+        SynchronizeHoveredComponent(hover);
     }
 
-    private void AddSelectedVertex(MeshComponentId id)
+    private void AddSelectedVisual(MeshComponentId id)
     {
-        if (
-            !_entries.TryGetValue(id.ObjectId, out VisualEntry? entry)
-            || !entry.Vertices.TryGetValue(id.Slot, out Vector3 position)
-        )
-        {
+        if (!_entries.TryGetValue(id.ObjectId, out VisualEntry? entry))
             return;
-        }
 
-        StencilMaterialPair material = CreateActiveVertexMaterial(
-            _stencilReferences.Get(id.ObjectId),
-            SelectedColor,
-            ActiveVertexSizePixels,
-            ComponentRenderPriority.SelectedVertex
-        );
-        MeshInstance3D instance = CreateOverlayInstance(
-            "SelectedVertex",
-            _vertexQuad,
-            material.Material
-        );
-        instance.Transform = new Transform3D(Basis.Identity, position);
-        AddSelectedVisual(entry, instance, ownedMaterial: material);
-    }
-
-    private void AddSelectedEdge(MeshComponentId id)
-    {
-        if (
-            !_entries.TryGetValue(id.ObjectId, out VisualEntry? entry)
-            || !entry.Edges.TryGetValue(id.Slot, out EdgeGeometry edge)
-        )
+        switch (id.Type)
         {
-            return;
+            case MeshComponentType.Vertex
+                when entry.TryGetVertex(id.Slot, out Vector3 position):
+                {
+                    StencilMaterialPair material = CreateActiveVertexMaterial(
+                        _stencilReferences.Get(id.ObjectId),
+                        SelectedColor,
+                        ActiveVertexSizePixels,
+                        ComponentRenderPriority.SelectedVertex
+                    );
+                    MeshInstance3D instance = CreateOverlayInstance(
+                        "SelectedVertex",
+                        _vertexQuad,
+                        material.Material
+                    );
+                    instance.Transform = new Transform3D(Basis.Identity, position);
+                    AddSelectedVisual(entry, instance, material);
+                    break;
+                }
+            case MeshComponentType.Edge
+                when entry.TryGetEdge(id.Slot, out Vector3 start, out Vector3 end):
+                {
+                    StencilMaterialPair material = CreateActiveEdgeMaterial(
+                        _stencilReferences.Get(id.ObjectId),
+                        SelectedColor,
+                        ActiveEdgeWidthPixels,
+                        ComponentRenderPriority.SelectedEdge
+                    );
+                    MeshInstance3D instance = CreateOverlayInstance(
+                        "SelectedEdge",
+                        _activeEdgeMesh,
+                        material.Material
+                    );
+                    ConfigureActiveEdge(instance, material, start, end);
+                    AddSelectedVisual(entry, instance, material);
+                    break;
+                }
+            case MeshComponentType.Face when entry.Surface is not null:
+                {
+                    var mesh = new ArrayMesh();
+                    if (!TrySetFaceSurface(mesh, entry.Surface, id.Slot))
+                    {
+                        mesh.Dispose();
+                        break;
+                    }
+
+                    MeshInstance3D instance = CreateOverlayInstance(
+                        "SelectedFace",
+                        mesh,
+                        _selectedFaceMaterial
+                    );
+                    AddSelectedVisual(entry, instance, mesh);
+                    break;
+                }
         }
-
-        StencilMaterialPair material = CreateActiveEdgeMaterial(
-            _stencilReferences.Get(id.ObjectId),
-            SelectedColor,
-            ActiveEdgeWidthPixels,
-            ComponentRenderPriority.SelectedEdge
-        );
-        MeshInstance3D instance = CreateOverlayInstance(
-            "SelectedEdge",
-            _activeEdgeMesh,
-            material.Material
-        );
-        ConfigureActiveEdge(instance, material, edge);
-        AddSelectedVisual(entry, instance, ownedMaterial: material);
-    }
-
-    private void AddSelectedFace(MeshComponentId id)
-    {
-        if (
-            !_entries.TryGetValue(id.ObjectId, out VisualEntry? entry)
-            || !entry.Faces.TryGetValue(id.Slot, out FaceGeometry? face)
-        )
-        {
-            return;
-        }
-
-        var mesh = new ArrayMesh();
-        SetSurface(mesh, Mesh.PrimitiveType.Triangles, face.Vertices, normals: face.Normals);
-        MeshInstance3D instance = CreateOverlayInstance(
-            "SelectedFace",
-            mesh,
-            _selectedFaceMaterial
-        );
-        AddSelectedVisual(entry, instance, ownedMesh: mesh);
     }
 
     // Selected visuals inherit the object's transform, so transform previews need no rebuild.
-    // Removing an entry frees them with its root; SelectedVisual tolerates the freed instance.
+    // Removing an entry frees them with its root; tolerate an already-freed instance.
     private void AddSelectedVisual(
         VisualEntry entry,
         MeshInstance3D instance,
-        ArrayMesh? ownedMesh = null,
-        StencilMaterialPair? ownedMaterial = null
+        IDisposable ownedResource
     )
     {
         instance.Visible = true;
         entry.Root.AddChild(instance);
-        _selectedVisuals.Add(new SelectedVisual(instance, ownedMesh, ownedMaterial));
+        _selectedVisuals.Add((instance, ownedResource));
     }
 
     private void ClearSelectedVisuals()
     {
-        foreach (SelectedVisual visual in _selectedVisuals)
-            visual.Dispose();
+        foreach ((MeshInstance3D instance, IDisposable owned) in _selectedVisuals)
+        {
+            if (GodotObject.IsInstanceValid(instance))
+            {
+                instance.MaterialOverride = null;
+                instance.Mesh = null;
+                instance.Free();
+            }
+
+            owned.Dispose();
+        }
+
         _selectedVisuals.Clear();
     }
 
+    // MeshComponentType ordinals match ComponentMask bit positions (Vertex=0 → 1<<0, …).
     private static bool Includes(ComponentMask mask, MeshComponentType type) =>
-        type switch
-        {
-            MeshComponentType.Vertex => mask.HasFlag(ComponentMask.Vertex),
-            MeshComponentType.Edge => mask.HasFlag(ComponentMask.Edge),
-            MeshComponentType.Face => mask.HasFlag(ComponentMask.Face),
-            _ => false,
-        };
+        mask.HasFlag((ComponentMask)(1 << (int)type));
 
-    private void SynchronizeHoveredVertex(MeshComponentId? component)
+    private void SynchronizeHoveredComponent(MeshComponentId? component)
     {
+        _hoverVertex.Instance.Visible = false;
+        _hoverEdge.Instance.Visible = false;
+        _hoverFaceInstance.Visible = false;
         if (
             component is not MeshComponentId id
-            || id.Type != MeshComponentType.Vertex
             || !_entries.TryGetValue(id.ObjectId, out VisualEntry? entry)
-            || !entry.Vertices.TryGetValue(id.Slot, out Vector3 position)
         )
         {
-            _hoverVertex.Instance.Visible = false;
+            _hoverFaceMesh.ClearSurfaces();
             return;
         }
 
-        _hoverVertex.UseMaterial(_stencilReferences.Get(id.ObjectId));
-        _hoverVertex.Instance.Transform =
-            entry.Root.Transform * new Transform3D(Basis.Identity, position);
-        _hoverVertex.Instance.Visible = true;
-    }
-
-    private void SynchronizeHoveredEdge(MeshComponentId? component)
-    {
-        if (
-            component is not MeshComponentId id
-            || id.Type != MeshComponentType.Edge
-            || !_entries.TryGetValue(id.ObjectId, out VisualEntry? entry)
-            || !entry.Edges.TryGetValue(id.Slot, out EdgeGeometry edge)
-        )
+        switch (id.Type)
         {
-            _hoverEdge.Instance.Visible = false;
-            return;
+            case MeshComponentType.Vertex
+                when entry.TryGetVertex(id.Slot, out Vector3 position):
+                _hoverVertex.UseMaterial(_stencilReferences.Get(id.ObjectId));
+                _hoverVertex.Instance.Transform =
+                    entry.Root.Transform * new Transform3D(Basis.Identity, position);
+                _hoverVertex.Instance.Visible = true;
+                break;
+            case MeshComponentType.Edge
+                when entry.TryGetEdge(id.Slot, out Vector3 start, out Vector3 end):
+                StencilMaterialPair material = _hoverEdge.UseMaterial(
+                    _stencilReferences.Get(id.ObjectId)
+                );
+                ConfigureActiveEdge(_hoverEdge.Instance, material, start, end);
+                _hoverEdge.Instance.Transform = entry.Root.Transform;
+                _hoverEdge.Instance.Visible = true;
+                break;
+            case MeshComponentType.Face
+                when entry.Surface is not null
+                    && TrySetFaceSurface(_hoverFaceMesh, entry.Surface, id.Slot):
+                _hoverFaceInstance.Transform = entry.Root.Transform;
+                _hoverFaceInstance.Visible = true;
+                return;
         }
-
-        StencilMaterialPair material = _hoverEdge.UseMaterial(_stencilReferences.Get(id.ObjectId));
-        ConfigureActiveEdge(_hoverEdge.Instance, material, edge);
-        _hoverEdge.Instance.Transform = entry.Root.Transform;
-        _hoverEdge.Instance.Visible = true;
+        _hoverFaceMesh.ClearSurfaces();
     }
 
     private static void ConfigureActiveEdge(
         MeshInstance3D instance,
         StencilMaterialPair material,
-        EdgeGeometry edge
+        Vector3 start,
+        Vector3 end
     )
     {
-        material.SetShaderParameter("edge_start", edge.Start);
-        material.SetShaderParameter("edge_end", edge.End);
+        material.SetShaderParameter("edge_start", start);
+        material.SetShaderParameter("edge_end", end);
 
         // The carrier mesh contains only zeroed placeholder vertices; the shader positions its
         // quad from uniforms. Give the renderer the real local-space bounds so frustum culling does
         // not depend on whether the owning object's origin happens to be on screen.
-        instance.CustomAabb = new Aabb(edge.Start, Vector3.Zero).Expand(edge.End);
+        instance.CustomAabb = new Aabb(start, Vector3.Zero).Expand(end);
         instance.ExtraCullMargin = ActiveEdgeCullMargin;
-    }
-
-    private void SynchronizeHoveredFace(MeshComponentId? component)
-    {
-        if (
-            component is not MeshComponentId id
-            || id.Type != MeshComponentType.Face
-            || !_entries.TryGetValue(id.ObjectId, out VisualEntry? entry)
-            || !entry.Faces.TryGetValue(id.Slot, out FaceGeometry? face)
-        )
-        {
-            _hoverFaceMesh.ClearSurfaces();
-            _hoverFaceInstance.Visible = false;
-            return;
-        }
-
-        SetSurface(_hoverFaceMesh, Mesh.PrimitiveType.Triangles, face.Vertices, normals: face.Normals);
-        _hoverFaceInstance.Transform = entry.Root.Transform;
-        _hoverFaceInstance.Visible = true;
     }
 
     private void ClearEntries()
@@ -592,7 +543,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
         return material;
     }
 
-    private StencilMaterialPair CreateActiveMaterial(
+    private static StencilMaterialPair CreateActiveMaterial(
         Shader source,
         Dictionary<int, Shader> xrayShaders,
         int stencilReference,
@@ -654,6 +605,35 @@ public sealed class ComponentSelectionRenderService : ISceneService
         if (uvs is not null)
             arrays[(int)Mesh.ArrayType.TexUV] = uvs;
         mesh.AddSurfaceFromArrays(primitive, arrays);
+    }
+
+    // Faces are overlay-only (no muted batch), so build triangles for one slot on demand.
+    private static bool TrySetFaceSurface(ArrayMesh mesh, MeshSurface surface, int faceSlot)
+    {
+        var vertices = new List<Vector3>();
+        var normals = new List<Vector3>();
+        for (int triangle = 0; triangle < surface.FaceSlots.Count; triangle++)
+        {
+            if (surface.FaceSlots[triangle] != faceSlot)
+                continue;
+
+            int element = triangle * 3;
+            for (int corner = 0; corner < 3; corner++)
+            {
+                int index = surface.ElementIndices[element + corner];
+                vertices.Add(ToGodot(surface.Vertices[index]));
+                normals.Add(ToGodot(surface.Normals[index]));
+            }
+        }
+
+        if (vertices.Count == 0)
+        {
+            mesh.ClearSurfaces();
+            return false;
+        }
+
+        SetSurface(mesh, Mesh.PrimitiveType.Triangles, vertices.ToArray(), normals: normals.ToArray());
+        return true;
     }
 
     private sealed class StencilMaterialPair : IDisposable
@@ -733,26 +713,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
         }
     }
 
-    private sealed class SelectedVisual(
-        MeshInstance3D instance,
-        ArrayMesh? ownedMesh,
-        StencilMaterialPair? ownedMaterial
-    ) : IDisposable
-    {
-        public void Dispose()
-        {
-            if (GodotObject.IsInstanceValid(instance))
-            {
-                instance.MaterialOverride = null;
-                instance.Mesh = null;
-                instance.Free();
-            }
-
-            ownedMesh?.Dispose();
-            ownedMaterial?.Dispose();
-        }
-    }
-
     private static ArrayMesh CreateActiveEdgeMesh()
     {
         var mesh = new ArrayMesh();
@@ -772,6 +732,8 @@ public sealed class ComponentSelectionRenderService : ISceneService
         );
         return mesh;
     }
+
+    private static Vector3 ToGodot(NumericsVector3 value) => new(value.X, value.Y, value.Z);
 
     private sealed class VisualEntry : IDisposable
     {
@@ -818,75 +780,54 @@ public sealed class ComponentSelectionRenderService : ISceneService
 
         public Node3D Root { get; }
 
-        public Dictionary<int, EdgeGeometry> Edges { get; } = [];
+        public SpatialMesh? SpatialMesh { get; private set; }
 
-        public Dictionary<int, FaceGeometry> Faces { get; } = [];
-
-        public Dictionary<int, Vector3> Vertices { get; } = [];
+        public MeshSurface? Surface { get; private set; }
 
         public void UpdateGeometry(GDMesh mesh)
         {
-            Vertices.Clear();
-            SpatialMesh spatialMesh = mesh.SpatialMesh;
-            spatialMesh.WithVertices((slots, _, positions) =>
+            SpatialMesh = mesh.SpatialMesh;
+            Surface = mesh.Surface;
+            SpatialMesh.WithVertices((slots, _, positions) =>
             {
                 _vertices.InstanceCount = 0;
                 _vertices.InstanceCount = slots.Length;
                 for (int i = 0; i < slots.Length; i++)
                 {
-                    Vector3 position = ToGodot(positions[i]);
-                    Vertices.Add(slots[i], position);
-                    _vertices.SetInstanceTransform(i, new Transform3D(Basis.Identity, position));
-                }
-            });
-
-            Edges.Clear();
-            var edgeVertices = new List<Vector3>(checked(spatialMesh.EdgeCount * 2));
-            spatialMesh.WithHalfEdges((slots, topology, _) =>
-            {
-                for (int i = 0; i < slots.Length; i++)
-                {
-                    HalfEdge halfEdge = topology[i];
-                    if (slots[i] > halfEdge.TwinHalfEdge)
-                        continue;
-
-                    Vector3 start = ToGodot(
-                        spatialMesh.GetVertexData(halfEdge.SourceVertex).position
+                    _vertices.SetInstanceTransform(
+                        i,
+                        new Transform3D(Basis.Identity, ToGodot(positions[i]))
                     );
-                    int endVertex = spatialMesh
-                        .GetHalfEdgeData(halfEdge.TwinHalfEdge)
-                        .topology.SourceVertex;
-                    Vector3 end = ToGodot(spatialMesh.GetVertexData(endVertex).position);
-                    Edges.Add(slots[i], new EdgeGeometry(start, end));
-                    edgeVertices.Add(start);
-                    edgeVertices.Add(end);
                 }
             });
-            SetSurface(_edges, Mesh.PrimitiveType.Lines, edgeVertices.ToArray());
+            SetSurface(_edges, Mesh.PrimitiveType.Lines, PreviewGeometryRenderer.CreateWireVertices(SpatialMesh));
+        }
 
-            Faces.Clear();
-            MeshSurface surface = mesh.Surface;
-            var faces = new Dictionary<int, (List<Vector3> Vertices, List<Vector3> Normals)>();
-            for (int triangle = 0; triangle < surface.FaceSlots.Count; triangle++)
-            {
-                int faceSlot = surface.FaceSlots[triangle];
-                if (!faces.TryGetValue(faceSlot, out var face))
-                {
-                    face = ([], []);
-                    faces.Add(faceSlot, face);
-                }
+        public bool TryGetVertex(int slot, out Vector3 position)
+        {
+            position = default;
+            if (SpatialMesh is not { } mesh || !mesh.IsVertexAlive(slot))
+                return false;
+            position = ToGodot(mesh.GetVertexData(slot).position);
+            return true;
+        }
 
-                int element = triangle * 3;
-                for (int corner = 0; corner < 3; corner++)
-                {
-                    int surfaceIndex = surface.ElementIndices[element + corner];
-                    face.Vertices.Add(ToGodot(surface.Vertices[surfaceIndex]));
-                    face.Normals.Add(ToGodot(surface.Normals[surfaceIndex]));
-                }
-            }
-
-            foreach ((int faceSlot, var face) in faces)
-                Faces.Add(faceSlot, new FaceGeometry(face.Vertices.ToArray(), face.Normals.ToArray()));
+        // Component edge slots are the lower twin handle; reject the upper twin and dead slots.
+        public bool TryGetEdge(int slot, out Vector3 start, out Vector3 end)
+        {
+            start = default;
+            end = default;
+            if (SpatialMesh is not { } mesh || !mesh.IsHalfEdgeAlive(slot))
+                return false;
+            HalfEdge halfEdge = mesh.GetHalfEdgeData(slot).topology;
+            if (slot > halfEdge.TwinHalfEdge)
+                return false;
+            start = ToGodot(mesh.GetVertexData(halfEdge.SourceVertex).position);
+            end = ToGodot(
+                mesh.GetVertexData(mesh.GetHalfEdgeData(halfEdge.TwinHalfEdge).topology.SourceVertex)
+                    .position
+            );
+            return true;
         }
 
         public void SetVisibleComponents(ComponentMask mask)
@@ -900,6 +841,8 @@ public sealed class ComponentSelectionRenderService : ISceneService
             if (_disposed)
                 return;
             _disposed = true;
+            SpatialMesh = null;
+            Surface = null;
             _edgeInstance.MaterialOverride = null;
             _edgeInstance.Mesh = null;
             _vertexInstance.Multimesh = null;
@@ -907,11 +850,5 @@ public sealed class ComponentSelectionRenderService : ISceneService
             _edges.Dispose();
             _vertices.Dispose();
         }
-
-        private static Vector3 ToGodot(NumericsVector3 value) => new(value.X, value.Y, value.Z);
     }
-
-    private readonly record struct EdgeGeometry(Vector3 Start, Vector3 End);
-
-    private sealed record FaceGeometry(Vector3[] Vertices, Vector3[] Normals);
 }
