@@ -22,8 +22,9 @@ public interface ISceneService : IDisposable
     // Preview-only transform notification. Committed transforms arrive through OnDocumentChanged.
     void OnPreviewTransformChanged(MeshObjectId id);
 
-    // Preview-only geometry used by tools before an object belongs to the document.
-    void OnPreviewGeometryChanged() { }
+    // Null identifies standalone geometry used before an object belongs to the document; an ID
+    // identifies a preview replacement for an existing object's mesh.
+    void OnPreviewGeometryChanged(MeshObjectId? objectId) { }
 
     // Transient editor-state notifications share the same protected dispatch boundary as document
     // and preview changes. Services query their injected state objects for current values.

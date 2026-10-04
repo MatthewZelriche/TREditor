@@ -101,7 +101,7 @@ public sealed class Document : IDisposable, IEditorDocumentReader
     internal bool ReplaceObject(MeshObject expected, MeshObject replacement)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!IsValidReplacement(expected, replacement))
+        if (!IsValidReplacement(expected, replacement, requireSameMesh: true))
             return false;
 
         _objects[expected.Id] = replacement;
@@ -115,44 +115,14 @@ public sealed class Document : IDisposable, IEditorDocumentReader
     internal bool ReplaceObjects(
         IReadOnlyList<MeshObject> expected,
         IReadOnlyList<MeshObject> replacements
-    )
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(expected);
-        ArgumentNullException.ThrowIfNull(replacements);
-        if (expected.Count == 0 || expected.Count != replacements.Count)
-            return false;
+    ) => TryReplace(expected, replacements, DocumentChangeKind.TransformChanged, requireSameMesh: true);
 
-        var ids = new HashSet<MeshObjectId>();
-        for (int index = 0; index < expected.Count; index++)
-        {
-            if (!ids.Add(expected[index].Id) || !IsValidReplacement(expected[index], replacements[index]))
-                return false;
-        }
-
-        var changes = new DocumentObjectChange[expected.Count];
-        for (int index = 0; index < expected.Count; index++)
-        {
-            MeshObject replacement = replacements[index];
-            _objects[replacement.Id] = replacement;
-            changes[index] = new DocumentObjectChange(
-                replacement.Id,
-                DocumentChangeKind.TransformChanged
-            );
-        }
-
-        Publish(changes);
-        return true;
-    }
-
-    private bool IsValidReplacement(MeshObject expected, MeshObject replacement) =>
-        expected is not null
-        && replacement is not null
-        && replacement.Name is not null
-        && expected.Id == replacement.Id
-        && ReferenceEquals(expected.Mesh, replacement.Mesh)
-        && _objects.TryGetValue(expected.Id, out MeshObject? current)
-        && ReferenceEquals(current, expected);
+    // Atomically swaps complete mesh records across one or more objects. Detached meshes are not
+    // disposed here; the undoable command retains ownership until it restores or discards them.
+    internal bool ReplaceMeshes(
+        IReadOnlyList<MeshObject> expected,
+        IReadOnlyList<MeshObject> replacements
+    ) => TryReplace(expected, replacements, DocumentChangeKind.GeometryChanged, requireSameMesh: false);
 
     // Committed geometry announcement after topology has already changed through the document.
     // Not a free-form "pretend geometry changed" hook for arbitrary callers.
@@ -165,6 +135,58 @@ public sealed class Document : IDisposable, IEditorDocumentReader
         Publish(new DocumentObjectChange(id, DocumentChangeKind.GeometryChanged));
         return true;
     }
+
+    private bool TryReplace(
+        IReadOnlyList<MeshObject> expected,
+        IReadOnlyList<MeshObject> replacements,
+        DocumentChangeKind kind,
+        bool requireSameMesh
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(expected);
+        ArgumentNullException.ThrowIfNull(replacements);
+        if (expected.Count == 0 || expected.Count != replacements.Count)
+            return false;
+
+        var ids = new HashSet<MeshObjectId>();
+        for (int index = 0; index < expected.Count; index++)
+        {
+            if (
+                !ids.Add(expected[index].Id)
+                || !IsValidReplacement(expected[index], replacements[index], requireSameMesh)
+            )
+            {
+                return false;
+            }
+        }
+
+        var changes = new DocumentObjectChange[expected.Count];
+        for (int index = 0; index < expected.Count; index++)
+        {
+            MeshObject replacement = replacements[index];
+            if (kind == DocumentChangeKind.GeometryChanged)
+                replacement.Mesh.MarkDirty();
+            _objects[replacement.Id] = replacement;
+            changes[index] = new DocumentObjectChange(replacement.Id, kind);
+        }
+
+        Publish(changes);
+        return true;
+    }
+
+    private bool IsValidReplacement(
+        MeshObject expected,
+        MeshObject replacement,
+        bool requireSameMesh
+    ) =>
+        expected is not null
+        && replacement is not null
+        && replacement.Name is not null
+        && expected.Id == replacement.Id
+        && (!requireSameMesh || ReferenceEquals(expected.Mesh, replacement.Mesh))
+        && _objects.TryGetValue(expected.Id, out MeshObject? current)
+        && ReferenceEquals(current, expected);
 
     public void Dispose()
     {

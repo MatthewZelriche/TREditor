@@ -13,6 +13,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     private readonly GizmoLayerPool _layers = new();
     private readonly Node3D _proxy;
     private readonly SelectionState _selection;
+    private readonly SelectionModeState _selectionMode;
     private readonly PreviewState _previews;
     private readonly SnapSettings _snap;
     private Document? _document;
@@ -24,16 +25,19 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     public TranslateGizmoCoordinator(
         Node3D proxyParent,
         SelectionState selection,
+        SelectionModeState selectionMode,
         PreviewState previews,
         SnapSettings snap
     )
     {
         ArgumentNullException.ThrowIfNull(proxyParent);
         ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(selectionMode);
         ArgumentNullException.ThrowIfNull(previews);
         ArgumentNullException.ThrowIfNull(snap);
 
         _selection = selection;
+        _selectionMode = selectionMode;
         _previews = previews;
         _snap = snap;
         _proxy = new Node3D { Name = "TranslateGizmoProxy" };
@@ -124,6 +128,10 @@ public sealed class TranslateGizmoCoordinator : ISceneService
                 if (_selection.Current.ObjectIds.Contains(change.ObjectId))
                     Synchronize();
                 break;
+            case DocumentChangeKind.GeometryChanged:
+                if (SelectionIncludesObject(change.ObjectId))
+                    Synchronize();
+                break;
         }
     }
 
@@ -134,7 +142,16 @@ public sealed class TranslateGizmoCoordinator : ISceneService
             Synchronize();
     }
 
+    public void OnPreviewGeometryChanged(MeshObjectId? objectId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (objectId is MeshObjectId id && SelectionIncludesObject(id))
+            Synchronize();
+    }
+
     public void OnSelectionChanged() => Synchronize();
+
+    public void OnSelectionModeChanged() => Synchronize();
 
     public void Flush() => ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -298,6 +315,13 @@ public sealed class TranslateGizmoCoordinator : ISceneService
 
     private bool TryGetSelectionTransform(Document document, out Transform3D transform)
     {
+        return _selectionMode.Mode == EditorMode.Component
+            ? TryGetComponentSelectionTransform(document, out transform)
+            : TryGetObjectSelectionTransform(document, out transform);
+    }
+
+    private bool TryGetObjectSelectionTransform(Document document, out Transform3D transform)
+    {
         Vector3 originSum = Vector3.Zero;
         Transform3D onlyTransform = default;
         int count = 0;
@@ -323,6 +347,37 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         return true;
     }
 
+    private bool TryGetComponentSelectionTransform(Document document, out Transform3D transform)
+    {
+        if (
+            !ComponentVertexSelectionResolver.TryResolve(
+                document,
+                _selection.Current.Components,
+                _previews,
+                out ComponentVertexSelection[] selections
+            )
+        )
+        {
+            transform = default;
+            return false;
+        }
+
+        Vector3 originSum = Vector3.Zero;
+        int vertexCount = 0;
+        foreach (ComponentVertexSelection selection in selections)
+        {
+            for (int index = 0; index < selection.Positions.Length; index++)
+            {
+                originSum += selection.Object.Transform * ToGodot(selection.Positions[index]);
+                vertexCount++;
+            }
+        }
+
+        Basis basis = selections.Length == 1 ? selections[0].Object.Transform.Basis : Basis.Identity;
+        transform = new Transform3D(basis, originSum / vertexCount);
+        return true;
+    }
+
     private bool TryGetDisplayedTransform(Document document, MeshObjectId id, out Transform3D transform)
     {
         if (_previews.TryGetTransform(id, out transform))
@@ -330,6 +385,20 @@ public sealed class TranslateGizmoCoordinator : ISceneService
 
         return document.TryGetMeshTransform(id, out transform);
     }
+
+    private bool SelectionIncludesObject(MeshObjectId id)
+    {
+        foreach (MeshComponentId component in _selection.Current.Components)
+        {
+            if (component.ObjectId == id)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static Vector3 ToGodot(System.Numerics.Vector3 value) =>
+        new(value.X, value.Y, value.Z);
 
     // A pane torn down by Godot can free its camera before the coordinator hears about it, and there
     // is nothing left to restore in that case.

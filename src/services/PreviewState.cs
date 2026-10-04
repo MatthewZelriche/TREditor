@@ -7,6 +7,7 @@ using Godot;
 public sealed class PreviewState : ISceneService
 {
     private readonly Dictionary<MeshObjectId, Transform3D> _transforms = [];
+    private readonly Dictionary<MeshObjectId, GDMesh> _meshes = [];
     private GeometryPreview? _geometry;
     private bool _disposed;
 
@@ -15,7 +16,7 @@ public sealed class PreviewState : ISceneService
     // notified are discarding their own state for those objects at the same time.
     public event Action<MeshObjectId>? TransformChanged;
 
-    public event Action? PreviewGeometryChanged;
+    public event Action<MeshObjectId?>? PreviewGeometryChanged;
 
     public GeometryPreview? Geometry
     {
@@ -31,6 +32,13 @@ public sealed class PreviewState : ISceneService
         ObjectDisposedException.ThrowIf(_disposed, this);
         return _transforms.TryGetValue(id, out transform);
     }
+
+    // Preview overrides win when present so services render drag feedback without touching the document.
+    public Transform3D TransformFor(MeshObject meshObject) =>
+        TryGetTransform(meshObject.Id, out Transform3D preview) ? preview : meshObject.Transform;
+
+    public GDMesh MeshFor(MeshObject meshObject) =>
+        TryGetMesh(meshObject.Id, out GDMesh preview) ? preview : meshObject.Mesh;
 
     public void SetTransform(MeshObjectId id, Transform3D transform)
     {
@@ -51,6 +59,58 @@ public sealed class PreviewState : ISceneService
         TransformChanged?.Invoke(id);
     }
 
+    public bool TryGetMesh(MeshObjectId id, out GDMesh mesh)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _meshes.TryGetValue(id, out mesh!);
+    }
+
+    // Ownership transfers to preview state. The tool may keep a borrowed reference and call
+    // RefreshMesh after changing it, but preview state remains responsible for disposal.
+    public void SetMesh(MeshObjectId id, GDMesh mesh)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(mesh);
+        if (_meshes.TryGetValue(id, out GDMesh? current) && ReferenceEquals(current, mesh))
+        {
+            PreviewGeometryChanged?.Invoke(id);
+            return;
+        }
+        _meshes.Remove(id, out GDMesh? previous);
+        _meshes.Add(id, mesh);
+        PreviewGeometryChanged?.Invoke(id);
+        previous?.Dispose();
+    }
+
+    public void RefreshMesh(MeshObjectId id)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_meshes.ContainsKey(id))
+            PreviewGeometryChanged?.Invoke(id);
+    }
+
+    // Transfers ownership out of preview state without disposing the mesh. Component translate uses
+    // this to install its preview copy in the document on mouse-up.
+    public bool TryTakeMesh(MeshObjectId id, out GDMesh mesh)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_meshes.Remove(id, out mesh!))
+            return false;
+
+        PreviewGeometryChanged?.Invoke(id);
+        return true;
+    }
+
+    public void ClearMesh(MeshObjectId id)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_meshes.Remove(id, out GDMesh? previous))
+            return;
+
+        PreviewGeometryChanged?.Invoke(id);
+        previous.Dispose();
+    }
+
     public void ClearAll()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -64,6 +124,7 @@ public sealed class PreviewState : ISceneService
                 TransformChanged?.Invoke(id);
         }
 
+        ClearMeshes(silent: false);
         ClearGeometry();
     }
 
@@ -76,7 +137,7 @@ public sealed class PreviewState : ISceneService
 
         GeometryPreview? previous = _geometry;
         _geometry = new GeometryPreview(mesh, transform);
-        PreviewGeometryChanged?.Invoke();
+        PreviewGeometryChanged?.Invoke(null);
         previous?.Mesh.Dispose();
     }
 
@@ -88,7 +149,7 @@ public sealed class PreviewState : ISceneService
 
         _geometry = null;
         if (!silent)
-            PreviewGeometryChanged?.Invoke();
+            PreviewGeometryChanged?.Invoke(null);
         previous.Mesh.Dispose();
     }
 
@@ -97,6 +158,7 @@ public sealed class PreviewState : ISceneService
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(document);
         _transforms.Clear();
+        ClearMeshes(silent: true);
         ClearGeometry(silent: true);
     }
 
@@ -106,13 +168,18 @@ public sealed class PreviewState : ISceneService
         ArgumentNullException.ThrowIfNull(changeSet);
 
         if (changeSet.Change.Kind == DocumentChangeKind.Removed)
+        {
             _transforms.Remove(changeSet.Change.ObjectId);
+            if (_meshes.Remove(changeSet.Change.ObjectId, out GDMesh? mesh))
+                mesh.Dispose();
+        }
     }
 
     public void OnPreviewTransformChanged(MeshObjectId id) =>
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-    public void OnPreviewGeometryChanged() => ObjectDisposedException.ThrowIf(_disposed, this);
+    public void OnPreviewGeometryChanged(MeshObjectId? objectId) =>
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
     public void Flush() => ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -122,10 +189,25 @@ public sealed class PreviewState : ISceneService
             return;
 
         _transforms.Clear();
+        ClearMeshes(silent: true);
         ClearGeometry(silent: true);
         _disposed = true;
         TransformChanged = null;
         PreviewGeometryChanged = null;
+    }
+
+    private void ClearMeshes(bool silent)
+    {
+        MeshObjectId[] ids = [.. _meshes.Keys];
+        GDMesh[] meshes = [.. _meshes.Values];
+        _meshes.Clear();
+        if (!silent)
+        {
+            foreach (MeshObjectId id in ids)
+                PreviewGeometryChanged?.Invoke(id);
+        }
+        foreach (GDMesh mesh in meshes)
+            mesh.Dispose();
     }
 }
 

@@ -31,6 +31,7 @@ public sealed class Application : IDisposable
             gizmos = new TranslateGizmoCoordinator(
                 mapRoot,
                 _selectionState,
+                _selectionMode,
                 _previewState,
                 _snapSettings
             );

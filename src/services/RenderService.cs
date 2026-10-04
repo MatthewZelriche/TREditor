@@ -114,10 +114,18 @@ public sealed class RenderService : ISceneService
         ApplyTransform(id);
     }
 
-    public void OnPreviewGeometryChanged()
+    public void OnPreviewGeometryChanged(MeshObjectId? objectId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        _previewGeometryRenderer.Update(_previews.Geometry);
+        if (objectId is MeshObjectId id)
+        {
+            if (_document.TryGetObject(id, out _))
+                _dirtyMeshes.Add(id);
+        }
+        else
+        {
+            _previewGeometryRenderer.Update(_previews.Geometry);
+        }
     }
 
     private void AddObject(MeshObjectId id)
@@ -131,7 +139,7 @@ public sealed class RenderService : ISceneService
         var entry = new RenderEntry(
             meshObject,
             _renderRoot,
-            EffectiveTransform(meshObject),
+            _previews.TransformFor(meshObject),
             _defaultMaterial.GetMaterial(stencilReference)
         );
         try
@@ -174,16 +182,9 @@ public sealed class RenderService : ISceneService
             && _entries.TryGetValue(id, out RenderEntry? entry)
         )
         {
-            entry.Instance.Transform = EffectiveTransform(meshObject);
+            entry.Instance.Transform = _previews.TransformFor(meshObject);
         }
     }
-
-    // An active preview wins over the committed transform, so a command that lands mid-drag
-    // updates the document without disturbing what the tool is showing.
-    private Transform3D EffectiveTransform(MeshObject meshObject) =>
-        _previews.TryGetTransform(meshObject.Id, out Transform3D preview)
-            ? preview
-            : meshObject.Transform;
 
     public void Flush()
     {
@@ -195,8 +196,9 @@ public sealed class RenderService : ISceneService
                 && _entries.TryGetValue(id, out RenderEntry? entry)
             )
             {
-                meshObject.Mesh.RebuildSurfaceIfDirty();
-                UpdateArrayMesh(entry.ArrayMesh, meshObject.Mesh.Surface);
+                GDMesh mesh = _previews.MeshFor(meshObject);
+                mesh.RebuildSurfaceIfDirty();
+                UpdateArrayMesh(entry.ArrayMesh, mesh.Surface);
             }
         }
 

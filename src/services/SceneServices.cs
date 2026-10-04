@@ -166,10 +166,10 @@ public sealed class SceneServices : IDisposable
         });
     }
 
-    private void OnPreviewGeometryChanged() =>
+    private void OnPreviewGeometryChanged(MeshObjectId? objectId) =>
         NotifyServices(
             "updating preview geometry",
-            static service => service.OnPreviewGeometryChanged()
+            service => service.OnPreviewGeometryChanged(objectId)
         );
 
     private void OnSelectionChanged() =>

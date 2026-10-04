@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Godot;
 using TRMesh.Mesh;
+using NumericsVector3 = System.Numerics.Vector3;
 
 [GlobalClass]
 public partial class GDMesh : Resource
@@ -55,6 +56,15 @@ public partial class GDMesh : Resource
     }
 
     public void MarkDirty() => Dirty = true;
+
+    public void SetVertexPositions(
+        ReadOnlySpan<int> vertices,
+        ReadOnlySpan<NumericsVector3> positions
+    )
+    {
+        SpatialMesh.SetVertexPositions(vertices, positions);
+        MarkDirty();
+    }
 
     public bool RebuildSurfaceIfDirty()
     {

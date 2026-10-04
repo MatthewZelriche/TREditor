@@ -186,6 +186,13 @@ public sealed class ComponentSelectionRenderService : ISceneService
         ApplyTransform(id);
     }
 
+    public void OnPreviewGeometryChanged(MeshObjectId? objectId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (objectId is MeshObjectId id && _document.TryGetObject(id, out _))
+            _dirtyMeshes.Add(id);
+    }
+
     public void OnSelectionChanged() => InvalidateSelectedVisuals();
 
     public void OnSelectionHoverChanged() => Synchronize();
@@ -203,8 +210,9 @@ public sealed class ComponentSelectionRenderService : ISceneService
                 && _entries.TryGetValue(id, out VisualEntry? entry)
             )
             {
-                meshObject.Mesh.RebuildSurfaceIfDirty();
-                entry.UpdateGeometry(meshObject.Mesh);
+                GDMesh mesh = _previews.MeshFor(meshObject);
+                mesh.RebuildSurfaceIfDirty();
+                entry.UpdateGeometry(mesh);
             }
         }
 
@@ -230,7 +238,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
         var entry = new VisualEntry(
             meshObject,
             _root,
-            EffectiveTransform(meshObject),
+            _previews.TransformFor(meshObject),
             _vertexQuad,
             _edgeMaterial
         );
@@ -265,15 +273,10 @@ public sealed class ComponentSelectionRenderService : ISceneService
             && _entries.TryGetValue(id, out VisualEntry? entry)
         )
         {
-            entry.Root.Transform = EffectiveTransform(meshObject);
+            entry.Root.Transform = _previews.TransformFor(meshObject);
             Synchronize();
         }
     }
-
-    private Transform3D EffectiveTransform(MeshObject meshObject) =>
-        _previews.TryGetTransform(meshObject.Id, out Transform3D preview)
-            ? preview
-            : meshObject.Transform;
 
     private void Synchronize()
     {

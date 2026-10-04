@@ -93,6 +93,13 @@ public sealed partial class PickingService : ISceneService
         ApplyTransform(id);
     }
 
+    public void OnPreviewGeometryChanged(MeshObjectId? objectId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (objectId is MeshObjectId id && _document.TryGetObject(id, out _))
+            _dirtyMeshes.Add(id);
+    }
+
     private void AddObject(MeshObjectId id)
     {
         if (!_document.TryGetObject(id, out MeshObject meshObject))
@@ -100,7 +107,7 @@ public sealed partial class PickingService : ISceneService
 
         ArgumentNullException.ThrowIfNull(meshObject.Mesh);
 
-        var entry = new PickingEntry(meshObject, _pickingRoot, EffectiveTransform(meshObject));
+        var entry = new PickingEntry(meshObject, _pickingRoot, _previews.TransformFor(meshObject));
         try
         {
             _entries.Add(meshObject.Id, entry);
@@ -143,16 +150,9 @@ public sealed partial class PickingService : ISceneService
             && _entries.TryGetValue(id, out PickingEntry? entry)
         )
         {
-            entry.Body.Transform = EffectiveTransform(meshObject);
+            entry.Body.Transform = _previews.TransformFor(meshObject);
         }
     }
-
-    // Colliders follow previews so a raycast hits an object where it is drawn, not where it was
-    // last committed.
-    private Transform3D EffectiveTransform(MeshObject meshObject) =>
-        _previews.TryGetTransform(meshObject.Id, out Transform3D preview)
-            ? preview
-            : meshObject.Transform;
 
     public void Flush()
     {
@@ -164,8 +164,9 @@ public sealed partial class PickingService : ISceneService
                 && _entries.TryGetValue(id, out PickingEntry? entry)
             )
             {
-                meshObject.Mesh.RebuildSurfaceIfDirty();
-                entry.UpdateComponentGeometry(meshObject.Mesh);
+                GDMesh mesh = _previews.MeshFor(meshObject);
+                mesh.RebuildSurfaceIfDirty();
+                entry.UpdateComponentGeometry(mesh);
                 entry.Shape.Data = entry.ComponentGeometry.ToCollisionFaces();
             }
         }

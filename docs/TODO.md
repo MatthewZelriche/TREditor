@@ -31,7 +31,8 @@
 
 ## Mesh Operations
 
-- [ ] Translation gizmo for all three component types
+- [x] Translation gizmo for all three component types
+  - [ ] TODO: Changing SelectionMask should recompute selection
 - [x] Object Translate
 - [ ] Object Rotate
 - [ ] Object Scale
@@ -84,10 +85,10 @@
 - [x] Mesh Component Selection (Free, can select or multi-select combinations of component types)
 - [x] Single-Component Mesh Selection (Select Vertices, Edges, or Faces only)
 - [ ] X-Ray Selection
-- [ ] Multi-selection
+- [x] Multi-selection
 - [ ] Box-Selection
 - [ ] Select All, Select None, Select Inverse (Specific Components on a Mesh, must occur in "Single-Component Selection Mode")
-- [ ] Grid Snapping
+- [x] Grid Snapping
 - [ ] Angle Snapping
 - [ ] Move Pivot
 - [ ] Reset Pivot Location

@@ -4,12 +4,12 @@ using Godot;
 // Shared selection and hover behavior for editor tools.
 public abstract class ToolBase : IEditorTool
 {
-    private readonly SelectionModeState? _selectionMode;
-
     protected ToolBase(SelectionModeState? selectionMode = null)
     {
-        _selectionMode = selectionMode;
+        SelectionMode = selectionMode;
     }
+
+    protected SelectionModeState? SelectionMode { get; }
 
     public abstract string Id { get; }
 
@@ -21,16 +21,13 @@ public abstract class ToolBase : IEditorTool
 
         OnPreMouseDown(context, input);
 
-        if (_selectionMode?.Mode == EditorMode.Component)
-        {
-            HandleComponentSelection(context, input);
-            return;
-        }
-
         if (TryBeginInteraction(context, input))
             return;
 
-        HandleObjectSelection(context, input);
+        if (SelectionMode?.Mode == EditorMode.Component)
+            HandleComponentSelection(context, input);
+        else
+            HandleObjectSelection(context, input);
     }
 
     public abstract void OnMouseDrag(IEditorToolContext context, EditorMouseInput input);
@@ -69,7 +66,7 @@ public abstract class ToolBase : IEditorTool
         ComponentPickingHit? componentHit = context.Picking.PickComponent(
             input.Camera!,
             input.ScreenPosition,
-            _selectionMode!.Components
+            SelectionMode!.Components
         );
         context.Selection.SetHoveredComponent(componentHit?.Component);
         SelectionValue beforeComponentSelection = context.Selection.Current;
@@ -103,7 +100,7 @@ public abstract class ToolBase : IEditorTool
 
     private void UpdateHover(IEditorToolContext context, EditorMouseInput input)
     {
-        if (input.Camera is null || _selectionMode?.Mode != EditorMode.Component)
+        if (input.Camera is null || SelectionMode?.Mode != EditorMode.Component)
         {
             context.Selection.ClearHover();
             return;
@@ -112,7 +109,7 @@ public abstract class ToolBase : IEditorTool
         ComponentPickingHit? hit = context.Picking.PickComponent(
             input.Camera,
             input.ScreenPosition,
-            _selectionMode.Components
+            SelectionMode.Components
         );
         context.Selection.SetHoveredComponent(hit?.Component);
     }

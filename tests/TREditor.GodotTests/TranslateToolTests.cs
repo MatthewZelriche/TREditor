@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using GdUnit4;
 using Godot;
 using static GdUnit4.Assertions;
+using NumericsVector3 = System.Numerics.Vector3;
 
 namespace TREditor.GodotTests;
 
@@ -11,6 +12,63 @@ public class TranslateToolTests
 {
     private static readonly Vector2 ViewportSize = new(640.0f, 480.0f);
     private static readonly Vector3 CameraPosition = new(0.0f, 6.0f, 12.0f);
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task ComponentDragPreviewsThenCommitsOneUndoableGeometryChange()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Application.SelectionMode.ToggleComponent(ComponentMask.Vertex);
+        var component = new MeshComponentId(fixture.CubeId, MeshComponentType.Vertex, 6);
+        fixture.Selection.Select(component);
+        await ProcessFrames(3);
+        AssertBool(fixture.Application.Gizmos.IsVisible).IsTrue();
+        AssertBool(
+                fixture.Application.CurrentDocument!.TryGetObject(
+                    fixture.CubeId,
+                    out MeshObject cube
+                )
+            )
+            .IsTrue();
+        NumericsVector3 original = cube.Mesh.SpatialMesh.GetVertexData(component.Slot).position;
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle);
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        fixture.Application.Update(0.0);
+        await ProcessFrames(1);
+
+        AssertBool(fixture.Preview.TryGetMesh(fixture.CubeId, out GDMesh preview)).IsTrue();
+        NumericsVector3 previewed = preview.SpatialMesh.GetVertexData(component.Slot).position;
+        AssertBool(previewed == original).IsFalse();
+        AssertThat(cube.Mesh.SpatialMesh.GetVertexData(component.Slot).position).IsEqual(original);
+
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        AssertBool(fixture.Preview.TryGetMesh(fixture.CubeId, out _)).IsFalse();
+        AssertBool(
+                fixture.Application.CurrentDocument.TryGetObject(
+                    fixture.CubeId,
+                    out MeshObject committed
+                )
+            )
+            .IsTrue();
+        AssertBool(ReferenceEquals(committed.Mesh, cube.Mesh)).IsFalse();
+        AssertThat(committed.Mesh.SpatialMesh.GetVertexData(component.Slot).position)
+            .IsEqual(previewed);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Translate");
+        AssertBool(fixture.Application.Undo()).IsTrue();
+        AssertBool(fixture.Application.CurrentDocument.TryGetObject(fixture.CubeId, out MeshObject undone))
+            .IsTrue();
+        AssertBool(ReferenceEquals(undone, cube)).IsTrue();
+        AssertThat(undone.Mesh.SpatialMesh.GetVertexData(component.Slot).position).IsEqual(original);
+        AssertBool(fixture.Application.Redo()).IsTrue();
+        AssertBool(fixture.Application.CurrentDocument.TryGetObject(fixture.CubeId, out MeshObject redone))
+            .IsTrue();
+        AssertBool(ReferenceEquals(redone, committed)).IsTrue();
+        AssertThat(redone.Mesh.SpatialMesh.GetVertexData(component.Slot).position)
+            .IsEqual(previewed);
+    }
 
     [TestCase]
     [RequireGodotRuntime]
