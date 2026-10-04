@@ -389,7 +389,7 @@ public class TranslateToolTests
 
         public PreviewState Preview => Application.ToolContext.Preview;
 
-        public SelectionState Selection => Application.ToolContext.Selection;
+        public SelectionState Selection => Application.Selection;
 
         public Camera3D Camera => _viewport.Camera;
 
@@ -485,7 +485,7 @@ public class TranslateToolTests
 
         public PickingService Picking => inner.Picking;
 
-        public SelectionState Selection => inner.Selection;
+        public IEditorSelection Selection => inner.Selection;
 
         public PreviewState Preview => inner.Preview;
 

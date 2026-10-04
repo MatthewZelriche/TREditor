@@ -228,7 +228,7 @@ public class TranslateGizmoTests
 
         MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
         application.Update(0.0);
-        application.ToolContext.Selection.Select(id);
+        application.Selection.Select(id);
         AssertBool(application.Document!.TryGetMeshTransform(id, out Transform3D committed)).IsTrue();
 
         AssertBool(application.Gizmos.IsVisible).IsTrue();
@@ -261,7 +261,7 @@ public class TranslateGizmoTests
         application.ToolContext.Preview.ClearTransform(id);
         AssertThat(application.Gizmos.ProxyTransform.Origin).IsEqual(updatedCommitted.Origin);
 
-        application.ToolContext.Selection.Clear();
+        application.Selection.Clear();
         AssertBool(application.Gizmos.IsVisible).IsFalse();
     }
 
@@ -276,7 +276,7 @@ public class TranslateGizmoTests
         application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
         MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
         application.Update(0.0);
-        application.ToolContext.Selection.Select(id);
+        application.Selection.Select(id);
         await ProcessFrames(2);
         AssertBool(application.Gizmos.IsVisible).IsTrue();
 
@@ -299,7 +299,7 @@ public class TranslateGizmoTests
         application.RegisterToolViewport(viewport.Camera, viewport.ToolOverlayRoot);
         MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
         application.Update(0.0);
-        application.ToolContext.Selection.Select(id);
+        application.Selection.Select(id);
         await ProcessFrames(2);
         AssertBool(application.Gizmos.IsVisible).IsTrue();
 

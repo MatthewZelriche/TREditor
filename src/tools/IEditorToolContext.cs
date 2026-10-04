@@ -8,7 +8,9 @@ public interface IEditorToolContext
 
     PickingService Picking { get; }
 
-    SelectionState Selection { get; }
+    // Read-only selection plus ephemeral hover operations. User-visible selection changes are
+    // created as commands and submitted through Commands.
+    IEditorSelection Selection { get; }
 
     // Transform previews for drag feedback. Tools get preview state rather than a service so a
     // preview reaches rendering and picking through one notification instead of per-service calls.

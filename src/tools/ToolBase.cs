@@ -82,13 +82,7 @@ public abstract class ToolBase : IEditorTool
                 : SelectionValue.Empty;
         if (beforeComponentSelection != afterComponentSelection)
         {
-            context.Commands.Submit(
-                new SelectionCommand(
-                    context.Selection,
-                    beforeComponentSelection,
-                    afterComponentSelection
-                )
-            );
+            context.Commands.Submit(context.Selection.CreateCommand(afterComponentSelection));
         }
     }
 
@@ -104,11 +98,7 @@ public abstract class ToolBase : IEditorTool
                 ? SelectionValue.ForObject(pickedId)
                 : SelectionValue.Empty;
         if (afterSelection != beforeSelection)
-        {
-            context.Commands.Submit(
-                new SelectionCommand(context.Selection, beforeSelection, afterSelection)
-            );
-        }
+            context.Commands.Submit(context.Selection.CreateCommand(afterSelection));
     }
 
     private void UpdateHover(IEditorToolContext context, EditorMouseInput input)

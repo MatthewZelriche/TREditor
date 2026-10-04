@@ -24,6 +24,25 @@ public sealed class SelectionCommandTests
     }
 
     [Fact]
+    public void ToolSelectionCapabilityCreatesACommandWithoutApplyingIt()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        var selection = new SelectionState();
+        IEditorSelection toolSelection = selection;
+
+        IEditorCommand command = toolSelection.CreateCommand(SelectionValue.ForObject(First));
+
+        Assert.True(selection.Current.IsEmpty);
+
+        history.Submit(command);
+
+        Assert.Equal([First], selection.Current.ObjectIds);
+        Assert.True(history.CanUndo);
+    }
+
+    [Fact]
     public void ReplacingASelectionRestoresThePreviousObjectOnUndo()
     {
         using var document = new Document();

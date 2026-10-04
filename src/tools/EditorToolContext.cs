@@ -42,7 +42,7 @@ public sealed class EditorToolContext : IEditorToolContext
 
     public PickingService Picking { get; }
 
-    public SelectionState Selection { get; }
+    public IEditorSelection Selection { get; }
 
     public PreviewState Preview { get; }
 

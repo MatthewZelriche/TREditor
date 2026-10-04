@@ -204,7 +204,7 @@ public class TranslateVerticalSliceTests
 
         public Vector2 FindHandle()
         {
-            Application.ToolContext.Selection.Select(CubeId);
+            Application.Selection.Select(CubeId);
             Vector3 origin = Application.Gizmos.ProxyTransform.Origin;
             for (int step = 1; step <= 60; step++)
             {
