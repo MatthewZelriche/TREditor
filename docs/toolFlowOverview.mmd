@@ -1,5 +1,5 @@
 sequenceDiagram
-    %% High-level editor tool flow as currently implemented.
+    %% High-level editor tool flow and architectural source of truth.
     %% See sequenceDiagram.mmd for the TranslateTool-specific deep dive.
     autonumber
     actor User
@@ -8,9 +8,12 @@ sequenceDiagram
     participant Tool as Active Editor Tool
     participant Ctx as IEditorToolContext
     participant History as CommandHistory
-    participant State as Transient Editor State<br/>Selection + Previews
+    participant State as Undoable Editor State<br/>Selection
+    participant Preview as Ephemeral Editor State<br/>Previews + Hover
     participant Doc as Document / Scene
-    participant Services as SceneServices<br/>Render + Picking + Gizmos
+    participant Services as SceneServices<br/>Derived Render + Picking + Gizmos
+
+    Note over State, Preview: User-driven selection changes are undoable, <br/>previews and hover are direct, ephemeral feedback
 
     rect rgb(30, 30, 30)
         Note over User, Services: Input routing and tool decisions
@@ -18,8 +21,8 @@ sequenceDiagram
         UI->>App: Raise tool input phase
         App->>Tool: Dispatch to active tool with context
         Tool->>Ctx: Read document snapshots and query editor services
-        Ctx-->>Tool: IDs, value data, selection, and interaction results
-        Note over Tool, Doc: The tool receives no document mutation API
+        Ctx-->>Tool: Read-only values, current editor state, and interaction results
+        Note over Tool, Doc: The tool receives no direct document mutation capability, <br/>authoritative mutations are submitted only as commands
     end
 
     rect rgb(40, 40, 40)
@@ -27,9 +30,13 @@ sequenceDiagram
         User->>UI: Continue gesture
         UI->>App: Raise updated tool input
         App->>Tool: Dispatch update
-        Tool->>State: Set or update preview state
-        State-->>Services: Preview changed
-        Services-->>UI: Update derived visuals and picking
+        Tool->>Preview: Set or update preview / hover state
+        Preview-->>Services: Ephemeral state changed
+        Services->>Services: Update or invalidate derived scene nodes,<br/>colliders, and gizmos
+        opt Derived work is batched
+            App->>Services: Flush during application update
+        end
+        Services-->>UI: Derived state appears on the next draw
         Note over Tool, Doc: Preview updates do not mutate the document
     end
 
@@ -43,17 +50,42 @@ sequenceDiagram
             Tool->>History: Submit command containing mutation data
             History->>Doc: Execute command against Scene
             Doc-->>Services: Document change event
-            Services-->>UI: Synchronize render, picking, and gizmos
+            Services->>Services: Update or invalidate derived state
             History->>History: Record successful command and clear redo
         else Action changes undoable transient state
             Tool->>History: Submit editor-state command
             History->>State: Execute command, such as selection change
-            State-->>Services: Transient state changed
-            Services-->>UI: Synchronize affected editor visuals
+            State-->>Services: Undoable editor state changed
+            Services->>Services: Update or invalidate affected derived state
             History->>History: Record successful command and clear redo
+        else Action makes no undoable change
+            Note over Tool, History: No command is submitted
         end
 
-        Tool->>State: Clear preview
-        State-->>Services: Preview changed
-        Services-->>UI: Display authoritative document state
+        opt Interaction owns ephemeral state
+            Tool->>Preview: Clear owned preview / hover
+            Preview-->>Services: Ephemeral state changed
+            Services->>Services: Restore or re-evaluate authoritative state
+        end
+        opt Derived work is batched
+            App->>Services: Flush during application update
+        end
+        Services-->>UI: Derived state appears on the next draw
+        Note over App, State: Lifecycle resets may clear selection outside command history
+    end
+
+    rect rgb(40, 40, 40)
+        Note over User, Services: Cancel an interaction
+        UI->>App: Cancel gesture
+        Note over UI, App: Escape, focus loss, navigation, or pane removal
+        Note over App, Tool: Undo / redo, document replacement, disposal,<br/>and tool switching also cancel active interactions
+        App->>Tool: Cancel with context
+        Tool->>Preview: Clear owned preview / hover
+        Preview-->>Services: Ephemeral state changed
+        Services->>Services: Restore or re-evaluate authoritative state
+        opt Derived work is batched
+            App->>Services: Flush during application update
+        end
+        Services-->>UI: Derived state appears on the next draw
+        Note over Tool, Doc: Cancellation submits no command and does not mutate the document
     end
