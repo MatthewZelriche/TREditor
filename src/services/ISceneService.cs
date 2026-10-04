@@ -25,5 +25,13 @@ public interface ISceneService : IDisposable
     // Preview-only geometry used by tools before an object belongs to the document.
     void OnPreviewGeometryChanged() { }
 
+    // Transient editor-state notifications share the same protected dispatch boundary as document
+    // and preview changes. Services query their injected state objects for current values.
+    void OnSelectionChanged() { }
+
+    void OnSelectionHoverChanged() { }
+
+    void OnSelectionModeChanged() { }
+
     void Flush();
 }

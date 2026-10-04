@@ -54,6 +54,8 @@ public sealed class Application : IDisposable
             _services = new SceneServices(
                 initialDocument,
                 _previewState,
+                _selectionState,
+                _selectionMode,
                 gridRenderer,
                 renderService,
                 componentSelectionRenderer,

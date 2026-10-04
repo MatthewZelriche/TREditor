@@ -55,8 +55,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
     private readonly HoverOverlay _hoverEdge;
     private readonly MeshInstance3D _hoverFaceInstance;
     private Document _document;
-    private SelectionValue _renderedSelection;
-    private ComponentMask _renderedMask;
     private bool _selectedVisualsDirty = true;
     private bool _disposed;
 
@@ -136,9 +134,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
             _root.AddChild(_hoverEdge.Instance);
             _root.AddChild(_hoverFaceInstance);
             mapRoot.AddChild(_root);
-            _selectionMode.Changed += Synchronize;
-            _selection.Changed += Synchronize;
-            _selection.HoverChanged += Synchronize;
             Synchronize();
         }
         catch
@@ -191,6 +186,12 @@ public sealed class ComponentSelectionRenderService : ISceneService
         ApplyTransform(id);
     }
 
+    public void OnSelectionChanged() => InvalidateSelectedVisuals();
+
+    public void OnSelectionHoverChanged() => Synchronize();
+
+    public void OnSelectionModeChanged() => InvalidateSelectedVisuals();
+
     public void Flush()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -217,9 +218,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
             return;
 
         _disposed = true;
-        _selectionMode.Changed -= Synchronize;
-        _selection.Changed -= Synchronize;
-        _selection.HoverChanged -= Synchronize;
         ClearEntries();
         DisposeResources();
     }
@@ -288,11 +286,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
         foreach (VisualEntry entry in _entries.Values)
             entry.SetVisibleComponents(mask);
 
-        if (
-            _selectedVisualsDirty
-            || _renderedSelection != _selection.Current
-            || _renderedMask != mask
-        )
+        if (_selectedVisualsDirty)
         {
             ClearSelectedVisuals();
             foreach (MeshComponentId selected in _selection.Current.Components)
@@ -302,8 +296,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
                 AddSelectedVisual(selected);
             }
 
-            _renderedSelection = _selection.Current;
-            _renderedMask = mask;
             _selectedVisualsDirty = false;
         }
 
@@ -313,6 +305,12 @@ public sealed class ComponentSelectionRenderService : ISceneService
                 ? hovered
                 : null;
         SynchronizeHoveredComponent(hover);
+    }
+
+    private void InvalidateSelectedVisuals()
+    {
+        _selectedVisualsDirty = true;
+        Synchronize();
     }
 
     private void AddSelectedVisual(MeshComponentId id)

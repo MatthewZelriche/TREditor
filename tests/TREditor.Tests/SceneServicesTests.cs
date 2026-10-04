@@ -11,7 +11,16 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var first = new RecordingSceneService("first", calls);
         var second = new RecordingSceneService("second", calls);
-        using var services = new SceneServices(document, new PreviewState(), first, second);
+        var selection = new SelectionState();
+        var selectionMode = new SelectionModeState();
+        using var services = new SceneServices(
+            document,
+            new PreviewState(),
+            selection,
+            selectionMode,
+            first,
+            second
+        );
 
         Assert.Same(document, first.Document);
         Assert.Same(document, second.Document);
@@ -23,6 +32,11 @@ public sealed class SceneServicesTests
             )
         );
         document.CommitGeometryChange(meshObject.Id);
+        selection.Select(meshObject.Id);
+        selection.SetHoveredComponent(
+            new MeshComponentId(meshObject.Id, MeshComponentType.Vertex, 0)
+        );
+        selectionMode.SelectAllComponents();
         services.Flush();
         document.Remove(meshObject.Id)?.Mesh?.Dispose();
         services.Dispose();
@@ -37,6 +51,12 @@ public sealed class SceneServicesTests
                 $"second:transform:{meshObject.Id.Value}",
                 $"first:geometry:{meshObject.Id.Value}",
                 $"second:geometry:{meshObject.Id.Value}",
+                "first:selection",
+                "second:selection",
+                "first:selection-hover",
+                "second:selection-hover",
+                "first:selection-mode",
+                "second:selection-mode",
                 "first:flush",
                 "second:flush",
                 $"first:remove:{meshObject.Id.Value}",
@@ -54,7 +74,15 @@ public sealed class SceneServicesTests
         using var document = new Document();
         var calls = new List<string>();
         var service = new RecordingSceneService("service", calls);
-        var services = new SceneServices(document, new PreviewState(), service);
+        var selection = new SelectionState();
+        var selectionMode = new SelectionModeState();
+        var services = new SceneServices(
+            document,
+            new PreviewState(),
+            selection,
+            selectionMode,
+            service
+        );
         services.Dispose();
         calls.Clear();
 
@@ -62,6 +90,11 @@ public sealed class SceneServicesTests
         Assert.True(document.ReplaceObject(meshObject, meshObject with { Transform = Transform3D.Identity }));
         document.CommitGeometryChange(meshObject.Id);
         document.Remove(meshObject.Id)?.Mesh?.Dispose();
+        selection.Select(meshObject.Id);
+        selection.SetHoveredComponent(
+            new MeshComponentId(meshObject.Id, MeshComponentType.Vertex, 0)
+        );
+        selectionMode.SelectAllComponents();
 
         Assert.Empty(calls);
     }
@@ -78,6 +111,8 @@ public sealed class SceneServicesTests
         using var services = new SceneServices(
             document,
             new PreviewState(),
+            new SelectionState(),
+            new SelectionModeState(),
             firstService,
             secondService
         );
@@ -103,7 +138,13 @@ public sealed class SceneServicesTests
         MeshObject existingObject = newDocument.Add("Existing", Transform3D.Identity, null!);
         var calls = new List<string>();
         var service = new RecordingSceneService("service", calls);
-        using var services = new SceneServices(oldDocument, new PreviewState(), service);
+        using var services = new SceneServices(
+            oldDocument,
+            new PreviewState(),
+            new SelectionState(),
+            new SelectionModeState(),
+            service
+        );
 
         calls.Clear();
         services.SetDocument(newDocument);
@@ -130,7 +171,14 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var first = new RecordingSceneService("first", calls);
         var failing = new RecordingSceneService("failing", calls);
-        var services = new SceneServices(oldDocument, new PreviewState(), first, failing);
+        var services = new SceneServices(
+            oldDocument,
+            new PreviewState(),
+            new SelectionState(),
+            new SelectionModeState(),
+            first,
+            failing
+        );
         calls.Clear();
         failing.ThrowOnSetDocument = true;
         var fatalErrors = new List<(string Operation, Exception Exception)>();
@@ -170,7 +218,14 @@ public sealed class SceneServicesTests
         var calls = new List<string>();
         var failing = new RecordingSceneService("failing", calls);
         var skipped = new RecordingSceneService("skipped", calls);
-        using var services = new SceneServices(document, new PreviewState(), failing, skipped);
+        using var services = new SceneServices(
+            document,
+            new PreviewState(),
+            new SelectionState(),
+            new SelectionModeState(),
+            failing,
+            skipped
+        );
         using var history = new CommandHistory();
         history.SetDocument(document);
         calls.Clear();
@@ -199,12 +254,53 @@ public sealed class SceneServicesTests
     }
 
     [Fact]
+    public void SelectionFailureDoesNotEscapeTheCommandOrPreventItEnteringHistory()
+    {
+        using var document = new Document();
+        var selection = new SelectionState();
+        var calls = new List<string>();
+        var failing = new RecordingSceneService("failing", calls) { ThrowOnSelection = true };
+        var skipped = new RecordingSceneService("skipped", calls);
+        using var services = new SceneServices(
+            document,
+            new PreviewState(),
+            selection,
+            new SelectionModeState(),
+            failing,
+            skipped
+        );
+        calls.Clear();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        var fatalErrors = new List<(string Operation, Exception Exception)>();
+        services.FatalError += (operation, exception) => fatalErrors.Add((operation, exception));
+        var selectedId = new MeshObjectId(42);
+        IEditorSelection toolSelection = selection;
+
+        history.Submit(toolSelection.CreateCommand(SelectionValue.ForObject(selectedId)));
+
+        Assert.True(history.CanUndo);
+        Assert.Equal([selectedId], selection.Current.ObjectIds);
+        Assert.True(services.IsFaulted);
+        Assert.Single(fatalErrors);
+        Assert.Equal("updating selection", fatalErrors[0].Operation);
+        Assert.Equal("Selection failed.", fatalErrors[0].Exception.Message);
+        Assert.Equal(["failing:selection"], calls);
+    }
+
+    [Fact]
     public void AThrowingFatalErrorSubscriberIsAllowedToPropagate()
     {
         using var document = new Document();
         MeshObject target = document.Add("Object", Transform3D.Identity, null!);
         var service = new RecordingSceneService("failing", []);
-        using var services = new SceneServices(document, new PreviewState(), service);
+        using var services = new SceneServices(
+            document,
+            new PreviewState(),
+            new SelectionState(),
+            new SelectionModeState(),
+            service
+        );
         service.ThrowOnTransform = true;
         int notifiedCount = 0;
         services.FatalError += (_, _) => throw new InvalidOperationException("UI failed.");
@@ -233,6 +329,8 @@ public sealed class SceneServicesTests
         public bool ThrowOnSetDocument { get; set; }
 
         public bool ThrowOnTransform { get; set; }
+
+        public bool ThrowOnSelection { get; set; }
 
         public void SetDocument(Document document)
         {
@@ -268,6 +366,17 @@ public sealed class SceneServicesTests
 
         public void OnPreviewTransformChanged(MeshObjectId id) =>
             calls.Add($"{name}:preview-transform:{id.Value}");
+
+        public void OnSelectionChanged()
+        {
+            calls.Add($"{name}:selection");
+            if (ThrowOnSelection)
+                throw new InvalidOperationException("Selection failed.");
+        }
+
+        public void OnSelectionHoverChanged() => calls.Add($"{name}:selection-hover");
+
+        public void OnSelectionModeChanged() => calls.Add($"{name}:selection-mode");
 
         public void Flush() => calls.Add($"{name}:flush");
     }

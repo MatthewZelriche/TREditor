@@ -32,7 +32,13 @@ public class PickingServiceTests
         );
         var previews = new PreviewState();
         var pickingService = new PickingService(document, mapRoot, previews);
-        var services = new SceneServices(document, previews, pickingService);
+        var services = new SceneServices(
+            document,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            pickingService
+        );
 
         try
         {
@@ -99,7 +105,13 @@ public class PickingServiceTests
         );
         var previews = new PreviewState();
         var pickingService = new PickingService(document, mapRoot, previews);
-        var services = new SceneServices(document, previews, pickingService);
+        var services = new SceneServices(
+            document,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            pickingService
+        );
 
         try
         {
@@ -159,7 +171,13 @@ public class PickingServiceTests
         );
         var previews = new PreviewState();
         var pickingService = new PickingService(document, mapRoot, previews);
-        using var services = new SceneServices(document, previews, pickingService);
+        using var services = new SceneServices(
+            document,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            pickingService
+        );
         services.Flush();
 
         Vector2 vertexScreen = viewport.Camera.UnprojectPosition(new Vector3(1.0f, 1.0f, 1.0f));
@@ -219,7 +237,13 @@ public class PickingServiceTests
         );
         var previews = new PreviewState();
         var pickingService = new PickingService(document, mapRoot, previews);
-        using var services = new SceneServices(document, previews, pickingService);
+        using var services = new SceneServices(
+            document,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            pickingService
+        );
         services.Flush();
 
         Vector2 frontVertex = viewport.Camera.UnprojectPosition(new Vector3(1.0f, 1.0f, 1.0f));

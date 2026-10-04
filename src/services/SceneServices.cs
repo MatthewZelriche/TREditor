@@ -5,17 +5,26 @@ public sealed class SceneServices : IDisposable
 {
     private readonly IReadOnlyList<ISceneService> _services;
     private readonly PreviewState _previews;
+    private readonly SelectionState _selection;
+    private readonly SelectionModeState _selectionMode;
     private Document _document;
     private Exception? _fatalException;
     private bool _disposed;
 
-    // Preview state is named explicitly because it is a second source of transform notifications,
-    // not just another subscriber. It is also driven as an ordinary service, first in the list, so
-    // it discards previews before the services that render them react.
-    public SceneServices(Document document, PreviewState previews, params ISceneService[] services)
+    // Transient state is named explicitly because it also drives service notifications. PreviewState
+    // remains first in the service list so it discards stale previews before renderers react.
+    public SceneServices(
+        Document document,
+        PreviewState previews,
+        SelectionState selection,
+        SelectionModeState selectionMode,
+        params ISceneService[] services
+    )
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(previews);
+        ArgumentNullException.ThrowIfNull(selection);
+        ArgumentNullException.ThrowIfNull(selectionMode);
         ArgumentNullException.ThrowIfNull(services);
 
         var serviceCopy = new ISceneService[services.Length + 1];
@@ -31,9 +40,14 @@ public sealed class SceneServices : IDisposable
 
         _document = document;
         _previews = previews;
+        _selection = selection;
+        _selectionMode = selectionMode;
         _services = serviceCopy;
         _previews.TransformChanged += OnPreviewTransformChanged;
         _previews.PreviewGeometryChanged += OnPreviewGeometryChanged;
+        _selection.Changed += OnSelectionChanged;
+        _selection.HoverChanged += OnSelectionHoverChanged;
+        _selectionMode.Changed += OnSelectionModeChanged;
 
         try
         {
@@ -94,11 +108,7 @@ public sealed class SceneServices : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        RunServiceOperation("flushing scene services", () =>
-        {
-            foreach (ISceneService service in _services)
-                service.Flush();
-        });
+        NotifyServices("flushing scene services", static service => service.Flush());
     }
 
     public void Dispose()
@@ -110,6 +120,9 @@ public sealed class SceneServices : IDisposable
         FatalError = null;
         _previews.TransformChanged -= OnPreviewTransformChanged;
         _previews.PreviewGeometryChanged -= OnPreviewGeometryChanged;
+        _selection.Changed -= OnSelectionChanged;
+        _selection.HoverChanged -= OnSelectionHoverChanged;
+        _selectionMode.Changed -= OnSelectionModeChanged;
         Unsubscribe(_document);
 
         List<Exception>? disposalExceptions = null;
@@ -153,14 +166,33 @@ public sealed class SceneServices : IDisposable
         });
     }
 
-    private void OnPreviewGeometryChanged()
-    {
-        RunServiceOperation("updating preview geometry", () =>
+    private void OnPreviewGeometryChanged() =>
+        NotifyServices(
+            "updating preview geometry",
+            static service => service.OnPreviewGeometryChanged()
+        );
+
+    private void OnSelectionChanged() =>
+        NotifyServices("updating selection", static service => service.OnSelectionChanged());
+
+    private void OnSelectionHoverChanged() =>
+        NotifyServices(
+            "updating selection hover",
+            static service => service.OnSelectionHoverChanged()
+        );
+
+    private void OnSelectionModeChanged() =>
+        NotifyServices(
+            "updating selection mode",
+            static service => service.OnSelectionModeChanged()
+        );
+
+    private void NotifyServices(string operation, Action<ISceneService> notify) =>
+        RunServiceOperation(operation, () =>
         {
             foreach (ISceneService service in _services)
-                service.OnPreviewGeometryChanged();
+                notify(service);
         });
-    }
 
     private bool RunServiceOperation(string operation, Action action)
     {

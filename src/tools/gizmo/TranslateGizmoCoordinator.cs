@@ -40,7 +40,6 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         try
         {
             proxyParent.AddChild(_proxy);
-            _selection.Changed += Synchronize;
         }
         catch
         {
@@ -98,9 +97,8 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         return layerMask;
     }
 
-    // SceneServices owns document and preview lifecycle. Committed transforms arrive through
-    // OnDocumentChanged; preview transforms arrive through OnPreviewTransformChanged. The
-    // coordinator needs no parallel event subscriptions in Application.
+    // SceneServices owns document, preview, and selection notifications, so this coordinator needs
+    // no parallel state subscriptions.
     public void SetDocument(Document document)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -135,6 +133,8 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         if (_selection.Current.ObjectIds.Contains(id))
             Synchronize();
     }
+
+    public void OnSelectionChanged() => Synchronize();
 
     public void Flush() => ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -265,7 +265,6 @@ public sealed class TranslateGizmoCoordinator : ISceneService
             return;
 
         _disposed = true;
-        _selection.Changed -= Synchronize;
         _document = null;
         _interactionCamera = null;
         _attached = false;

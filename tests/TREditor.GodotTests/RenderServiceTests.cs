@@ -31,7 +31,13 @@ public class RenderServiceTests
         );
         var previews = new PreviewState();
         var renderService = new RenderService(firstDocument, mapRoot, previews);
-        var services = new SceneServices(firstDocument, previews, renderService);
+        var services = new SceneServices(
+            firstDocument,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            renderService
+        );
 
         Node3D originalRenderRoot = mapRoot.GetNode<Node3D>("Render");
         MeshInstance3D firstInstance = originalRenderRoot.GetNode<MeshInstance3D>(
@@ -60,7 +66,13 @@ public class RenderServiceTests
         using var replacementDocument = new Document();
         var previews = new PreviewState();
         var renderService = new RenderService(document, mapRoot, previews);
-        var services = new SceneServices(document, previews, renderService);
+        var services = new SceneServices(
+            document,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            renderService
+        );
         var initialTransform = new Transform3D(Basis.Identity, new Vector3(1.0f, 0.0f, 0.0f));
         MeshObject meshObject = document.Add(
             "Cube",
@@ -128,7 +140,13 @@ public class RenderServiceTests
         using var document = new Document();
         var previews = new PreviewState();
         var renderService = new RenderService(document, mapRoot, previews);
-        var services = new SceneServices(document, previews, renderService);
+        var services = new SceneServices(
+            document,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            renderService
+        );
         var initialTransform = new Transform3D(
             Basis.Identity,
             new Vector3(1.0f, 2.0f, 3.0f)

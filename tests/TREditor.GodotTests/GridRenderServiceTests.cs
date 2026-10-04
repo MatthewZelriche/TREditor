@@ -19,7 +19,13 @@ public class GridRenderServiceTests
         using var secondDocument = new Document();
         var previews = new PreviewState();
         var gridRenderer = new GridRenderService();
-        var services = new SceneServices(firstDocument, previews, gridRenderer);
+        var services = new SceneServices(
+            firstDocument,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            gridRenderer
+        );
         const uint firstLayer = 1u << 20;
         const uint secondLayer = 1u << 21;
 
