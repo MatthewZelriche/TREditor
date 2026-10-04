@@ -32,7 +32,7 @@
 ## Mesh Operations
 
 - [x] Translation gizmo for all three component types
-  - [ ] TODO: Changing SelectionMask should recompute selection
+  - [x] TranslateTool respects Component Selection Mask
 - [x] Object Translate
 - [ ] Object Rotate
 - [ ] Object Scale

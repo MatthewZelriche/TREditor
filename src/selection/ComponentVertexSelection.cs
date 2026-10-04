@@ -17,6 +17,7 @@ internal static class ComponentVertexSelectionResolver
     public static bool TryResolve(
         IEditorDocumentReader document,
         IReadOnlySet<MeshComponentId> components,
+        ComponentMask mask,
         PreviewState? previews,
         out ComponentVertexSelection[] selections
     )
@@ -27,6 +28,9 @@ internal static class ComponentVertexSelectionResolver
 
         foreach (MeshComponentId component in components)
         {
+            if (!mask.Includes(component.Type))
+                continue;
+
             if (!document.TryGetObject(component.ObjectId, out MeshObject meshObject))
                 return Fail(out selections);
 

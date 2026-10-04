@@ -294,7 +294,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
             ClearSelectedVisuals();
             foreach (MeshComponentId selected in _selection.Current.Components)
             {
-                if (!Includes(mask, selected.Type))
+                if (!mask.Includes(selected.Type))
                     continue;
                 AddSelectedVisual(selected);
             }
@@ -303,7 +303,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
         }
 
         MeshComponentId? hover = _selection.HoveredComponent is MeshComponentId hovered
-            && Includes(mask, hovered.Type)
+            && mask.Includes(hovered.Type)
             && !_selection.Current.Components.Contains(hovered)
                 ? hovered
                 : null;
@@ -408,10 +408,6 @@ public sealed class ComponentSelectionRenderService : ISceneService
 
         _selectedVisuals.Clear();
     }
-
-    // MeshComponentType ordinals match ComponentMask bit positions (Vertex=0 → 1<<0, …).
-    private static bool Includes(ComponentMask mask, MeshComponentType type) =>
-        mask.HasFlag((ComponentMask)(1 << (int)type));
 
     private void SynchronizeHoveredComponent(MeshComponentId? component)
     {

@@ -28,6 +28,7 @@ public class TranslateComponentsCommandTests
                 ComponentVertexSelectionResolver.TryResolve(
                     document,
                     components,
+                    ComponentMask.All,
                     previews: null,
                     out ComponentVertexSelection[] selections
                 )
@@ -55,6 +56,7 @@ public class TranslateComponentsCommandTests
                 ComponentVertexSelectionResolver.TryResolve(
                     document,
                     components,
+                    ComponentMask.All,
                     previews: null,
                     out ComponentVertexSelection[] selections
                 )

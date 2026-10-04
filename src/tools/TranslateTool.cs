@@ -155,6 +155,7 @@ public sealed class TranslateTool : ToolBase
             !ComponentVertexSelectionResolver.TryResolve(
                 context.Document,
                 components,
+                SelectionMode!.Components,
                 previews: null,
                 out ComponentVertexSelection[] selections
             )

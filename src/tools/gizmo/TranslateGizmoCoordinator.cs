@@ -353,6 +353,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
             !ComponentVertexSelectionResolver.TryResolve(
                 document,
                 _selection.Current.Components,
+                _selectionMode.Components,
                 _previews,
                 out ComponentVertexSelection[] selections
             )

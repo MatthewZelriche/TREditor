@@ -72,6 +72,62 @@ public class TranslateToolTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task ComponentDragMovesOnlySelectedTypesIncludedByTheMask()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Application.SelectionMode.SelectAllComponents();
+        var vertex = new MeshComponentId(fixture.CubeId, MeshComponentType.Vertex, 6);
+        var edge = new MeshComponentId(fixture.CubeId, MeshComponentType.Edge, 0);
+        fixture.Selection.Apply(SelectionValue.ForSelections([], [vertex, edge]));
+
+        fixture.Application.SelectionMode.ToggleComponent(ComponentMask.Vertex);
+        await ProcessFrames(3);
+
+        AssertBool(
+                fixture.Application.CurrentDocument!.TryGetObject(
+                    fixture.CubeId,
+                    out MeshObject cube
+                )
+            )
+            .IsTrue();
+        var before = new NumericsVector3[cube.Mesh.SpatialMesh.VertexCount];
+        for (int slot = 0; slot < before.Length; slot++)
+            before[slot] = cube.Mesh.SpatialMesh.GetVertexData(slot).position;
+
+        Vector3 expectedGizmoOrigin = cube.Transform * new Vector3(
+            before[vertex.Slot].X,
+            before[vertex.Slot].Y,
+            before[vertex.Slot].Z
+        );
+        AssertThat(fixture.Application.Gizmos.ProxyTransform.Origin)
+            .IsEqual(expectedGizmoOrigin);
+
+        Vector2 handle = fixture.FindHandle();
+        fixture.MouseDown(handle);
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        fixture.Application.Update(0.0);
+        await ProcessFrames(1);
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        AssertBool(
+                fixture.Application.CurrentDocument.TryGetObject(
+                    fixture.CubeId,
+                    out MeshObject committed
+                )
+            )
+            .IsTrue();
+        for (int slot = 0; slot < before.Length; slot++)
+        {
+            NumericsVector3 actual = committed.Mesh.SpatialMesh.GetVertexData(slot).position;
+            if (slot == vertex.Slot)
+                AssertBool(actual == before[slot]).IsFalse();
+            else
+                AssertThat(actual).IsEqual(before[slot]);
+        }
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task PressingTheGizmoDragsAndCommitsOneTranslate()
     {
         using Fixture fixture = await Fixture.Create();
