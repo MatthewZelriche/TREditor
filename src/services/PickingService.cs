@@ -93,8 +93,6 @@ public sealed partial class PickingService : ISceneService
         ApplyTransform(id);
     }
 
-    public void OnPreviewGeometryChanged() => ObjectDisposedException.ThrowIf(_disposed, this);
-
     private void AddObject(MeshObjectId id)
     {
         if (!_document.TryGetObject(id, out MeshObject meshObject))
@@ -167,8 +165,8 @@ public sealed partial class PickingService : ISceneService
             )
             {
                 meshObject.Mesh.RebuildSurfaceIfDirty();
-                entry.Shape.Data = CreateCollisionFaces(meshObject.Mesh.Surface);
                 entry.UpdateComponentGeometry(meshObject.Mesh);
+                entry.Shape.Data = entry.ComponentGeometry.ToCollisionFaces();
             }
         }
 
@@ -184,18 +182,7 @@ public sealed partial class PickingService : ISceneService
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(query);
-
-        query.CollisionMask = PickingCollisionLayer;
-        query.CollideWithBodies = true;
-        query.CollideWithAreas = false;
-
-        PhysicsDirectSpaceState3D spaceState = _mapRoot.GetWorld3D().DirectSpaceState;
-        Godot.Collections.Dictionary result = spaceState.IntersectRay(query);
-        if (result.Count == 0)
-            return null;
-
-        ulong colliderId = result["collider_id"].AsUInt64();
-        return _colliderIds.TryGetValue(colliderId, out MeshObjectId id) ? id : null;
+        return TryIntersectRay(query, out PickingHit hit) ? hit.ObjectId : null;
     }
 
     public bool TryRaycast(Camera3D camera, Vector2 screenPosition, out PickingHit hit)
@@ -209,6 +196,11 @@ public sealed partial class PickingService : ISceneService
             origin,
             destination
         );
+        return TryIntersectRay(query, out hit);
+    }
+
+    private bool TryIntersectRay(PhysicsRayQueryParameters3D query, out PickingHit hit)
+    {
         query.CollisionMask = PickingCollisionLayer;
         query.CollideWithBodies = true;
         query.CollideWithAreas = false;
@@ -241,20 +233,6 @@ public sealed partial class PickingService : ISceneService
         _entries.Clear();
         _colliderIds.Clear();
         _dirtyMeshes.Clear();
-    }
-
-    private static Vector3[] CreateCollisionFaces(MeshSurface surface)
-    {
-        var faces = new Vector3[surface.ElementIndices.Count];
-        for (int index = 0; index < surface.ElementIndices.Count; index++)
-        {
-            System.Numerics.Vector3 vertex = surface.Vertices[
-                surface.ElementIndices[index]
-            ];
-            faces[index] = new Vector3(vertex.X, vertex.Y, vertex.Z);
-        }
-
-        return faces;
     }
 
     private sealed partial class PickingEntry : IDisposable

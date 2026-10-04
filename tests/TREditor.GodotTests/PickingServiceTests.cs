@@ -87,6 +87,72 @@ public class PickingServiceTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task PickingServiceRebuildsCollidersOnGeometryChanged()
+    {
+        var tree = (SceneTree)Engine.GetMainLoop();
+        Node3D mapRoot = AutoFree(new Node3D());
+        tree.Root.AddChild(mapRoot);
+        using var document = new Document();
+        var mesh = new GDMesh(
+            SpatialMeshBuilder.CreateAabb(
+                new NumericsVector3(-1.0f, -1.0f, -1.0f),
+                new NumericsVector3(2.0f, 2.0f, 2.0f)
+            )
+        );
+        MeshObject meshObject = document.Add("Cube", Transform3D.Identity, mesh);
+        var previews = new PreviewState();
+        var pickingService = new PickingService(document, mapRoot, previews);
+        var services = new SceneServices(
+            document,
+            previews,
+            new SelectionState(),
+            new SelectionModeState(),
+            pickingService
+        );
+
+        try
+        {
+            services.Flush();
+            await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
+
+            using PhysicsRayQueryParameters3D originalRay =
+                PhysicsRayQueryParameters3D.Create(
+                    new Vector3(0.0f, 0.0f, 3.0f),
+                    new Vector3(0.0f, 0.0f, -3.0f)
+                );
+            using PhysicsRayQueryParameters3D relocatedRay =
+                PhysicsRayQueryParameters3D.Create(
+                    new Vector3(4.0f, 0.0f, 3.0f),
+                    new Vector3(4.0f, 0.0f, -3.0f)
+                );
+
+            AssertThat(pickingService.Raycast(originalRay)?.Value ?? -1)
+                .IsEqual(meshObject.Id.Value);
+
+            var relocated = new GDMesh(
+                SpatialMeshBuilder.CreateAabb(
+                    new NumericsVector3(3.0f, -1.0f, -1.0f),
+                    new NumericsVector3(2.0f, 2.0f, 2.0f)
+                )
+            );
+            mesh.MeshData = relocated.MeshData;
+            relocated.Dispose();
+            AssertBool(document.CommitGeometryChange(meshObject.Id)).IsTrue();
+            services.Flush();
+            await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
+
+            AssertBool(pickingService.Raycast(originalRay) is null).IsTrue();
+            AssertThat(pickingService.Raycast(relocatedRay)?.Value ?? -1)
+                .IsEqual(meshObject.Id.Value);
+        }
+        finally
+        {
+            services.Dispose();
+        }
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task PickingServiceFollowsPreviewTransforms()
     {
         var tree = (SceneTree)Engine.GetMainLoop();

@@ -417,6 +417,21 @@ public sealed partial class PickingService
     )
     {
         public static readonly ComponentGeometry Empty = new([], [], []);
+
+        public Vector3[] ToCollisionFaces()
+        {
+            var faces = new Vector3[Triangles.Length * 3];
+            for (int i = 0; i < Triangles.Length; i++)
+            {
+                FaceTriangle triangle = Triangles[i];
+                int offset = i * 3;
+                faces[offset] = triangle.A;
+                faces[offset + 1] = triangle.B;
+                faces[offset + 2] = triangle.C;
+            }
+
+            return faces;
+        }
     }
 
     private readonly record struct VertexComponent(int Slot, Vector3 Position);
