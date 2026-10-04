@@ -5,7 +5,7 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' and '$(MetricsScope)' != 'true' ">
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -29,7 +29,7 @@
     <ProjectReference Include="vendor\TRMesh\tr-mesh.csproj" />
     <InternalsVisibleTo Include="TREditor.Tests" />
   </ItemGroup>
-  <ItemGroup Condition=" '$(Configuration)' == 'Debug' ">
+  <ItemGroup Condition=" '$(Configuration)' == 'Debug' and '$(MetricsScope)' != 'true' ">
     <Compile Include="tests\TREditor.GodotTests\*.cs" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" PrivateAssets="all" />
     <PackageReference Include="gdUnit4.test.adapter" Version="3.1.1" PrivateAssets="all" />
@@ -44,6 +44,16 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.Metrics" Version="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
+  <!-- Metrics-only compile filter. Metrics.exe reloads the project without MSBuild -p
+       flags, so scripts/run-metrics.ps1 sets the MetricsScope *environment* variable
+       (MSBuild promotes env vars to properties). Normal Debug/Release builds are unchanged. -->
+  <ItemGroup Condition="'$(MetricsScope)' == 'true'">
+    <Compile Remove="tests\**" />
+    <Compile Remove="vendor\**" />
+    <Compile Remove="addons\**" />
+    <Compile Remove="gdunit4_testadapter_v5\**" />
+    <Compile Include="addons\TilingContainer\**\*.cs" Exclude="addons\TilingContainer\tests\**" />
   </ItemGroup>
   <Target Name="EnsureGdUnit4Installed" BeforeTargets="PrepareForBuild" Condition="!Exists('$(MSBuildProjectDirectory)\addons\gdUnit4\plugin.cfg')">
     <Error Text="GdUnit4 is not initialized. Follow the setup instructions in BUILD.md." />
