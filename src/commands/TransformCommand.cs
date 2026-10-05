@@ -1,22 +1,23 @@
 using System;
 using System.Collections.Generic;
 
-// A committed move of one or more objects. Exact before and after MeshObject records are retained so undo and
-// redo replace the same instances the command observed; a stale intervening replacement fails rather
-// than overwriting unrelated state.
-public sealed class TranslateCommand : IEditorCommand
+// A committed transform of one or more objects. Exact before and after records are retained so
+// undo and redo cannot overwrite a stale intervening replacement.
+public sealed class TransformCommand : IEditorCommand
 {
-    // Memory: This is fine because both are records that point to the same underlying
-    // GDMesh. However, for commands that require TopologyPatches, we will need to be more careful
-    // with what we store to avoid bloating memory. We store a lot of commands for history and they need
-    // to be lightweight.
     private readonly MeshObject[] _before;
     private readonly MeshObject[] _after;
+    private readonly TransformOperation _operation;
 
-    public TranslateCommand(MeshObject before, MeshObject after)
-        : this([before], [after]) { }
+    public TransformCommand(
+        TransformOperation operation,
+        MeshObject before,
+        MeshObject after
+    )
+        : this(operation, [before], [after]) { }
 
-    public TranslateCommand(
+    public TransformCommand(
+        TransformOperation operation,
         IReadOnlyList<MeshObject> before,
         IReadOnlyList<MeshObject> after
     )
@@ -24,10 +25,11 @@ public sealed class TranslateCommand : IEditorCommand
         ArgumentNullException.ThrowIfNull(before);
         ArgumentNullException.ThrowIfNull(after);
         if (before.Count == 0)
-            throw new ArgumentException("At least one object must be translated.", nameof(before));
+            throw new ArgumentException("At least one object must be transformed.", nameof(before));
         if (before.Count != after.Count)
             throw new ArgumentException("Before and after object counts must match.", nameof(after));
 
+        _operation = operation;
         _before = new MeshObject[before.Count];
         _after = new MeshObject[after.Count];
         for (int index = 0; index < before.Count; index++)
@@ -39,13 +41,13 @@ public sealed class TranslateCommand : IEditorCommand
         }
     }
 
-    public string DisplayName => "Translate";
+    public string DisplayName => _operation.ToString();
 
     public void Execute(Document document) => Replace(document, _before, _after);
 
     public void Undo(Document document) => Replace(document, _after, _before);
 
-    private static void Replace(
+    private void Replace(
         Document document,
         IReadOnlyList<MeshObject> expected,
         IReadOnlyList<MeshObject> replacements
@@ -55,7 +57,7 @@ public sealed class TranslateCommand : IEditorCommand
         if (!document.ReplaceObjects(expected, replacements))
         {
             throw new NonFatalCommandError(
-                "One or more selected objects are missing or stale and cannot be translated."
+                $"One or more selected objects are missing or stale and cannot be {_operation.ToString().ToLowerInvariant()}d."
             );
         }
     }

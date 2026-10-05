@@ -28,6 +28,9 @@ public partial class KeybindingsDialog : Window
         AddBindingButton(EditorInputActions.CameraMoveBackward, "%MoveBackwardButton");
         AddBindingButton(EditorInputActions.CameraMoveLeft, "%MoveLeftButton");
         AddBindingButton(EditorInputActions.CameraMoveRight, "%MoveRightButton");
+        AddBindingButton(EditorInputActions.ToolTranslate, "%TranslateToolButton");
+        AddBindingButton(EditorInputActions.ToolRotate, "%RotateToolButton");
+        AddBindingButton(EditorInputActions.ToolScale, "%ScaleToolButton");
 
         GetNode<Button>("%ResetButton").Pressed += ResetDefaults;
         GetNode<Button>("%CloseButton").Pressed += CloseDialog;

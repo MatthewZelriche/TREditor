@@ -3,7 +3,7 @@ using Godot;
 
 namespace TREditor.Tests;
 
-public sealed class TranslateCommandTests
+public sealed class TransformCommandTests
 {
     private static readonly Transform3D BeforeTransform = new(Basis.Identity, new Vector3(1, 0, -2));
     private static readonly Transform3D AfterTransform = new(Basis.Identity, new Vector3(4, 5, -2));
@@ -17,7 +17,7 @@ public sealed class TranslateCommandTests
         MeshObject before = document.Add("Movable", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
 
-        history.Submit(new TranslateCommand(before, after));
+        history.Submit(new TransformCommand(TransformOperation.Translate, before, after));
         Assert.Equal(AfterTransform, ReadTransform(document, before.Id));
 
         Assert.True(history.Undo());
@@ -35,7 +35,7 @@ public sealed class TranslateCommandTests
         history.SetDocument(document);
         MeshObject before = document.Add("Movable", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
-        var command = new TranslateCommand(before, after);
+        var command = new TransformCommand(TransformOperation.Translate, before, after);
 
         history.Submit(command);
         Assert.True(history.Undo());
@@ -74,7 +74,7 @@ public sealed class TranslateCommandTests
         document.Changed += changeSet => observedSerials.Add(changeSet.MutationSerial);
 
         history.Submit(
-            new TranslateCommand([first, second], [firstAfter, secondAfter])
+            new TransformCommand(TransformOperation.Translate, [first, second], [firstAfter, secondAfter])
         );
 
         Assert.Equal(firstAfter.Transform, ReadTransform(document, first.Id));
@@ -118,7 +118,7 @@ public sealed class TranslateCommandTests
         Assert.True(document.ReplaceObject(second, intervening));
 
         history.Submit(
-            new TranslateCommand([first, second], [firstAfter, secondAfter])
+            new TransformCommand(TransformOperation.Translate, [first, second], [firstAfter, secondAfter])
         );
 
         Assert.False(history.CanUndo);
@@ -134,7 +134,7 @@ public sealed class TranslateCommandTests
         history.SetDocument(document);
         MeshObject before = document.Add("Movable", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
-        history.Submit(new TranslateCommand(before, after));
+        history.Submit(new TransformCommand(TransformOperation.Translate, before, after));
         Assert.True(history.Undo());
 
         MeshObject intervening = before with
@@ -172,7 +172,7 @@ public sealed class TranslateCommandTests
             failedException = exception;
         };
 
-        history.Submit(new TranslateCommand(before, after));
+        history.Submit(new TransformCommand(TransformOperation.Translate, before, after));
         Assert.Equal("Translate", failedOperation);
         Assert.IsType<NonFatalCommandError>(failedException);
         Assert.False(history.CanUndo);
@@ -188,7 +188,7 @@ public sealed class TranslateCommandTests
         history.SetDocument(document);
         MeshObject before = document.Add("Movable", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
-        history.Submit(new TranslateCommand(before, after));
+        history.Submit(new TransformCommand(TransformOperation.Translate, before, after));
 
         MeshObject intervening = after with
         {
@@ -222,7 +222,7 @@ public sealed class TranslateCommandTests
         var before = new MeshObject(new MeshObjectId(12), "Missing", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
 
-        history.Submit(new TranslateCommand(before, after));
+        history.Submit(new TransformCommand(TransformOperation.Translate, before, after));
         Assert.False(history.CanUndo);
     }
 
@@ -234,7 +234,7 @@ public sealed class TranslateCommandTests
         history.SetDocument(document);
         MeshObject before = document.Add("Movable", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
-        history.Submit(new TranslateCommand(before, after));
+        history.Submit(new TransformCommand(TransformOperation.Translate, before, after));
 
         MeshObject? removed = document.Remove(before.Id);
         Assert.NotNull(removed);
@@ -250,7 +250,10 @@ public sealed class TranslateCommandTests
     {
         var before = new MeshObject(new MeshObjectId(0), "Name", BeforeTransform, null!);
         MeshObject after = before with { Transform = AfterTransform };
-        Assert.Equal("Translate", new TranslateCommand(before, after).DisplayName);
+        Assert.Equal(
+            "Translate",
+            new TransformCommand(TransformOperation.Translate, before, after).DisplayName
+        );
     }
 
     private static Transform3D ReadTransform(Document document, MeshObjectId id)

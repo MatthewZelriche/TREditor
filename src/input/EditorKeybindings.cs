@@ -21,6 +21,9 @@ public static class EditorInputActions
     public const string CameraMoveBackward = "camera_move_backward";
     public const string CameraMoveLeft = "camera_move_left";
     public const string CameraMoveRight = "camera_move_right";
+    public const string ToolTranslate = "tool_translate";
+    public const string ToolRotate = "tool_rotate";
+    public const string ToolScale = "tool_scale";
 
     public static readonly IReadOnlyDictionary<string, KeybindingDefinition> Definitions =
         new Dictionary<string, KeybindingDefinition>(StringComparer.Ordinal)
@@ -29,6 +32,9 @@ public static class EditorInputActions
             [CameraMoveBackward] = new("Move Backward", Key.S),
             [CameraMoveLeft] = new("Move Left", Key.A),
             [CameraMoveRight] = new("Move Right", Key.D),
+            [ToolTranslate] = new("Translate Tool", Key.T),
+            [ToolRotate] = new("Rotate Tool", Key.R),
+            [ToolScale] = new("Scale Tool", Key.Y),
         };
 
 }

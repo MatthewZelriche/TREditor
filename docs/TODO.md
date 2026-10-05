@@ -34,8 +34,8 @@
 - [x] Translation gizmo for all three component types
   - [x] TranslateTool respects Component Selection Mask
 - [x] Object Translate
-- [ ] Object Rotate
-- [ ] Object Scale
+- [x] Object Rotate
+- [x] Object Scale
 - [x] Create new Primitive
 
 ### Vertices
@@ -89,7 +89,7 @@
 - [ ] Box-Selection
 - [ ] Select All, Select None, Select Inverse (Specific Components on a Mesh, must occur in "Single-Component Selection Mode")
 - [x] Grid Snapping
-- [ ] Angle Snapping
+- [x] Angle Snapping
 - [ ] Move Pivot
 - [ ] Reset Pivot Location
 

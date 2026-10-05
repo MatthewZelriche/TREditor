@@ -3,31 +3,29 @@ using System.Collections.Generic;
 using Godot;
 using NumericsVector3 = System.Numerics.Vector3;
 
-// Moves selected objects or mesh components with the viewport gizmos. The tool owns the three-phase
-// flow only: the coordinator owns the gizmo nodes, previews carry drag feedback, and the document
-// changes once on mouse up through one command.
-public sealed class TranslateTool : ToolBase
+// Moves selected objects or mesh components with the viewport gizmos. Object drags use the shared
+// ObjectTransformTool path; this type owns the component-translation flow.
+public sealed class TranslateTool : ObjectTransformTool
 {
     public const string ToolId = "tool.translate";
 
-    private bool _dragging;
-    private MeshObject[]? _before;
     private ComponentDrag[]? _componentDrags;
-    private Transform3D _gizmoStart;
-    private Camera3D? _sourceCamera;
 
     public TranslateTool(SelectionModeState? selectionMode = null)
-        : base(selectionMode)
+        : base(TransformOperation.Translate, selectionMode)
     { }
 
     public override string Id => ToolId;
 
-    // Classifying the press as a gizmo grab before selection keeps a selection click from starting
-    // a translation of the object it just selected.
+    protected override bool CanBeginObjectTransform =>
+        SelectionMode?.Mode != EditorMode.Component;
+
     protected override void OnPreMouseDown(IEditorToolContext context, EditorMouseInput input)
     {
-        if (_dragging)
+        if (_componentDrags is not null)
             Cancel(context);
+        else
+            base.OnPreMouseDown(context, input);
     }
 
     protected override bool TryBeginInteraction(IEditorToolContext context, EditorMouseInput input)
@@ -35,102 +33,74 @@ public sealed class TranslateTool : ToolBase
         if (input.IsShiftPressed)
             return false;
 
-        SelectionValue beforeSelection = context.Selection.Current;
         if (SelectionMode?.Mode == EditorMode.Component)
-            return TryBeginComponentInteraction(context, input, beforeSelection.Components);
+            return TryBeginComponentInteraction(context, input, context.Selection.Current.Components);
 
-        if (!TryCaptureSelectedObjects(context, beforeSelection.ObjectIds, out MeshObject[] selected))
-            return false;
-        if (!context.TranslateGizmos.BeginInteraction(input.Camera!, input.ScreenPosition))
-            return false;
-
-        _dragging = true;
-        _before = selected;
-        _gizmoStart = context.TranslateGizmos.ProxyTransform;
-        _sourceCamera = input.Camera;
-        return true;
+        return base.TryBeginInteraction(context, input);
     }
 
     public override void OnMouseDrag(IEditorToolContext context, EditorMouseInput input)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (!_dragging || !ReferenceEquals(input.Camera, _sourceCamera))
-            return;
-
-        if (!context.TranslateGizmos.UpdateInteraction(input.Camera, input.ScreenPosition))
-            return;
-
-        Vector3 delta = context.TranslateGizmos.ProxyTransform.Origin - _gizmoStart.Origin;
-        if (_componentDrags is not null)
+        if (_componentDrags is null)
         {
-            if (!UpdateComponentPreviews(context, delta))
-                CleanUp(context);
+            base.OnMouseDrag(context, input);
             return;
         }
 
-        // The proxy is the only thing the gizmo moved. Apply its translation delta to every selected
-        // object as preview state while leaving the document untouched until mouse up.
-        foreach (MeshObject before in _before!)
+        if (
+            !ReferenceEquals(input.Camera, SourceCamera)
+            || !context.TranslateGizmos.UpdateInteraction(input.Camera!, input.ScreenPosition)
+        )
         {
-            context.Preview.SetTransform(
-                before.Id,
-                new Transform3D(before.Transform.Basis, before.Transform.Origin + delta)
-            );
+            return;
         }
+
+        Vector3 delta = context.TranslateGizmos.ProxyTransform.Origin - GizmoStart.Origin;
+        if (!UpdateComponentPreviews(context, delta))
+            CleanUpComponents(context);
     }
 
     public override void OnMouseUp(IEditorToolContext context, EditorMouseInput input)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (!_dragging || !ReferenceEquals(input.Camera, _sourceCamera))
+        if (_componentDrags is null)
+        {
+            base.OnMouseUp(context, input);
+            return;
+        }
+
+        if (!ReferenceEquals(input.Camera, SourceCamera))
             return;
 
         try
         {
             context.TranslateGizmos.EndInteraction();
-            Vector3 delta = context.TranslateGizmos.ProxyTransform.Origin - _gizmoStart.Origin;
-            if (delta.IsZeroApprox())
-                return;
-
-            if (_componentDrags is not null)
+            Vector3 delta = context.TranslateGizmos.ProxyTransform.Origin - GizmoStart.Origin;
+            if (!delta.IsZeroApprox())
                 CommitComponents(context);
-            else
-                CommitObjects(context, delta);
         }
         finally
         {
-            // A command that throws must not leave the preview, the proxy, or this tool mid-drag.
-            CleanUp(context);
+            CleanUpComponents(context);
         }
     }
 
-    // The one place a translate interaction is torn down. Lifecycle transitions cancel through the
-    // registry rather than reaching for the coordinator or previews themselves.
     protected override void OnCancel(IEditorToolContext context)
     {
-        if (!_dragging)
-            return;
-
-        CleanUp(context);
+        if (_componentDrags is not null)
+            CleanUpComponents(context);
+        else
+            base.OnCancel(context);
     }
 
-    private void CleanUp(IEditorToolContext context)
+    private void CleanUpComponents(IEditorToolContext context)
     {
-        MeshObject[]? before = _before;
         ComponentDrag[]? componentDrags = _componentDrags;
-        _dragging = false;
-        _before = null;
         _componentDrags = null;
-        _sourceCamera = null;
 
         try
         {
-            if (before is not null)
-            {
-                foreach (MeshObject meshObject in before)
-                    context.Preview.ClearTransform(meshObject.Id);
-            }
-
             if (componentDrags is not null)
             {
                 foreach (ComponentDrag drag in componentDrags)
@@ -139,9 +109,7 @@ public sealed class TranslateTool : ToolBase
         }
         finally
         {
-            // Restores the proxy from whatever the document and previews now say, which is the
-            // committed transform after a successful move and the original one after a cancel.
-            context.TranslateGizmos.CancelAndSynchronize();
+            CleanUpObjectDrag(context);
         }
     }
 
@@ -186,10 +154,8 @@ public sealed class TranslateTool : ToolBase
             throw;
         }
 
-        _dragging = true;
         _componentDrags = drags;
-        _gizmoStart = context.TranslateGizmos.ProxyTransform;
-        _sourceCamera = input.Camera;
+        BeginDrag(before: null, input.Camera, context.TranslateGizmos.ProxyTransform);
         return true;
     }
 
@@ -254,25 +220,6 @@ public sealed class TranslateTool : ToolBase
         }
     }
 
-    private void CommitObjects(IEditorToolContext context, Vector3 delta)
-    {
-        MeshObject[] before = _before!;
-        var after = new MeshObject[before.Length];
-        for (int index = 0; index < before.Length; index++)
-        {
-            MeshObject meshObject = before[index];
-            after[index] = meshObject with
-            {
-                Transform = new Transform3D(
-                    meshObject.Transform.Basis,
-                    meshObject.Transform.Origin + delta
-                ),
-            };
-        }
-
-        context.Commands.Submit(new TranslateCommand(before, after));
-    }
-
     private static NumericsVector3[] TranslatedPositions(
         ComponentVertexSelection selection,
         Vector3 worldDelta
@@ -284,34 +231,6 @@ public sealed class TranslateTool : ToolBase
         for (int index = 0; index < positions.Length; index++)
             positions[index] = selection.Positions[index] + numericDelta;
         return positions;
-    }
-
-    private static bool TryCaptureSelectedObjects(
-        IEditorToolContext context,
-        IReadOnlySet<MeshObjectId> selectedIds,
-        out MeshObject[] selected
-    )
-    {
-        if (selectedIds.Count == 0)
-        {
-            selected = [];
-            return false;
-        }
-
-        selected = new MeshObject[selectedIds.Count];
-        int index = 0;
-        foreach (MeshObjectId id in selectedIds)
-        {
-            if (!context.Document.TryGetObject(id, out MeshObject meshObject))
-            {
-                selected = [];
-                return false;
-            }
-
-            selected[index++] = meshObject;
-        }
-
-        return true;
     }
 
     private sealed record ComponentDrag(ComponentVertexSelection Selection, GDMesh Preview);

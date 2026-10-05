@@ -75,6 +75,8 @@ public sealed class Application : IDisposable
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
             _toolRegistry.Register(new TranslateTool(_selectionMode));
+            _toolRegistry.Register(new RotateTool(_selectionMode));
+            _toolRegistry.Register(new ScaleTool(_selectionMode));
             _toolRegistry.Register(new PrimitiveTool());
             _toolRegistry.SetDefaultTool(TranslateTool.ToolId);
             _toolRegistry.ActiveToolChanged += OnActiveToolChanged;
@@ -108,7 +110,7 @@ public sealed class Application : IDisposable
     // The one place tools are registered and activated. UI binds to the registry, not to tool types.
     public EditorToolRegistry Tools => _toolRegistry;
 
-    // The editor-owned translate gizmos. Viewports register with it and the translate tool drives it;
+    // The editor-owned transform gizmos. Viewports register with it and transform tools drive it;
     // nothing else needs to know a gizmo library is involved.
     internal TranslateGizmoCoordinator Gizmos => _toolContext.TranslateGizmos;
 
@@ -314,6 +316,13 @@ public sealed class Application : IDisposable
     {
         CancelActiveInteraction();
         _selectionState.ClearHover();
+        if (
+            _selectionMode.Mode != EditorMode.Object
+            && _toolRegistry.ActiveTool?.Id is RotateTool.ToolId or ScaleTool.ToolId
+        )
+        {
+            _toolRegistry.Activate(TranslateTool.ToolId);
+        }
     }
 
     private void OnCommandHistoryOperationFailed(string operation, Exception exception) =>
@@ -321,10 +330,15 @@ public sealed class Application : IDisposable
 
     private void OnActiveToolChanged()
     {
-        bool isTranslateTool = _toolRegistry.ActiveTool?.Id == TranslateTool.ToolId;
-        // Hide gizmo when not translate tool.
-        _toolContext.TranslateGizmos.SetEnabled(isTranslateTool);
-        if (!isTranslateTool)
+        TransformOperation? operation = _toolRegistry.ActiveTool?.Id switch
+        {
+            TranslateTool.ToolId => TransformOperation.Translate,
+            RotateTool.ToolId => TransformOperation.Rotate,
+            ScaleTool.ToolId => TransformOperation.Scale,
+            _ => null,
+        };
+        _toolContext.TranslateGizmos.SetMode(operation);
+        if (operation is not TransformOperation.Translate)
             _selectionState.ClearHover();
     }
 

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 
-// The editor's owner of every viewport-local translate gizmo. Panes register their camera and overlay
+// The editor's owner of every viewport-local transform gizmo. Panes register their camera and overlay
 // root as they come and go; tools drive interaction through this type and never touch a Gizmo3D node.
 //
 // All hosts move one shared, non-rendering proxy node. The gizmo is only ever allowed to mutate that
@@ -19,7 +19,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     private Document? _document;
     private Camera3D? _interactionCamera;
     private bool _attached;
-    private bool _enabled = true;
+    private TransformOperation? _mode = TransformOperation.Translate;
     private bool _disposed;
 
     public TranslateGizmoCoordinator(
@@ -40,7 +40,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         _selectionMode = selectionMode;
         _previews = previews;
         _snap = snap;
-        _proxy = new Node3D { Name = "TranslateGizmoProxy" };
+        _proxy = new Node3D { Name = "TransformGizmoProxy" };
         try
         {
             proxyParent.AddChild(_proxy);
@@ -66,6 +66,8 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     // The proxy's absolute transform, which is what a drag produces and what the tool previews.
     public Transform3D ProxyTransform => _proxy.GlobalTransform;
 
+    public TransformOperation? Mode => _mode;
+
     // Returns the private render layer allocated to this viewport. Other viewport-local overlays
     // may share it and remain isolated by the camera cull mask configured here.
     public uint RegisterViewport(Camera3D camera, Node3D overlayRoot)
@@ -79,6 +81,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         uint layerMask = _layers.Allocate();
         uint previousCullMask = camera.CullMask;
         var host = new TranslateGizmoHost(_snap);
+        host.SetMode(_mode ?? TransformOperation.Translate);
         host.SetRenderLayer(layerMask);
         try
         {
@@ -175,26 +178,32 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         registration.Host.QueueFree();
     }
 
-    // Whether the translate tool currently owns interaction. When false the gizmo stays hidden even
-    // if a selection exists, so a create tool cannot leave a dead gizmo on screen.
-    public void SetEnabled(bool enabled)
+    // Selects the handles used by the active transform tool. Null hides the gizmo for non-transform
+    // tools without disturbing selection.
+    public void SetMode(TransformOperation? mode)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_enabled == enabled)
+        if (_mode == mode)
             return;
 
-        _enabled = enabled;
-        if (_enabled)
-            Synchronize();
-        else
+        Cancel();
+        _mode = mode;
+        if (_mode is not TransformOperation operation)
+        {
             Hide();
+            return;
+        }
+
+        foreach (HostRegistration registration in _hosts.Values)
+            registration.Host.SetMode(operation);
+        Synchronize();
     }
 
     // Places the shared proxy and shows a gizmo in every viewport.
     public void ShowAt(Transform3D transform)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_enabled)
+        if (_mode is null)
             return;
 
         _proxy.GlobalTransform = transform;
@@ -203,7 +212,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
             registration.Host.Attach(_proxy);
     }
 
-    // Hides every gizmo. Used when nothing is selected, when translate is not the active tool, and
+    // Hides every gizmo. Used when nothing is selected, when no transform tool is active, and
     // during scene and application lifecycle transitions.
     public void Hide()
     {
@@ -301,7 +310,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     // the proxy, so it is left alone.
     private void Synchronize()
     {
-        if (_disposed || IsInteracting || !_enabled)
+        if (_disposed || IsInteracting || _mode is null)
             return;
 
         if (_document is Document document && TryGetSelectionTransform(document, out Transform3D transform))

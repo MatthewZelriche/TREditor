@@ -235,7 +235,7 @@ public sealed class SceneServicesTests
         var afterTransform = new Transform3D(Basis.Identity, new Vector3(4, 5, 6));
         MeshObject after = target with { Transform = afterTransform };
 
-        history.Submit(new TranslateCommand(target, after));
+        history.Submit(new TransformCommand(TransformOperation.Translate, target, after));
 
         Assert.True(history.CanUndo);
         Assert.True(document.TryGetMeshTransform(target.Id, out Transform3D actual));
