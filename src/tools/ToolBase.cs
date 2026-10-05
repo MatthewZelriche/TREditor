@@ -66,7 +66,8 @@ public abstract class ToolBase : IEditorTool
         ComponentPickingHit? componentHit = context.Picking.PickComponent(
             input.Camera!,
             input.ScreenPosition,
-            SelectionMode!.Components
+            SelectionMode!.Components,
+            xRay: SelectionMode.XRayEnabled
         );
         context.Selection.SetHoveredComponent(componentHit?.Component);
         SelectionValue beforeComponentSelection = context.Selection.Current;
@@ -109,7 +110,8 @@ public abstract class ToolBase : IEditorTool
         ComponentPickingHit? hit = context.Picking.PickComponent(
             input.Camera,
             input.ScreenPosition,
-            SelectionMode.Components
+            SelectionMode.Components,
+            xRay: SelectionMode.XRayEnabled
         );
         context.Selection.SetHoveredComponent(hit?.Component);
     }

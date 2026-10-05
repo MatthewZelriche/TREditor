@@ -42,6 +42,8 @@ public sealed class ComponentSelectionRenderService : ISceneService
     private readonly QuadMesh _vertexQuad;
     private readonly ShaderMaterial _vertexMaterial;
     private readonly Shader _selectedVertexShader;
+    private readonly Shader _xRayVertexShader;
+    private readonly ShaderMaterial _xRayVertexMaterial;
     private readonly StandardMaterial3D _edgeMaterial;
     private readonly Shader _activeEdgeShader;
     private readonly Dictionary<int, Shader> _vertexXRayShaders = [];
@@ -84,6 +86,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
         _activeEdgeShader = LoadShader(ActiveEdgeShaderPath);
         Shader faceShader = LoadShader(FaceShaderPath);
         _selectedVertexShader = StencilShader.CreateDepthDrawNever(vertexShader);
+        _xRayVertexShader = StencilShader.CreateDepthTestDisabled(vertexShader);
         _vertexMaterial = new ShaderMaterial
         {
             Shader = vertexShader,
@@ -91,6 +94,13 @@ public sealed class ComponentSelectionRenderService : ISceneService
         };
         _vertexMaterial.SetShaderParameter("point_color", MutedVertexColor);
         _vertexMaterial.SetShaderParameter("point_size_pixels", VertexSizePixels);
+        _xRayVertexMaterial = new ShaderMaterial
+        {
+            Shader = _xRayVertexShader,
+            RenderPriority = (int)ComponentRenderPriority.MutedVertex,
+        };
+        _xRayVertexMaterial.SetShaderParameter("point_color", MutedVertexColor);
+        _xRayVertexMaterial.SetShaderParameter("point_size_pixels", VertexSizePixels);
         _vertexQuad = new QuadMesh
         {
             Size = Vector2.One,
@@ -286,6 +296,10 @@ public sealed class ComponentSelectionRenderService : ISceneService
         ComponentMask mask = _selectionMode.Mode == EditorMode.Component
             ? _selectionMode.Components
             : ComponentMask.None;
+        _vertexQuad.Material = _selectionMode.XRayEnabled
+            ? _xRayVertexMaterial
+            : _vertexMaterial;
+        _edgeMaterial.NoDepthTest = _selectionMode.XRayEnabled;
         foreach (VisualEntry entry in _entries.Values)
             entry.SetVisibleComponents(mask);
 
@@ -491,6 +505,8 @@ public sealed class ComponentSelectionRenderService : ISceneService
         _edgeMaterial.Dispose();
         _vertexQuad.Material = null;
         _vertexQuad.Dispose();
+        _xRayVertexMaterial.Dispose();
+        _xRayVertexShader.Dispose();
         _vertexMaterial.Dispose();
         foreach (Shader shader in _edgeXRayShaders.Values)
             shader.Dispose();

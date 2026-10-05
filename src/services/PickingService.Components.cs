@@ -14,9 +14,10 @@ public sealed partial class PickingService
         Camera3D camera,
         Vector2 screenPosition,
         ComponentMask components,
-        float paddingPixels = DefaultComponentPaddingPixels
+        float paddingPixels = DefaultComponentPaddingPixels,
+        bool xRay = false
     ) =>
-        TryPickComponent(camera, screenPosition, components, out ComponentPickingHit hit, paddingPixels)
+        TryPickComponent(camera, screenPosition, components, out ComponentPickingHit hit, paddingPixels, xRay)
             ? hit
             : null;
 
@@ -25,7 +26,8 @@ public sealed partial class PickingService
         Vector2 screenPosition,
         ComponentMask components,
         out ComponentPickingHit hit,
-        float paddingPixels = DefaultComponentPaddingPixels
+        float paddingPixels = DefaultComponentPaddingPixels,
+        bool xRay = false
     )
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -41,14 +43,16 @@ public sealed partial class PickingService
         Vector3 paddingRayOrigin = camera.ProjectRayOrigin(paddedScreenPosition);
         Vector3 paddingRayDirection = camera.ProjectRayNormal(paddedScreenPosition).Normalized();
 
-        // The closest surface limits vertex and edge candidates to visible geometry. A small depth
-        // tolerance admits components lying on that surface without enabling through-mesh/X-ray picks.
+        // Outside X-Ray mode, the closest surface limits vertex and edge candidates to visible
+        // geometry. A small depth tolerance still admits components lying on that surface.
         bool hasSurface = TryPickNearestFace(
             rayOrigin,
             rayDirection,
             out ComponentPickingHit surfaceHit
         );
-        float visibleDistance = hasSurface ? surfaceHit.Distance : float.PositiveInfinity;
+        float visibleDistance = !xRay && hasSurface
+            ? surfaceHit.Distance
+            : float.PositiveInfinity;
 
         // Priority is categorical, not merely a distance tie-break: in Free/All mode any visible
         // padded vertex wins over an edge, and any edge wins over a face.

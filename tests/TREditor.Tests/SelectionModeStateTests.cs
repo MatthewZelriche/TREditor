@@ -147,4 +147,23 @@ public sealed class SelectionModeStateTests
             () => state.ToggleComponent(ComponentMask.Vertex | ComponentMask.Edge)
         );
     }
+
+    [Fact]
+    public void XRayNotifiesOnlyWhenItsGlobalStateChanges()
+    {
+        var state = new SelectionModeState();
+        int changedCount = 0;
+        state.Changed += () => changedCount++;
+
+        state.SetXRayEnabled(true);
+        state.SetXRayEnabled(true);
+
+        Assert.True(state.XRayEnabled);
+        Assert.Equal(1, changedCount);
+
+        state.SetXRayEnabled(false);
+
+        Assert.False(state.XRayEnabled);
+        Assert.Equal(2, changedCount);
+    }
 }

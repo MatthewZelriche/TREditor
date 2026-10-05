@@ -12,11 +12,22 @@ public sealed class SelectionModeState
 
     public ComponentMask Components { get; private set; } = ComponentMask.None;
 
+    public bool XRayEnabled { get; private set; }
+
     // True when Component mode was entered via the All path. False when any explicit
     // Vertex/Edge/Face combination is active, including all three bits together.
     public bool IsAllComponents { get; private set; }
 
     public event Action? Changed;
+
+    public void SetXRayEnabled(bool enabled)
+    {
+        if (XRayEnabled == enabled)
+            return;
+
+        XRayEnabled = enabled;
+        Changed?.Invoke();
+    }
 
     public void EnterObjectMode()
     {

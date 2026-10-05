@@ -203,6 +203,40 @@ public class ComponentSelectionTests
         AssertBool(application.Selection.Current.IsEmpty).IsFalse();
     }
 
+    [TestCase]
+    [RequireGodotRuntime]
+    public void GlobalXRaySwitchesMutedComponentsToDepthlessMaterials()
+    {
+        var tree = (SceneTree)Engine.GetMainLoop();
+        Node3D mapRoot = AutoFree(new Node3D());
+        tree.Root.AddChild(mapRoot);
+        using var application = new Application(mapRoot);
+        MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
+        application.SelectionMode.SelectAllComponents();
+        application.Update(0.0);
+
+        Node3D componentRoot = mapRoot.GetNode<Node3D>("ComponentSelection");
+        MultiMeshInstance3D vertices = componentRoot.GetNode<MultiMeshInstance3D>(
+            $"MeshObject_{id.Value}/Vertices"
+        );
+        MeshInstance3D edges = componentRoot.GetNode<MeshInstance3D>(
+            $"MeshObject_{id.Value}/Edges"
+        );
+
+        application.SelectionMode.SetXRayEnabled(true);
+
+        var vertexMaterial = (ShaderMaterial)((QuadMesh)vertices.Multimesh.Mesh).Material;
+        var edgeMaterial = (StandardMaterial3D)edges.MaterialOverride;
+        AssertBool(vertexMaterial.Shader.Code.Contains("depth_test_disabled")).IsTrue();
+        AssertBool(edgeMaterial.NoDepthTest).IsTrue();
+
+        application.SelectionMode.SetXRayEnabled(false);
+        vertexMaterial = (ShaderMaterial)((QuadMesh)vertices.Multimesh.Mesh).Material;
+        edgeMaterial = (StandardMaterial3D)edges.MaterialOverride;
+        AssertBool(vertexMaterial.Shader.Code.Contains("depth_test_disabled")).IsFalse();
+        AssertBool(edgeMaterial.NoDepthTest).IsFalse();
+    }
+
     private static void AssertStencilXRayPass(ShaderMaterial material, int reference)
     {
         AssertBool(material.NextPass is ShaderMaterial).IsTrue();

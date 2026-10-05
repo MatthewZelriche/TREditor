@@ -9,6 +9,26 @@ public class ToolsToolbarTests
 {
     [TestCase]
     [RequireGodotRuntime]
+    public void BottomBarXRayButtonControlsGlobalSelectionMode()
+    {
+        PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");
+        Root root = AutoFree(rootScene.Instantiate<Root>());
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
+
+        Application application = root.CurrentApplication!;
+        Button button = root.GetNode<Button>(
+            "UI/BottomBar/BarMargin/Controls/XRayButton"
+        );
+
+        AssertBool(application.SelectionMode.XRayEnabled).IsFalse();
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        AssertBool(application.SelectionMode.XRayEnabled).IsTrue();
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        AssertBool(application.SelectionMode.XRayEnabled).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public void PressingThePrimitiveButtonAgainReturnsToTheDefaultTool()
     {
         PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");

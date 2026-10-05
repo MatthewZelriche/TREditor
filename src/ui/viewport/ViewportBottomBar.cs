@@ -29,9 +29,11 @@ public partial class ViewportBottomBar : PanelContainer
     ];
 
     private SnapSettings? _snap;
+    private SelectionModeState? _selectionMode;
     private MenuButton _gridButton = null!;
     private MenuButton _angleButton = null!;
     private MenuButton _spaceButton = null!;
+    private Button _xRayButton = null!;
     private bool _menusConfigured;
 
     public event Action<bool>? LocalSpaceChanged;
@@ -43,30 +45,43 @@ public partial class ViewportBottomBar : PanelContainer
         _gridButton = GetNode<MenuButton>("BarMargin/Controls/GridSnapButton");
         _angleButton = GetNode<MenuButton>("BarMargin/Controls/AngleSnapButton");
         _spaceButton = GetNode<MenuButton>("BarMargin/Controls/SpaceButton");
+        _xRayButton = GetNode<Button>("BarMargin/Controls/XRayButton");
+        _xRayButton.Pressed += OnXRayPressed;
         ConfigureSpaceMenu(_spaceButton);
         TryConfigureSnapMenus();
     }
 
     public override void _ExitTree() => Unbind();
 
-    public void Bind(SnapSettings snap)
+    public void Bind(SnapSettings snap, SelectionModeState selectionMode)
     {
         ArgumentNullException.ThrowIfNull(snap);
+        ArgumentNullException.ThrowIfNull(selectionMode);
         Unbind();
         _snap = snap;
+        _selectionMode = selectionMode;
         _snap.Changed += SyncSnapMenus;
+        _selectionMode.Changed += SyncXRay;
         TryConfigureSnapMenus();
         SyncSnapMenus();
+        SyncXRay();
     }
 
     private void Unbind()
     {
-        if (_snap is null)
-            return;
-
-        _snap.Changed -= SyncSnapMenus;
+        if (_snap is not null)
+            _snap.Changed -= SyncSnapMenus;
+        if (_selectionMode is not null)
+            _selectionMode.Changed -= SyncXRay;
         _snap = null;
+        _selectionMode = null;
     }
+
+    private void OnXRayPressed() =>
+        _selectionMode?.SetXRayEnabled(!_selectionMode.XRayEnabled);
+
+    private void SyncXRay() =>
+        _xRayButton.SetPressedNoSignal(_selectionMode?.XRayEnabled ?? false);
 
     private void TryConfigureSnapMenus()
     {

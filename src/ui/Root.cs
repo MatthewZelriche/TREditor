@@ -56,7 +56,8 @@ public partial class Root : Node
         GetNode<ToolsToolbar>("UI/Toolbar/ToolbarMargin/Tools")
             .Bind(_application.SelectionMode, _application.Tools);
         GetNode<ToolSettingsSidebar>("UI/ToolSettingsSidebar").Bind(_application.Tools);
-        GetNode<ViewportBottomBar>("UI/BottomBar").Bind(_application.Snap);
+        GetNode<ViewportBottomBar>("UI/BottomBar")
+            .Bind(_application.Snap, _application.SelectionMode);
         _viewportArea = GetNode<MainViewportArea>("UI/MainViewportArea");
         _viewportArea.Bind(_application);
         _application.OperationFailed += OnOperationFailed;

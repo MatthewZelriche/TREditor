@@ -329,6 +329,17 @@ public class PickingServiceTests
             1.0f
         );
         AssertBool(hidden.HasValue).IsFalse();
+
+        ComponentPickingHit? throughMesh = pickingService.PickComponent(
+            viewport.Camera,
+            backVertex,
+            ComponentMask.Vertex,
+            paddingPixels: 1.0f,
+            xRay: true
+        );
+        AssertBool(throughMesh.HasValue).IsTrue();
+        AssertThat(throughMesh!.Value.Component.ObjectId).IsEqual(meshObject.Id);
+        AssertThat(throughMesh.Value.Component.Type).IsEqual(MeshComponentType.Vertex);
     }
 
     private static MainViewport CreateViewport()

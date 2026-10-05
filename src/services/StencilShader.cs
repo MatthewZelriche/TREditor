@@ -17,6 +17,9 @@ internal static class StencilShader
             transparent: true
         );
 
+    public static Shader CreateDepthTestDisabled(Shader source) =>
+        CreateVariant(source, "depth_test_disabled", null, transparent: true);
+
     private static Shader CreateVariant(
         Shader source,
         string? additionalRenderMode,
