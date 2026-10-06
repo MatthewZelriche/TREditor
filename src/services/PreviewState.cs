@@ -89,18 +89,6 @@ public sealed class PreviewState : ISceneService
             PreviewGeometryChanged?.Invoke(id);
     }
 
-    // Transfers ownership out of preview state without disposing the mesh. Component translate uses
-    // this to install its preview copy in the document on mouse-up.
-    public bool TryTakeMesh(MeshObjectId id, out GDMesh mesh)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!_meshes.Remove(id, out mesh!))
-            return false;
-
-        PreviewGeometryChanged?.Invoke(id);
-        return true;
-    }
-
     public void ClearMesh(MeshObjectId id)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

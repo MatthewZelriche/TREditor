@@ -53,7 +53,7 @@ public class TranslateToolTests
                 )
             )
             .IsTrue();
-        AssertBool(ReferenceEquals(committed.Mesh, cube.Mesh)).IsFalse();
+        AssertBool(ReferenceEquals(committed, cube)).IsTrue();
         AssertThat(committed.Mesh.SpatialMesh.GetVertexData(component.Slot).position)
             .IsEqual(previewed);
         AssertThat(fixture.Application.UndoDisplayName).IsEqual("Translate");

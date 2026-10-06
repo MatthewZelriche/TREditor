@@ -1,64 +1,85 @@
 using System;
 using System.Collections.Generic;
+using TRMesh.Mesh;
 
-// Swaps complete mesh copies for a component move. The document owns the installed side while this
-// command owns the detached side, allowing undo/redo and history eviction to transfer ownership
-// without sharing or double-disposing GDMesh resources.
-internal sealed class TranslateComponentsCommand : IEditorCommand, IDisposable
+// Applies component positions in place. Each execution records the sparse patch needed by the next
+// undo; redo deliberately runs the requested write again because a patch is a one-way restoration.
+internal sealed class TranslateComponentsCommand : IEditorCommand
 {
-    private readonly MeshObject[] _before;
-    private readonly MeshObject[] _after;
-    private bool _isApplied;
-    private bool _disposed;
+    private readonly ComponentVertexSelection[] _edits;
+    private readonly MeshObject[] _objects;
+    private MeshPatch[]? _undo;
 
-    internal TranslateComponentsCommand(
-        IReadOnlyList<MeshObject> before,
-        IReadOnlyList<GDMesh> replacementMeshes
-    )
+    // Each edit's Positions are the target positions of its Vertices.
+    internal TranslateComponentsCommand(IReadOnlyList<ComponentVertexSelection> edits)
     {
-        ArgumentNullException.ThrowIfNull(before);
-        ArgumentNullException.ThrowIfNull(replacementMeshes);
-        if (before.Count == 0 || before.Count != replacementMeshes.Count)
-            throw new ArgumentException("Object and mesh counts must be equal and non-zero.");
-
-        _before = [.. before];
-        _after = new MeshObject[before.Count];
-        for (int index = 0; index < before.Count; index++)
-            _after[index] = before[index] with { Mesh = replacementMeshes[index] };
+        _edits = [.. edits];
+        _objects = Array.ConvertAll(_edits, edit => edit.Object);
     }
 
     public string DisplayName => "Translate";
 
-    internal bool IsApplied => _isApplied;
-
-    public void Execute(Document document) => Swap(document, installAfter: true);
-
-    public void Undo(Document document) => Swap(document, installAfter: false);
-
-    public void Dispose()
+    public void Execute(Document document)
     {
-        if (_disposed)
-            return;
+        var patches = new MeshPatch[_edits.Length];
+        if (_undo is not null || !document.EditGeometry(_objects, () => RecordAll(patches)))
+            throw StaleError(undo: false);
 
-        _disposed = true;
-        foreach (MeshObject meshObject in _isApplied ? _before : _after)
-            meshObject.Mesh.Dispose();
+        _undo = patches;
     }
 
-    private void Swap(Document document, bool installAfter)
+    public void Undo(Document document)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        MeshObject[] expected = installAfter ? _before : _after;
-        MeshObject[] replacements = installAfter ? _after : _before;
-        if (_isApplied == installAfter || !document.ReplaceMeshes(expected, replacements))
+        MeshPatch[] undo = _undo ?? throw StaleError(undo: true);
+        if (!document.EditGeometry(_objects, () => RevertAll(undo)))
+            throw StaleError(undo: true);
+
+        _undo = null;
+    }
+
+    private void RecordAll(MeshPatch[] patches)
+    {
+        int applied = 0;
+        try
         {
-            throw new NonFatalCommandError(
-                installAfter
-                    ? "One or more selected components are missing or stale and cannot be translated."
-                    : "One or more translated components are missing or stale and cannot be restored."
-            );
+            for (; applied < patches.Length; applied++)
+                patches[applied] = Record(applied);
         }
-
-        _isApplied = installAfter;
+        catch
+        {
+            for (int index = applied - 1; index >= 0; index--)
+                _objects[index].Mesh.SpatialMesh.Revert(patches[index]);
+            throw;
+        }
     }
+
+    private void RevertAll(MeshPatch[] undo)
+    {
+        int reverted = 0;
+        try
+        {
+            for (; reverted < undo.Length; reverted++)
+                _objects[reverted].Mesh.SpatialMesh.Revert(undo[reverted]);
+        }
+        catch (Exception exception)
+        {
+            for (int index = 0; index < reverted; index++)
+                undo[index] = Record(index);
+            if (exception is InvalidOperationException)
+                throw StaleError(undo: true);
+            throw;
+        }
+    }
+
+    private MeshPatch Record(int index) =>
+        _objects[index].Mesh.SpatialMesh.Record(mesh =>
+            mesh.SetVertexPositions(_edits[index].Vertices, _edits[index].Positions)
+        );
+
+    private static NonFatalCommandError StaleError(bool undo) =>
+        new(
+            undo
+                ? "One or more translated components are missing or stale and cannot be restored."
+                : "One or more selected components are missing or stale and cannot be translated."
+        );
 }

@@ -78,7 +78,7 @@ public sealed class TranslateTool : ObjectTransformTool
             context.TranslateGizmos.EndInteraction();
             Vector3 delta = context.TranslateGizmos.ProxyTransform.Origin - GizmoStart.Origin;
             if (!delta.IsZeroApprox())
-                CommitComponents(context);
+                CommitComponents(context, delta);
         }
         finally
         {
@@ -140,7 +140,8 @@ public sealed class TranslateTool : ObjectTransformTool
             for (; created < selections.Length; created++)
             {
                 ComponentVertexSelection selection = selections[created];
-                // TODO: full mesh copy until a delta/COW mesh API exists.
+                // The preview is isolated from the authoritative mesh; only the final vertex write
+                // is recorded as a sparse patch by TranslateComponentsCommand.
                 GDMesh preview = new() { MeshData = selection.Object.Mesh.MeshData };
                 drags[created] = new ComponentDrag(selection, preview);
                 context.Preview.SetMesh(selection.Object.Id, preview);
@@ -181,43 +182,25 @@ public sealed class TranslateTool : ObjectTransformTool
         return true;
     }
 
-    private void CommitComponents(IEditorToolContext context)
+    private void CommitComponents(IEditorToolContext context, Vector3 worldDelta)
     {
         ComponentDrag[] drags = _componentDrags!;
-        var before = new MeshObject[drags.Length];
-        var replacementMeshes = new GDMesh[drags.Length];
-        int taken = 0;
-        try
+        var edits = new ComponentVertexSelection[drags.Length];
+        for (int index = 0; index < drags.Length; index++)
         {
-            for (; taken < drags.Length; taken++)
+            ComponentVertexSelection selection = drags[index].Selection;
+            if (
+                !context.Preview.TryGetMesh(selection.Object.Id, out GDMesh preview)
+                || !ReferenceEquals(preview, drags[index].Preview)
+            )
             {
-                ComponentVertexSelection selection = drags[taken].Selection;
-                if (!context.Preview.TryTakeMesh(selection.Object.Id, out GDMesh mesh))
-                    throw new InvalidOperationException("A component preview mesh is unavailable.");
-
-                before[taken] = selection.Object;
-                replacementMeshes[taken] = mesh;
+                throw new InvalidOperationException("A component preview mesh is unavailable.");
             }
-        }
-        catch
-        {
-            for (int index = 0; index < taken; index++)
-                replacementMeshes[index].Dispose();
-            throw;
+
+            edits[index] = selection with { Positions = TranslatedPositions(selection, worldDelta) };
         }
 
-        var command = new TranslateComponentsCommand(before, replacementMeshes);
-        try
-        {
-            context.Commands.Submit(command);
-            if (!command.IsApplied)
-                command.Dispose();
-        }
-        catch
-        {
-            command.Dispose();
-            throw;
-        }
+        context.Commands.Submit(new TranslateComponentsCommand(edits));
     }
 
     private static NumericsVector3[] TranslatedPositions(

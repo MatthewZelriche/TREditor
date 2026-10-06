@@ -1,13 +1,13 @@
 ## Menu Bar
 
-### File
+### File ✔️
 - [x] New
 - [x] Open...
 - [x] Save
 - [x] Save As...
 - [x] Quit
 
-### Edit
+### Edit ✔️
 - [x] Undo
 - [x] Redo
 
@@ -29,7 +29,7 @@
 - [ ] Orthographic 2D View
 - [ ] Display Wireframe Overlay
 
-## Mesh Operations
+## Mesh Operations ✔️
 
 - [x] Translation gizmo for all three component types
   - [x] TranslateTool respects Component Selection Mask

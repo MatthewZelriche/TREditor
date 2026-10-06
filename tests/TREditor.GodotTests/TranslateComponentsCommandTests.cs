@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GdUnit4;
 using Godot;
@@ -78,9 +79,8 @@ public class TranslateComponentsCommandTests
         NumericsVector3 untouched = meshObject.Mesh.SpatialMesh.GetVertexData(1).position;
         NumericsVector3 original = meshObject.Mesh.SpatialMesh.GetVertexData(0).position;
         NumericsVector3 moved = original + new NumericsVector3(2, 3, 4);
-        GDMesh movedMesh = CopyWithPositions(meshObject, [0], [moved]);
 
-        history.Submit(new TranslateComponentsCommand([meshObject], [movedMesh]));
+        history.Submit(Command((meshObject, [0], [moved])));
 
         AssertBool(document.TryGetObject(meshObject.Id, out MeshObject current)).IsTrue();
         AssertThat(current.Mesh.SpatialMesh.GetVertexData(0).position).IsEqual(moved);
@@ -91,7 +91,7 @@ public class TranslateComponentsCommandTests
         AssertThat(current.Mesh.SpatialMesh.GetVertexData(0).position).IsEqual(original);
         AssertBool(history.Redo()).IsTrue();
         AssertBool(document.TryGetObject(meshObject.Id, out current)).IsTrue();
-        AssertBool(ReferenceEquals(current.Mesh, movedMesh)).IsTrue();
+        AssertBool(ReferenceEquals(current, meshObject)).IsTrue();
         AssertThat(current.Mesh.SpatialMesh.GetVertexData(0).position).IsEqual(moved);
     }
 
@@ -106,21 +106,16 @@ public class TranslateComponentsCommandTests
         MeshObject second = AddTriangle(document);
         NumericsVector3 firstBefore = first.Mesh.SpatialMesh.GetVertexData(0).position;
         NumericsVector3 secondBefore = second.Mesh.SpatialMesh.GetVertexData(1).position;
-        GDMesh firstAfter = CopyWithPositions(
-            first,
-            [0],
-            [firstBefore + NumericsVector3.UnitX]
-        );
-        GDMesh secondAfter = CopyWithPositions(
-            second,
-            [1],
-            [secondBefore + NumericsVector3.UnitX]
-        );
         var serials = new List<long>();
         document.Changed += change => serials.Add(change.MutationSerial);
         long serial = document.MutationSerial;
 
-        history.Submit(new TranslateComponentsCommand([first, second], [firstAfter, secondAfter]));
+        history.Submit(
+            Command(
+                (first, [0], [firstBefore + NumericsVector3.UnitX]),
+                (second, [1], [secondBefore + NumericsVector3.UnitX])
+            )
+        );
 
         AssertThat(serials.Count).IsEqual(2);
         AssertThat(serials[0]).IsEqual(serial + 1);
@@ -130,33 +125,31 @@ public class TranslateComponentsCommandTests
 
     [TestCase]
     [RequireGodotRuntime]
-    public void ClearingHistoryKeepsTheInstalledMeshAlive()
+    public void ClearingHistoryKeepsAppliedPositions()
     {
         using var document = new Document();
         using var history = new CommandHistory();
         history.SetDocument(document);
         MeshObject before = AddTriangle(document);
-        GDMesh after = CopyWithPositions(before, [0], [new NumericsVector3(3, 2, 1)]);
-        history.Submit(new TranslateComponentsCommand([before], [after]));
+        history.Submit(Command((before, [0], [new NumericsVector3(3, 2, 1)])));
 
         history.Clear();
 
         AssertBool(document.TryGetObject(before.Id, out MeshObject current)).IsTrue();
-        AssertBool(ReferenceEquals(current.Mesh, after)).IsTrue();
+        AssertBool(ReferenceEquals(current, before)).IsTrue();
         AssertThat(current.Mesh.SpatialMesh.GetVertexData(0).position)
             .IsEqual(new NumericsVector3(3, 2, 1));
     }
 
     [TestCase]
     [RequireGodotRuntime]
-    public void ClearingUndoneHistoryKeepsTheRestoredMeshAlive()
+    public void ClearingUndoneHistoryKeepsRestoredPositions()
     {
         using var document = new Document();
         using var history = new CommandHistory();
         history.SetDocument(document);
         MeshObject before = AddTriangle(document);
-        GDMesh after = CopyWithPositions(before, [0], [new NumericsVector3(3, 2, 1)]);
-        history.Submit(new TranslateComponentsCommand([before], [after]));
+        history.Submit(Command((before, [0], [new NumericsVector3(3, 2, 1)])));
         AssertBool(history.Undo()).IsTrue();
 
         history.Clear();
@@ -177,26 +170,51 @@ public class TranslateComponentsCommandTests
         MeshObject first = AddTriangle(document);
         MeshObject second = AddTriangle(document);
         NumericsVector3 secondBefore = second.Mesh.SpatialMesh.GetVertexData(0).position;
-        GDMesh firstAfter = CopyWithPositions(first, [0], [NumericsVector3.UnitX]);
-        GDMesh secondAfter = CopyWithPositions(
-            second,
-            [0],
-            [secondBefore + NumericsVector3.UnitX]
-        );
         MeshObject intervening = first with
         {
             Transform = new Transform3D(Basis.Identity, Godot.Vector3.Up),
         };
         AssertBool(document.ReplaceObject(first, intervening)).IsTrue();
-        using var command = new TranslateComponentsCommand(
-            [first, second],
-            [firstAfter, secondAfter]
+        TranslateComponentsCommand command = Command(
+            (first, [0], [NumericsVector3.UnitX]),
+            (second, [0], [secondBefore + NumericsVector3.UnitX])
         );
 
         history.Submit(command);
 
         AssertBool(history.CanUndo).IsFalse();
         AssertThat(second.Mesh.SpatialMesh.GetVertexData(0).position).IsEqual(secondBefore);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void AStalePatchRejectsUndoAndRollsBackEarlierObjects()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        MeshObject first = AddTriangle(document);
+        MeshObject second = AddTriangle(document);
+        NumericsVector3 firstMoved = NumericsVector3.UnitZ;
+        NumericsVector3 secondMoved = NumericsVector3.UnitY + NumericsVector3.UnitZ;
+        history.Submit(
+            Command(
+                (first, [0], [firstMoved]),
+                (second, [2], [secondMoved])
+            )
+        );
+        second.Mesh.SetVertexPositions([1], [new NumericsVector3(2, 0, 0)]);
+        Exception? failure = null;
+        history.OperationFailed += (_, exception) => failure = exception;
+
+        AssertBool(history.Undo()).IsFalse();
+
+        AssertBool(history.CanUndo).IsTrue();
+        AssertBool(failure is NonFatalCommandError).IsTrue();
+        AssertThat(first.Mesh.SpatialMesh.GetVertexData(0).position).IsEqual(firstMoved);
+        AssertThat(second.Mesh.SpatialMesh.GetVertexData(2).position).IsEqual(secondMoved);
+        AssertThat(second.Mesh.SpatialMesh.GetVertexData(1).position)
+            .IsEqual(new NumericsVector3(2, 0, 0));
     }
 
     [TestCase]
@@ -216,15 +234,15 @@ public class TranslateComponentsCommandTests
     private static MeshObject AddTriangle(Document document) =>
         document.Add("Triangle", Transform3D.Identity, new GDMesh(CreateTriangle()));
 
-    private static GDMesh CopyWithPositions(
-        MeshObject source,
-        int[] vertices,
-        NumericsVector3[] positions
+    private static TranslateComponentsCommand Command(
+        params (MeshObject Object, int[] Vertices, NumericsVector3[] Positions)[] edits
     )
     {
-        var mesh = new GDMesh { MeshData = source.Mesh.MeshData };
-        mesh.SetVertexPositions(vertices, positions);
-        return mesh;
+        var selections = new ComponentVertexSelection[edits.Length];
+        for (int index = 0; index < edits.Length; index++)
+            selections[index] = new(edits[index].Object, edits[index].Vertices, edits[index].Positions);
+
+        return new TranslateComponentsCommand(selections);
     }
 
     private static SpatialMesh CreateTriangle()
