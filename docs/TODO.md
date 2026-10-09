@@ -39,7 +39,7 @@
 - [x] Create new Primitive
 
 ### Vertices
-- [ ] Merge
+- [x] Merge
   - Merges N vertices into either a centroid position or at First/Last vertex. Default Last.
 - [ ] Bevel
   - Bevel N selected vertices. Newly bevelled default distance is in the range of [Current Grid Snap, Shortest Maximum Bevel Distance for any selected vertex]

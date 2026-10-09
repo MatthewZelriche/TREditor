@@ -21,6 +21,8 @@ public sealed class EditorToolRegistry
 
     public IEditorTool? ActiveTool => _activeTool;
 
+    public IEditorToolContext Context => _context;
+
     public void Register(IEditorTool tool)
     {
         ArgumentNullException.ThrowIfNull(tool);

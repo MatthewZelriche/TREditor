@@ -8,12 +8,15 @@ public partial class ToolsToolbar : HBoxContainer
     private SelectionModeState? _selectionMode;
     private EditorToolRegistry? _tools;
     private Button _newPrimitiveButton = null!;
+    private Button _mergeVerticesButton = null!;
 
     public override void _Ready()
     {
-        _newPrimitiveButton = GetNode<Button>("NewPrimitiveButton");
-        _newPrimitiveButton.ToggleMode = true;
-        _newPrimitiveButton.Pressed += OnNewPrimitivePressed;
+        _newPrimitiveButton = BindToggleButton("NewPrimitiveButton", () => ToggleTool(PrimitiveTool.ToolId));
+        _mergeVerticesButton = BindToggleButton(
+            "MergeVerticesButton",
+            () => ToggleTool(MergeVerticesTool.ToolId)
+        );
     }
 
     public override void _ExitTree()
@@ -50,25 +53,45 @@ public partial class ToolsToolbar : HBoxContainer
             return;
 
         _newPrimitiveButton.Visible = _selectionMode.Mode == EditorMode.Object;
-        if (!_newPrimitiveButton.Visible && _tools?.ActiveTool?.Id == PrimitiveTool.ToolId)
-            _tools.Deactivate();
+        _mergeVerticesButton.Visible =
+            _selectionMode.Mode == EditorMode.Component
+            && _selectionMode.Components.HasFlag(ComponentMask.Vertex);
+        DeactivateIfHidden(_newPrimitiveButton, PrimitiveTool.ToolId);
+        DeactivateIfHidden(_mergeVerticesButton, MergeVerticesTool.ToolId);
     }
 
     private void SyncActiveTool()
     {
-        if (_tools is not null)
-            _newPrimitiveButton.ButtonPressed = _tools.ActiveTool?.Id == PrimitiveTool.ToolId;
+        if (_tools is null)
+            return;
+
+        _newPrimitiveButton.ButtonPressed = _tools.ActiveTool?.Id == PrimitiveTool.ToolId;
+        _mergeVerticesButton.ButtonPressed = _tools.ActiveTool?.Id == MergeVerticesTool.ToolId;
     }
 
-    private void OnNewPrimitivePressed()
+    private Button BindToggleButton(string path, Action pressed)
+    {
+        Button button = GetNode<Button>(path);
+        button.ToggleMode = true;
+        button.Pressed += pressed;
+        return button;
+    }
+
+    private void DeactivateIfHidden(Button button, string toolId)
+    {
+        if (!button.Visible && _tools?.ActiveTool?.Id == toolId)
+            _tools.Deactivate();
+    }
+
+    private void ToggleTool(string toolId)
     {
         if (_tools is null)
             return;
 
-        if (_tools.ActiveTool?.Id == PrimitiveTool.ToolId)
+        if (_tools.ActiveTool?.Id == toolId)
             _tools.Deactivate();
         else
-            _tools.Activate(PrimitiveTool.ToolId);
+            _tools.Activate(toolId);
 
         SyncActiveTool();
     }

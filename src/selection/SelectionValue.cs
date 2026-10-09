@@ -10,34 +10,47 @@ public readonly struct SelectionValue : IEquatable<SelectionValue>
         [];
     private static readonly ImmutableHashSet<MeshComponentId> NoComponents =
         [];
+    private static readonly ImmutableList<MeshComponentId> NoComponentOrder =
+        [];
 
     private readonly ImmutableHashSet<MeshObjectId>? _objectIds;
     private readonly ImmutableHashSet<MeshComponentId>? _components;
+    private readonly ImmutableList<MeshComponentId>? _componentOrder;
 
     private SelectionValue(
         ImmutableHashSet<MeshObjectId> objectIds,
-        ImmutableHashSet<MeshComponentId> components
+        ImmutableHashSet<MeshComponentId> components,
+        ImmutableList<MeshComponentId> componentOrder
     )
     {
         _objectIds = objectIds;
         _components = components;
+        _componentOrder = componentOrder;
     }
 
     public IReadOnlySet<MeshObjectId> ObjectIds => ObjectSet;
 
     public IReadOnlySet<MeshComponentId> Components => ComponentSet;
 
+    // Selection order is significant to operations such as merge-at-first/last, while Components
+    // remains a set for membership and rendering.
+    public IReadOnlyList<MeshComponentId> OrderedComponents => ComponentOrder;
+
     public bool IsEmpty => ObjectSet.Count == 0 && ComponentSet.Count == 0;
 
     public static SelectionValue Empty => default;
 
     public static SelectionValue ForObject(MeshObjectId objectId) =>
-        new(NoObjects.Add(objectId), NoComponents);
+        new(NoObjects.Add(objectId), NoComponents, NoComponentOrder);
 
     public static SelectionValue ForComponent(MeshComponentId component)
     {
         Validate(component);
-        return new SelectionValue(NoObjects, NoComponents.Add(component));
+        return new SelectionValue(
+            NoObjects,
+            NoComponents.Add(component),
+            NoComponentOrder.Add(component)
+        );
     }
 
     public static SelectionValue ForSelections(
@@ -49,13 +62,21 @@ public readonly struct SelectionValue : IEquatable<SelectionValue>
         ArgumentNullException.ThrowIfNull(components);
 
         ImmutableHashSet<MeshObjectId> objects = [.. objectIds];
-        ImmutableHashSet<MeshComponentId> meshComponents = [.. components];
-        foreach (MeshComponentId component in meshComponents)
+        var meshComponents = NoComponents;
+        var componentOrder = NoComponentOrder;
+        foreach (MeshComponentId component in components)
+        {
             Validate(component);
+            if (!meshComponents.Contains(component))
+            {
+                meshComponents = meshComponents.Add(component);
+                componentOrder = componentOrder.Add(component);
+            }
+        }
 
         return objects.Count == 0 && meshComponents.Count == 0
             ? Empty
-            : new SelectionValue(objects, meshComponents);
+            : new SelectionValue(objects, meshComponents, componentOrder);
     }
 
     public SelectionValue Toggle(MeshObjectId objectId)
@@ -63,16 +84,20 @@ public readonly struct SelectionValue : IEquatable<SelectionValue>
         ImmutableHashSet<MeshObjectId> objects = ObjectSet.Contains(objectId)
             ? ObjectSet.Remove(objectId)
             : ObjectSet.Add(objectId);
-        return Create(objects, ComponentSet);
+        return Create(objects, ComponentSet, ComponentOrder);
     }
 
     public SelectionValue Toggle(MeshComponentId component)
     {
         Validate(component);
-        ImmutableHashSet<MeshComponentId> components = ComponentSet.Contains(component)
+        bool removing = ComponentSet.Contains(component);
+        ImmutableHashSet<MeshComponentId> components = removing
             ? ComponentSet.Remove(component)
             : ComponentSet.Add(component);
-        return Create(ObjectSet, components);
+        ImmutableList<MeshComponentId> order = removing
+            ? ComponentOrder.Remove(component)
+            : ComponentOrder.Add(component);
+        return Create(ObjectSet, components, order);
     }
 
     public bool Equals(SelectionValue other) =>
@@ -101,12 +126,15 @@ public readonly struct SelectionValue : IEquatable<SelectionValue>
 
     private ImmutableHashSet<MeshComponentId> ComponentSet => _components ?? NoComponents;
 
+    private ImmutableList<MeshComponentId> ComponentOrder => _componentOrder ?? NoComponentOrder;
+
     private static SelectionValue Create(
         ImmutableHashSet<MeshObjectId> objectIds,
-        ImmutableHashSet<MeshComponentId> components
+        ImmutableHashSet<MeshComponentId> components,
+        ImmutableList<MeshComponentId> componentOrder
     ) => objectIds.Count == 0 && components.Count == 0
         ? Empty
-        : new SelectionValue(objectIds, components);
+        : new SelectionValue(objectIds, components, componentOrder);
 
     private static void Validate(MeshComponentId component)
     {

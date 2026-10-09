@@ -73,7 +73,7 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
 
     internal bool IsDefiningHeight => _phase == InteractionPhase.DefiningHeight;
 
-    public Control CreateSettingsControl() => new SettingsControl(this);
+    public Control CreateSettingsControl(IEditorToolContext _) => new SettingsControl(this);
 
     public void OnMouseDown(IEditorToolContext context, EditorMouseInput input)
     {

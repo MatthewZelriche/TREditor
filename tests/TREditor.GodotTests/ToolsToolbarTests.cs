@@ -49,4 +49,29 @@ public class ToolsToolbarTests
         AssertThat(application.Tools.ActiveTool?.Id).IsEqual(TranslateTool.ToolId);
         AssertBool(button.ButtonPressed).IsFalse();
     }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void MergeVerticesToolIsAvailableInVertexSelectionMode()
+    {
+        PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");
+        Root root = AutoFree(rootScene.Instantiate<Root>());
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
+
+        Application application = root.CurrentApplication!;
+        Button button = root.GetNode<Button>(
+            "UI/Toolbar/ToolbarMargin/Tools/MergeVerticesButton"
+        );
+
+        AssertBool(button.Visible).IsFalse();
+        application.SelectionMode.ToggleComponent(ComponentMask.Vertex);
+        AssertBool(button.Visible).IsTrue();
+
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        AssertThat(application.Tools.ActiveTool?.Id).IsEqual(MergeVerticesTool.ToolId);
+        AssertBool(button.ButtonPressed).IsTrue();
+
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        AssertThat(application.Tools.ActiveTool?.Id).IsEqual(TranslateTool.ToolId);
+    }
 }

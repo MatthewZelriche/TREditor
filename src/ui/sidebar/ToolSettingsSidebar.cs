@@ -204,7 +204,7 @@ public partial class ToolSettingsSidebar : Control
             return;
         }
 
-        Control settingsControl = provider.CreateSettingsControl()
+        Control settingsControl = provider.CreateSettingsControl(_tools.Context)
             ?? throw new InvalidOperationException(
                 "A tool settings provider returned a null control."
             );

@@ -30,7 +30,7 @@ public abstract class ToolBase : IEditorTool
             HandleObjectSelection(context, input);
     }
 
-    public abstract void OnMouseDrag(IEditorToolContext context, EditorMouseInput input);
+    public virtual void OnMouseDrag(IEditorToolContext context, EditorMouseInput input) { }
 
     public void OnMouseMove(IEditorToolContext context, EditorMouseInput input)
     {
@@ -39,7 +39,7 @@ public abstract class ToolBase : IEditorTool
         OnToolMouseMove(context, input);
     }
 
-    public abstract void OnMouseUp(IEditorToolContext context, EditorMouseInput input);
+    public virtual void OnMouseUp(IEditorToolContext context, EditorMouseInput input) { }
 
     public void Cancel(IEditorToolContext context)
     {

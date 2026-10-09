@@ -153,6 +153,21 @@ public sealed class SelectionStateTests
     }
 
     [Fact]
+    public void ComponentSelectionAlsoRetainsInsertionOrder()
+    {
+        var objectId = new MeshObjectId(5);
+        var first = new MeshComponentId(objectId, MeshComponentType.Vertex, 1);
+        var second = new MeshComponentId(objectId, MeshComponentType.Vertex, 2);
+
+        SelectionValue selection = SelectionValue.ForSelections([], [second, first, second]);
+
+        Assert.Equal([second, first], selection.OrderedComponents);
+        selection = selection.Toggle(first);
+        Assert.Equal([second], selection.OrderedComponents);
+        Assert.Equal([second, first], selection.Toggle(first).OrderedComponents);
+    }
+
+    [Fact]
     public void HoverOnlyNotifiesWhenTheComponentChanges()
     {
         var selection = new SelectionState();
