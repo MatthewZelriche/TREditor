@@ -3,4 +3,7 @@
 public interface IEditorCommandSink
 {
     void Submit(IEditorCommand command);
+
+    // Executes without publishing a recoverable failure. The caller owns how that failure is shown.
+    bool TrySubmit(IEditorCommand command, out string? failure);
 }

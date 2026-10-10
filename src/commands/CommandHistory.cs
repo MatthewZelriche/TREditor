@@ -54,10 +54,23 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
 
     public void Submit(IEditorCommand command) => Execute(command);
 
+    public bool TrySubmit(IEditorCommand command, out string? failure)
+    {
+        NonFatalCommandError? exception = TryExecute(command);
+        failure = exception?.Message;
+        return exception is null;
+    }
+
     // Executes command and, on success, takes ownership of it and invalidates the redo stack. A command
     // that fails with NonFatalCommandError leaves the history untouched. Any
     // other failure propagates; the command stays owned by the caller.
     public void Execute(IEditorCommand command)
+    {
+        if (TryExecute(command) is { } exception)
+            NotifyOperationFailed(command.DisplayName, exception);
+    }
+
+    private NonFatalCommandError? TryExecute(IEditorCommand command)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(command);
@@ -89,12 +102,10 @@ public sealed class CommandHistory : IDisposable, IEditorCommandSink
         }
 
         if (nonFatal is not null)
-        {
-            NotifyOperationFailed(command.DisplayName, nonFatal);
-            return;
-        }
+            return nonFatal;
 
         NotifyChanged();
+        return null;
     }
 
     // Reverts the most recent command and moves it to the redo stack. Returns false when there is nothing

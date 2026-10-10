@@ -8,6 +8,8 @@ public interface IEditorSelection
 
     MeshComponentId? HoveredComponent { get; }
 
+    event Action? Changed;
+
     IEditorCommand CreateCommand(SelectionValue after);
 
     void SetHoveredComponent(MeshComponentId? component);

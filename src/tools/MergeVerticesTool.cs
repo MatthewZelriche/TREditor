@@ -8,7 +8,10 @@ public enum VertexMergePosition
     Centroid,
 }
 
-public sealed partial class MergeVerticesTool : ToolBase, IEditorToolSettingsProvider
+public sealed partial class MergeVerticesTool
+    : ToolBase,
+        IEditorToolSettingsProvider,
+        IEditorToolPrimaryAction
 {
     public const string ToolId = "tool.merge_vertices";
     private VertexMergePosition _position = VertexMergePosition.Last;
@@ -28,22 +31,19 @@ public sealed partial class MergeVerticesTool : ToolBase, IEditorToolSettingsPro
             if (_position == value)
                 return;
             _position = value;
-            SettingsChanged?.Invoke();
+            PrimaryActionChanged?.Invoke();
         }
     }
 
-    private event Action? SettingsChanged;
+    public event Action? PrimaryActionChanged;
 
-    public Control CreateSettingsControl(IEditorToolContext context) =>
-        new SettingsControl(this, context);
+    public string PrimaryActionText => "Merge Selected";
 
-    internal void Merge(IEditorToolContext context)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-        context.Commands.Submit(
-            new MergeVerticesCommand(context.Selection.Current, Position, context.Selection)
-        );
-    }
+    public Control CreateSettingsControl(IEditorToolContext _) =>
+        new SettingsControl(this);
+
+    public EditorToolAction CreatePrimaryAction(IEditorToolContext context) =>
+        MergeVerticesCommand.CreateAction(context, Position);
 
     private sealed partial class SettingsControl : VBoxContainer
     {
@@ -51,7 +51,7 @@ public sealed partial class MergeVerticesTool : ToolBase, IEditorToolSettingsPro
         private readonly OptionButton _positionOption;
         private bool _syncing;
 
-        public SettingsControl(MergeVerticesTool tool, IEditorToolContext context)
+        public SettingsControl(MergeVerticesTool tool)
         {
             _tool = tool;
             AddThemeConstantOverride("separation", 8);
@@ -67,18 +67,14 @@ public sealed partial class MergeVerticesTool : ToolBase, IEditorToolSettingsPro
             _positionOption.ItemSelected += OnPositionSelected;
             AddChild(_positionOption);
 
-            var mergeButton = new Button { Text = "Merge Selected" };
-            mergeButton.Pressed += () => _tool.Merge(context);
-            AddChild(mergeButton);
-
-            _tool.SettingsChanged += Sync;
+            _tool.PrimaryActionChanged += Sync;
             Sync();
         }
 
         public override void _Notification(int what)
         {
             if (what == NotificationPredelete)
-                _tool.SettingsChanged -= Sync;
+                _tool.PrimaryActionChanged -= Sync;
         }
 
         private void Sync()

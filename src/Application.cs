@@ -311,7 +311,11 @@ public sealed class Application : IDisposable
         }
     }
 
-    private void OnCommandHistoryChanged() => CommandHistoryChanged?.Invoke();
+    private void OnCommandHistoryChanged()
+    {
+        _toolRegistry.RefreshPrimaryAction();
+        CommandHistoryChanged?.Invoke();
+    }
 
     private void OnSelectionModeChanged()
     {
@@ -324,6 +328,8 @@ public sealed class Application : IDisposable
         {
             _toolRegistry.Activate(TranslateTool.ToolId);
         }
+
+        _toolRegistry.RefreshPrimaryAction();
     }
 
     private void OnCommandHistoryOperationFailed(string operation, Exception exception) =>

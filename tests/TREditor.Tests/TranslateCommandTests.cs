@@ -181,6 +181,29 @@ public sealed class TransformCommandTests
     }
 
     [Fact]
+    public void TrySubmitReturnsRecoverableFailureWithoutPublishingIt()
+    {
+        using var document = new Document();
+        using var history = new CommandHistory();
+        history.SetDocument(document);
+        MeshObject before = document.Add("Movable", BeforeTransform, null!);
+        MeshObject after = before with { Transform = AfterTransform };
+        Assert.NotNull(document.Remove(before.Id));
+        int publishedFailures = 0;
+        history.OperationFailed += (_, _) => publishedFailures++;
+
+        bool succeeded = history.TrySubmit(
+            new TransformCommand(TransformOperation.Translate, before, after),
+            out string? failure
+        );
+
+        Assert.False(succeeded);
+        Assert.Contains("missing or stale", failure);
+        Assert.Equal(0, publishedFailures);
+        Assert.False(history.CanUndo);
+    }
+
+    [Fact]
     public void StaleExpectedOnUndoFailsWithoutMovingStacks()
     {
         using var document = new Document();

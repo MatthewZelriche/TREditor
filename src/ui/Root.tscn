@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="PackedScene" path="res://src/ui/window/WindowTitleBar.tscn" id="1_title_bar"]
 [ext_resource type="PackedScene" path="res://src/ui/window/WindowResizeHandles.tscn" id="2_resize_handles"]
@@ -59,6 +59,22 @@ bg_color = Color(0.117647, 0.12549, 0.141176, 1)
 border_width_top = 1
 border_width_bottom = 1
 border_color = Color(0.0862745, 0.0941176, 0.109804, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_warning_toast"]
+content_margin_left = 12.0
+content_margin_top = 8.0
+content_margin_right = 12.0
+content_margin_bottom = 8.0
+bg_color = Color(0.137255, 0.12549, 0.0862745, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.72549, 0.568627, 0.172549, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [sub_resource type="Environment" id="Environment_world"]
 background_mode = 1
@@ -426,6 +442,34 @@ theme_override_styles/hover_pressed = SubResource("StyleBox_mode_pressed")
 toggle_mode = true
 text = "X-Ray"
 
+[node name="WarningToast" type="PanelContainer" parent="UI"]
+visible = false
+z_index = 100
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -240.0
+offset_top = -82.0
+offset_right = 240.0
+offset_bottom = -44.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_warning_toast")
+
+[node name="WarningToastLabel" type="Label" parent="UI/WarningToast"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.929412, 0.752941, 0.27451, 1)
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="WarningToastTimer" type="Timer" parent="UI/WarningToast"]
+wait_time = 3.0
+one_shot = true
+
 [node name="WindowResizeHandles" parent="UI" instance=ExtResource("2_resize_handles")]
 layout_mode = 1
 anchors_preset = 15
@@ -433,3 +477,5 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[connection signal="timeout" from="UI/WarningToast/WarningToastTimer" to="." method="HideWarningToast"]

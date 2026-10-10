@@ -38,9 +38,10 @@ public class MergeVerticesToolTests
             [firstComponent, lastComponent]
         );
         application.Selection.Apply(selected);
-        var tool = new MergeVerticesTool();
+        application.Tools.Activate(MergeVerticesTool.ToolId);
+        var tool = (MergeVerticesTool)application.Tools.ActiveTool!;
 
-        tool.Merge(application.ToolContext);
+        AssertThat(application.Tools.TryExecutePrimaryAction()).IsNull();
 
         AssertBool(mesh.IsVertexAlive(first)).IsFalse();
         AssertBool(mesh.IsVertexAlive(last)).IsTrue();
@@ -58,12 +59,12 @@ public class MergeVerticesToolTests
         AssertBool(application.Undo()).IsTrue();
 
         tool.Position = VertexMergePosition.Centroid;
-        tool.Merge(application.ToolContext);
+        AssertThat(application.Tools.TryExecutePrimaryAction()).IsNull();
         AssertThat(mesh.GetVertexData(last).position).IsEqual(new NumericsVector3(1f, 0f, 0f));
         AssertBool(application.Undo()).IsTrue();
 
         tool.Position = VertexMergePosition.First;
-        tool.Merge(application.ToolContext);
+        AssertThat(application.Tools.TryExecutePrimaryAction()).IsNull();
         AssertBool(mesh.IsVertexAlive(first)).IsTrue();
         AssertBool(mesh.IsVertexAlive(last)).IsFalse();
         AssertThat(mesh.GetVertexData(first).position).IsEqual(NumericsVector3.Zero);
@@ -71,10 +72,14 @@ public class MergeVerticesToolTests
 
     [TestCase]
     [RequireGodotRuntime]
-    public void InvalidIslandsReportARecoverableFailureWithoutChangingTheMesh()
+    public void TopologyFailureKeepsActionEnabledAndShowsOnlyWarningToast()
     {
-        Node3D mapRoot = AutoFree(new Node3D());
-        using var application = new Application(mapRoot);
+        PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");
+        Root root = AutoFree(rootScene.Instantiate<Root>());
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
+        Application application = root.CurrentApplication!;
+        application.SelectionMode.ToggleComponent(ComponentMask.Vertex);
+        application.Tools.Activate(MergeVerticesTool.ToolId);
         var mesh = new SpatialMesh();
         int first = AddTriangle(mesh, NumericsVector3.Zero);
         int second = AddTriangle(mesh, new NumericsVector3(3f, 0f, 0f));
@@ -92,14 +97,128 @@ public class MergeVerticesToolTests
                 ]
             )
         );
-        string? failure = null;
-        application.OperationFailed += (_, exception) => failure = exception.Message;
+        int operationFailureCount = 0;
+        application.OperationFailed += (_, _) => operationFailureCount++;
+        Button actionButton = root.GetNode<Button>(
+            "UI/ToolSettingsSidebar/Panel/Margin/Contents/PrimaryActionRow/PrimaryActionButton"
+        );
 
-        new MergeVerticesTool().Merge(application.ToolContext);
+        AssertBool(actionButton.Disabled).IsFalse();
+        actionButton.EmitSignal(BaseButton.SignalName.Pressed);
 
-        AssertThat(failure).Contains("cannot be connected");
+        PanelContainer toast = root.GetNode<PanelContainer>("UI/WarningToast");
+        AssertBool(toast.Visible).IsTrue();
+        AssertThat(toast.GetNode<Label>("WarningToastLabel").Text)
+            .Contains("cannot be connected");
+        AssertBool(root.GetNode<AcceptDialog>("%FileErrorDialog").Visible).IsFalse();
+        AssertThat(operationFailureCount).IsEqual(0);
         AssertThat(mesh.VertexCount).IsEqual(6);
         AssertThat(mesh.FaceCount).IsEqual(2);
+        AssertBool(application.CanUndo).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void SidebarActionTracksSelectionReadinessAndExplainsWhyItIsDisabled()
+    {
+        PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");
+        Root root = AutoFree(rootScene.Instantiate<Root>());
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
+        Application application = root.CurrentApplication!;
+        application.SelectionMode.ToggleComponent(ComponentMask.Vertex);
+        application.Tools.Activate(MergeVerticesTool.ToolId);
+
+        ToolSettingsSidebar sidebar = root.GetNode<ToolSettingsSidebar>("UI/ToolSettingsSidebar");
+        Button actionButton = sidebar.GetNode<Button>(
+            "Panel/Margin/Contents/PrimaryActionRow/PrimaryActionButton"
+        );
+        Label warning = sidebar.GetNode<Label>(
+            "Panel/Margin/Contents/PrimaryActionRow/PrimaryActionWarning"
+        );
+
+        AssertBool(actionButton.Disabled).IsTrue();
+        AssertThat(actionButton.TooltipText)
+            .IsEqual("Select at least two vertices from one mesh.");
+        AssertBool(warning.Visible).IsTrue();
+        AssertThat(warning.Text).IsEqual("\u26A0");
+        AssertThat((int)warning.MouseFilter)
+            .IsEqual((int)Control.MouseFilterEnum.Stop);
+        AssertThat(warning.GetThemeColor("font_color")).IsEqual(new Color("e5b94b"));
+        AssertThat(warning.TooltipText).IsEqual("Select at least two vertices from one mesh.");
+
+        SpatialMesh mesh = CreateQuad(out int first, out int last);
+        MeshObject meshObject = application.CurrentDocument!.Add(
+            "Quad",
+            Transform3D.Identity,
+            new GDMesh(mesh)
+        );
+        application.Selection.Apply(
+            SelectionValue.ForSelections(
+                [],
+                [
+                    new(meshObject.Id, MeshComponentType.Vertex, first),
+                    new(meshObject.Id, MeshComponentType.Edge, 0),
+                ]
+            )
+        );
+
+        AssertBool(actionButton.Disabled).IsTrue();
+        AssertThat(warning.TooltipText).Contains("Only vertices can be merged");
+
+        application.Selection.Apply(
+            SelectionValue.ForSelections(
+                [],
+                [
+                    new(meshObject.Id, MeshComponentType.Vertex, first),
+                    new(meshObject.Id, MeshComponentType.Vertex, last),
+                ]
+            )
+        );
+
+        AssertBool(actionButton.Disabled).IsFalse();
+        AssertThat(actionButton.TooltipText).IsEqual(string.Empty);
+        AssertBool(warning.Visible).IsFalse();
+        AssertThat(warning.TooltipText).IsEqual(string.Empty);
+        actionButton.EmitSignal(BaseButton.SignalName.Pressed);
+        AssertThat(mesh.VertexCount).IsEqual(3);
+        AssertThat(application.UndoDisplayName).IsEqual("Merge Vertices");
+
+        AssertBool(application.Undo()).IsTrue();
+        using var enter = new InputEventKey
+        {
+            Keycode = Key.Enter,
+            PhysicalKeycode = Key.Enter,
+            Pressed = true,
+        };
+        root._UnhandledKeyInput(enter);
+        AssertThat(mesh.VertexCount).IsEqual(3);
+        AssertThat(application.UndoDisplayName).IsEqual("Merge Vertices");
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void EnterOnAnUnavailablePrimaryActionShowsItsReasonInAWarningToast()
+    {
+        PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");
+        Root root = AutoFree(rootScene.Instantiate<Root>());
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
+        Application application = root.CurrentApplication!;
+        application.SelectionMode.ToggleComponent(ComponentMask.Vertex);
+        application.Tools.Activate(MergeVerticesTool.ToolId);
+        using var enter = new InputEventKey
+        {
+            Keycode = Key.Enter,
+            PhysicalKeycode = Key.Enter,
+            Pressed = true,
+        };
+
+        root._UnhandledKeyInput(enter);
+
+        PanelContainer toast = root.GetNode<PanelContainer>("UI/WarningToast");
+        Label message = toast.GetNode<Label>("WarningToastLabel");
+        AssertBool(toast.Visible).IsTrue();
+        AssertThat(message.Text)
+            .IsEqual("\u26A0 Select at least two vertices from one mesh.");
         AssertBool(application.CanUndo).IsFalse();
     }
 

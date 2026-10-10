@@ -15,13 +15,18 @@ public sealed class EditorToolRegistry
     {
         ArgumentNullException.ThrowIfNull(context);
         _context = context;
+        _context.Selection.Changed += RefreshPrimaryAction;
     }
 
     public event Action? ActiveToolChanged;
 
+    public event Action? PrimaryActionChanged;
+
     public IEditorTool? ActiveTool => _activeTool;
 
     public IEditorToolContext Context => _context;
+
+    public bool HasPrimaryAction => _activeTool is IEditorToolPrimaryAction;
 
     public void Register(IEditorTool tool)
     {
@@ -87,6 +92,21 @@ public sealed class EditorToolRegistry
 
     public void MouseUp(EditorMouseInput input) => _activeTool?.OnMouseUp(_context, input);
 
+    // Null on success or when the active tool has no primary action; otherwise the warning to show.
+    public string? TryExecutePrimaryAction()
+    {
+        if (_activeTool is not IEditorToolPrimaryAction action)
+            return null;
+
+        EditorToolAction primaryAction = action.CreatePrimaryAction(_context);
+        if (primaryAction.Command is not { } command)
+            return primaryAction.UnavailableReason;
+
+        return _context.Commands.TrySubmit(command, out string? failure) ? null : failure;
+    }
+
+    internal void RefreshPrimaryAction() => PrimaryActionChanged?.Invoke();
+
     private void SetActiveTool(IEditorTool? tool)
     {
         IEditorTool? previousTool = _activeTool;
@@ -98,7 +118,11 @@ public sealed class EditorToolRegistry
         {
             // The switch completes even when the outgoing tool fails to cancel; leaving a tool that
             // already threw in charge of input would be worse than losing its cleanup.
+            if (previousTool is IEditorToolPrimaryAction previousAction)
+                previousAction.PrimaryActionChanged -= RefreshPrimaryAction;
             _activeTool = tool;
+            if (tool is IEditorToolPrimaryAction action)
+                action.PrimaryActionChanged += RefreshPrimaryAction;
             ActiveToolChanged?.Invoke();
         }
     }

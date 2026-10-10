@@ -4,8 +4,17 @@ public partial class Root
 {
     public override void _UnhandledKeyInput(InputEvent @event)
     {
-        if (@event is not InputEventKey { Pressed: true, Echo: false })
+        if (@event is not InputEventKey { Pressed: true, Echo: false } key)
             return;
+
+        if (IsEnter(key) && _application?.Tools.HasPrimaryAction == true)
+        {
+            if (_application.Tools.TryExecutePrimaryAction() is { } failure)
+                ShowWarningToast(failure);
+
+            GetViewport().SetInputAsHandled();
+            return;
+        }
 
         string? toolId = ToolForInput(@event);
         if (
@@ -24,6 +33,20 @@ public partial class Root
         _application.Tools.Activate(toolId);
         GetViewport().SetInputAsHandled();
     }
+
+    private static bool IsEnter(InputEventKey key) =>
+        key.Keycode is Key.Enter or Key.KpEnter
+        || key.PhysicalKeycode is Key.Enter or Key.KpEnter;
+
+    internal void ShowWarningToast(string message)
+    {
+        PanelContainer toast = GetNode<PanelContainer>("UI/WarningToast");
+        toast.GetNode<Label>("WarningToastLabel").Text = $"\u26A0 {message}";
+        toast.Show();
+        toast.GetNode<Timer>("WarningToastTimer").Start();
+    }
+
+    private void HideWarningToast() => GetNode<Control>("UI/WarningToast").Hide();
 
     private static string? ToolForInput(InputEvent @event)
     {

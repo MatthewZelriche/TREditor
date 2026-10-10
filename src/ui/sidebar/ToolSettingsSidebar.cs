@@ -32,6 +32,9 @@ public partial class ToolSettingsSidebar : Control
     private EditorToolRegistry? _tools;
     private Label _emptyLabel = null!;
     private VBoxContainer _settingsHost = null!;
+    private HBoxContainer _primaryActionRow = null!;
+    private Button _primaryActionButton = null!;
+    private Label _primaryActionWarning = null!;
     private Control? _settingsControl;
 
     public override void _Ready()
@@ -92,6 +95,7 @@ public partial class ToolSettingsSidebar : Control
         Unbind();
         _tools = tools;
         _tools.ActiveToolChanged += OnActiveToolChanged;
+        _tools.PrimaryActionChanged += SyncPrimaryAction;
         OnActiveToolChanged();
     }
 
@@ -175,14 +179,14 @@ public partial class ToolSettingsSidebar : Control
     private void BuildSettingsUi()
     {
         PanelContainer panel = GetNode<PanelContainer>("Panel");
-        var margin = new MarginContainer();
+        var margin = new MarginContainer { Name = "Margin" };
         margin.AddThemeConstantOverride("margin_left", 14);
         margin.AddThemeConstantOverride("margin_top", 14);
         margin.AddThemeConstantOverride("margin_right", 14);
         margin.AddThemeConstantOverride("margin_bottom", 14);
         panel.AddChild(margin);
 
-        var root = new VBoxContainer();
+        var root = new VBoxContainer { Name = "Contents" };
         root.AddThemeConstantOverride("separation", 10);
         margin.AddChild(root);
         root.AddChild(new Label { Text = "Tool Settings" });
@@ -193,41 +197,91 @@ public partial class ToolSettingsSidebar : Control
         _settingsHost = new VBoxContainer();
         _settingsHost.AddThemeConstantOverride("separation", 8);
         root.AddChild(_settingsHost);
+
+        _primaryActionRow = new HBoxContainer { Name = "PrimaryActionRow" };
+        _primaryActionRow.AddThemeConstantOverride("separation", 8);
+        _primaryActionButton = new Button
+        {
+            Name = "PrimaryActionButton",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _primaryActionButton.Pressed += OnPrimaryActionPressed;
+        _primaryActionRow.AddChild(_primaryActionButton);
+        _primaryActionWarning = new Label
+        {
+            Name = "PrimaryActionWarning",
+            Text = "\u26A0",
+            MouseFilter = MouseFilterEnum.Stop,
+            MouseDefaultCursorShape = CursorShape.Help,
+        };
+        _primaryActionWarning.AddThemeColorOverride("font_color", new Color("e5b94b"));
+        _primaryActionRow.AddChild(_primaryActionWarning);
+        root.AddChild(_primaryActionRow);
+        _primaryActionRow.Visible = false;
     }
 
     private void OnActiveToolChanged()
     {
         ClearSettingsControl();
-        if (_tools?.ActiveTool is not IEditorToolSettingsProvider provider)
+        if (_tools?.ActiveTool is IEditorToolSettingsProvider provider)
         {
-            _emptyLabel.Visible = true;
+            Control settingsControl = provider.CreateSettingsControl(_tools.Context)
+                ?? throw new InvalidOperationException(
+                    "A tool settings provider returned a null control."
+                );
+            try
+            {
+                _settingsHost.AddChild(settingsControl);
+            }
+            catch
+            {
+                settingsControl.Free();
+                throw;
+            }
+
+            _settingsControl = settingsControl;
+        }
+
+        _emptyLabel.Visible =
+            _settingsControl is null
+            && _tools?.ActiveTool is not IEditorToolPrimaryAction;
+        SyncPrimaryAction();
+    }
+
+    private void SyncPrimaryAction()
+    {
+        if (_tools?.ActiveTool is not IEditorToolPrimaryAction action)
+        {
+            _primaryActionRow.Visible = false;
             return;
         }
 
-        Control settingsControl = provider.CreateSettingsControl(_tools.Context)
-            ?? throw new InvalidOperationException(
-                "A tool settings provider returned a null control."
-            );
-        try
-        {
-            _settingsHost.AddChild(settingsControl);
-        }
-        catch
-        {
-            settingsControl.Free();
-            throw;
-        }
+        EditorToolAction primaryAction = action.CreatePrimaryAction(_tools.Context);
+        string tooltip = primaryAction.UnavailableReason ?? string.Empty;
+        _primaryActionButton.Text = action.PrimaryActionText;
+        _primaryActionButton.Disabled = primaryAction.Command is null;
+        _primaryActionButton.TooltipText = tooltip;
+        _primaryActionWarning.Visible = primaryAction.Command is null;
+        _primaryActionWarning.TooltipText = tooltip;
+        _primaryActionRow.Visible = true;
+    }
 
-        _settingsControl = settingsControl;
-        _emptyLabel.Visible = false;
+    private void OnPrimaryActionPressed()
+    {
+        if (_tools?.TryExecutePrimaryAction() is { } failure)
+            GetNode<Root>("../..").ShowWarningToast(failure);
     }
 
     private void Unbind()
     {
         if (_tools is not null)
+        {
             _tools.ActiveToolChanged -= OnActiveToolChanged;
+            _tools.PrimaryActionChanged -= SyncPrimaryAction;
+        }
 
         ClearSettingsControl();
+        _primaryActionRow.Visible = false;
         _tools = null;
     }
 

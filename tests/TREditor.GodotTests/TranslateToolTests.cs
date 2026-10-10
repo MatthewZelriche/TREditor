@@ -609,5 +609,8 @@ public class TranslateToolTests
 
         public void Submit(IEditorCommand command) =>
             throw new InvalidOperationException("The command could not be submitted.");
+
+        public bool TrySubmit(IEditorCommand command, out string? failure) =>
+            throw new InvalidOperationException("The command could not be submitted.");
     }
 }
