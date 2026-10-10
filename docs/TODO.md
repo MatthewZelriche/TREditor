@@ -49,7 +49,7 @@
 ### Edges
 - [ ] Dissolve
   - Dissolves N selected edges by repeatedly deleting those edge and merging the faces between them into a single face. 
-- [ ] Collapse
+- [x] Collapse
   - Collapses N connected edges by merging each edge's two vertices into a single vertex at the midpoint
 - [ ] Merge
   - Merge 2 edges together. 

@@ -9,6 +9,7 @@ public partial class ToolsToolbar : HBoxContainer
     private EditorToolRegistry? _tools;
     private Button _newPrimitiveButton = null!;
     private Button _mergeVerticesButton = null!;
+    private Button _collapseEdgesButton = null!;
 
     public override void _Ready()
     {
@@ -16,6 +17,10 @@ public partial class ToolsToolbar : HBoxContainer
         _mergeVerticesButton = BindToggleButton(
             "MergeVerticesButton",
             () => ToggleTool(MergeVerticesTool.ToolId)
+        );
+        _collapseEdgesButton = BindToggleButton(
+            "CollapseEdgesButton",
+            () => ToggleTool(CollapseEdgesTool.ToolId)
         );
     }
 
@@ -56,8 +61,12 @@ public partial class ToolsToolbar : HBoxContainer
         _mergeVerticesButton.Visible =
             _selectionMode.Mode == EditorMode.Component
             && _selectionMode.Components.HasFlag(ComponentMask.Vertex);
+        _collapseEdgesButton.Visible =
+            _selectionMode.Mode == EditorMode.Component
+            && _selectionMode.Components.HasFlag(ComponentMask.Edge);
         DeactivateIfHidden(_newPrimitiveButton, PrimitiveTool.ToolId);
         DeactivateIfHidden(_mergeVerticesButton, MergeVerticesTool.ToolId);
+        DeactivateIfHidden(_collapseEdgesButton, CollapseEdgesTool.ToolId);
     }
 
     private void SyncActiveTool()
@@ -67,6 +76,7 @@ public partial class ToolsToolbar : HBoxContainer
 
         _newPrimitiveButton.ButtonPressed = _tools.ActiveTool?.Id == PrimitiveTool.ToolId;
         _mergeVerticesButton.ButtonPressed = _tools.ActiveTool?.Id == MergeVerticesTool.ToolId;
+        _collapseEdgesButton.ButtonPressed = _tools.ActiveTool?.Id == CollapseEdgesTool.ToolId;
     }
 
     private Button BindToggleButton(string path, Action pressed)

@@ -14,7 +14,12 @@ public interface IEditorToolPrimaryAction
     EditorToolAction CreatePrimaryAction(IEditorToolContext context);
 
     // Tool-owned readiness changes only; selection/document refreshes are central.
-    event Action? PrimaryActionChanged;
+    // Default no-op for tools with a static primary-action label.
+    event Action? PrimaryActionChanged
+    {
+        add { }
+        remove { }
+    }
 }
 
 // Optional sidebar settings. Caller owns/frees the returned control when the tool deactivates.

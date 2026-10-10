@@ -3,22 +3,45 @@ using System.Collections.Generic;
 using TRMesh.Mesh;
 using NumericsVector3 = System.Numerics.Vector3;
 
-internal sealed class MergeVerticesCommand : IEditorCommand
+internal sealed class MergeVerticesCommand : MeshPatchCommandBase
 {
     private const string StaleSelection =
         "The selected vertices are missing or stale and cannot be merged.";
 
-    private readonly MergeVerticesPlan _plan;
-    private readonly IEditorCommand _selectionCommand;
-    private MeshPatch? _undo;
+    private readonly int[] _vertices;
+    private readonly int _target;
+    private readonly NumericsVector3 _targetPosition;
 
-    private MergeVerticesCommand(MergeVerticesPlan plan, IEditorCommand selectionCommand)
+    private MergeVerticesCommand(
+        MeshObject meshObject,
+        int[] vertices,
+        int target,
+        NumericsVector3 targetPosition,
+        IEditorSelection selection
+    )
+        : base(selection)
     {
-        _plan = plan;
-        _selectionCommand = selectionCommand;
+        Object = meshObject;
+        _vertices = vertices;
+        _target = target;
+        _targetPosition = targetPosition;
     }
 
-    public string DisplayName => "Merge Vertices";
+    public override string DisplayName => "Merge Vertices";
+
+    protected override MeshObject Object { get; }
+
+    protected override string StaleMessage => StaleSelection;
+
+    protected override MeshPatch RecordEdit() =>
+        Object.Mesh.SpatialMesh.Record(mesh =>
+            mesh.MergeVertices(_vertices, _target, _targetPosition)
+        );
+
+    protected override SelectionValue SelectionAfterEdit() =>
+        SelectionValue.ForComponent(
+            new MeshComponentId(Object.Id, MeshComponentType.Vertex, _target)
+        );
 
     internal static EditorToolAction CreateAction(
         IEditorToolContext context,
@@ -26,65 +49,16 @@ internal sealed class MergeVerticesCommand : IEditorCommand
     )
     {
         ArgumentNullException.ThrowIfNull(context);
-        try
-        {
-            MergeVerticesPlan plan = Resolve(context.Document, context.Selection.Current, position);
-            return new EditorToolAction(
-                new MergeVerticesCommand(
-                    plan,
-                    context.Selection.CreateCommand(
-                        SelectionValue.ForComponent(
-                            new MeshComponentId(
-                                plan.Object.Id,
-                                MeshComponentType.Vertex,
-                                plan.Target
-                            )
-                        )
-                    )
-                ),
-                null
-            );
-        }
-        catch (ArgumentException exception)
-        {
-            return new EditorToolAction(null, FirstLine(exception.Message));
-        }
+        return ActionOrReason(() =>
+            Resolve(context.Document, context.Selection.Current, position, context.Selection)
+        );
     }
 
-    public void Execute(Document document)
-    {
-        if (_undo is not null)
-            throw StaleError();
-
-        MeshPatch? patch = null;
-        try
-        {
-            if (!document.EditGeometry([_plan.Object], () => patch = _plan.Record()))
-                throw StaleError();
-        }
-        catch (ArgumentException exception)
-        {
-            throw new NonFatalCommandError(FirstLine(exception.Message));
-        }
-
-        _undo = patch;
-        _selectionCommand.Execute(document);
-    }
-
-    public void Undo(Document document)
-    {
-        MeshPatch patch = _undo ?? throw StaleError();
-        if (!document.EditGeometry([_plan.Object], () => _plan.Object.Mesh.SpatialMesh.Revert(patch)))
-            throw StaleError();
-
-        _undo = null;
-        _selectionCommand.Undo(document);
-    }
-
-    private static MergeVerticesPlan Resolve(
+    private static MergeVerticesCommand Resolve(
         IEditorDocumentReader document,
         SelectionValue selection,
-        VertexMergePosition position
+        VertexMergePosition position,
+        IEditorSelection editorSelection
     )
     {
         IReadOnlyList<MeshComponentId> components = selection.OrderedComponents;
@@ -132,29 +106,16 @@ internal sealed class MergeVerticesCommand : IEditorCommand
         }
 
         int target = position == VertexMergePosition.First ? vertices[0] : vertices[^1];
-        NumericsVector3 targetPosition = position == VertexMergePosition.Centroid
-            ? centroid / vertices.Length
-            : mesh.GetVertexData(target).position;
-        return new MergeVerticesPlan(meshObject, vertices, target, targetPosition);
+        NumericsVector3 targetPosition =
+            position == VertexMergePosition.Centroid
+                ? centroid / vertices.Length
+                : mesh.GetVertexData(target).position;
+        return new MergeVerticesCommand(
+            meshObject,
+            vertices,
+            target,
+            targetPosition,
+            editorSelection
+        );
     }
-
-    private static string FirstLine(string message)
-    {
-        int lineBreak = message.IndexOfAny(['\r', '\n']);
-        return lineBreak < 0 ? message : message[..lineBreak];
-    }
-
-    private static NonFatalCommandError StaleError() => new(StaleSelection);
-}
-
-internal readonly record struct MergeVerticesPlan(
-    MeshObject Object,
-    int[] Vertices,
-    int Target,
-    NumericsVector3 TargetPosition
-)
-{
-    internal MeshPatch Record() => Object.Mesh.SpatialMesh.Record(Apply);
-
-    private void Apply(SpatialMesh mesh) => mesh.MergeVertices(Vertices, Target, TargetPosition);
 }
