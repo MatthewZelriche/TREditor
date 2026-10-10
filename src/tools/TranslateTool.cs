@@ -142,7 +142,7 @@ public sealed class TranslateTool : ObjectTransformTool
                 ComponentVertexSelection selection = selections[created];
                 // The preview is isolated from the authoritative mesh; only the final vertex write
                 // is recorded as a sparse patch by TranslateComponentsCommand.
-                GDMesh preview = new() { MeshData = selection.Object.Mesh.MeshData };
+                GDMesh preview = new(selection.Object.Mesh.SpatialMesh.Clone());
                 drags[created] = new ComponentDrag(selection, preview);
                 context.Preview.SetMesh(selection.Object.Id, preview);
             }

@@ -1,7 +1,9 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using GdUnit4;
 using Godot;
+using TRMesh.Mesh;
 using static GdUnit4.Assertions;
 using NumericsVector3 = System.Numerics.Vector3;
 
@@ -68,6 +70,58 @@ public class TranslateToolTests
         AssertBool(ReferenceEquals(redone, committed)).IsTrue();
         AssertThat(redone.Mesh.SpatialMesh.GetVertexData(component.Slot).position)
             .IsEqual(previewed);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public async Task ComponentDragPreviewsAfterACollapseLeavesSparseMeshHandles()
+    {
+        using Fixture fixture = await Fixture.Create();
+        AssertBool(
+                fixture.Application.CurrentDocument!.TryGetObject(
+                    fixture.CubeId,
+                    out MeshObject cube
+                )
+            )
+            .IsTrue();
+        SpatialMesh mesh = cube.Mesh.SpatialMesh;
+        const int edge = 0;
+        HalfEdge topology = mesh.GetHalfEdgeData(edge).topology;
+        int removed = topology.SourceVertex;
+        int survivor = mesh.GetHalfEdgeData(topology.TwinHalfEdge).topology.SourceVertex;
+
+        fixture.Application.SelectionMode.ToggleComponent(ComponentMask.Edge);
+        fixture.Selection.Select(
+            new MeshComponentId(fixture.CubeId, MeshComponentType.Edge, edge)
+        );
+        fixture.Application.Tools.Activate(CollapseEdgesTool.ToolId);
+        AssertThat(fixture.Application.Tools.TryExecutePrimaryAction()).IsNull();
+        AssertBool(mesh.IsVertexAlive(removed)).IsFalse();
+        AssertBool(mesh.IsVertexAlive(survivor)).IsTrue();
+
+        fixture.Application.SelectionMode.ToggleComponent(ComponentMask.Vertex);
+        fixture.Application.Tools.Activate(TranslateTool.ToolId);
+        await ProcessFrames(3);
+        NumericsVector3 original = mesh.GetVertexData(survivor).position;
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle);
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        fixture.Application.Update(0.0);
+        await ProcessFrames(1);
+
+        AssertBool(fixture.Preview.TryGetMesh(fixture.CubeId, out GDMesh preview)).IsTrue();
+        AssertBool(preview.SpatialMesh.IsVertexAlive(removed)).IsFalse();
+        NumericsVector3 previewed = preview.SpatialMesh.GetVertexData(survivor).position;
+        AssertBool(previewed == original).IsFalse();
+        AssertBool(
+                fixture.RenderedVertices(fixture.CubeId)
+                    .Any(vertex => vertex.IsEqualApprox(ToGodot(original)))
+            )
+            .IsFalse();
+
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+        AssertThat(mesh.GetVertexData(survivor).position).IsEqual(previewed);
     }
 
     [TestCase]
@@ -475,20 +529,25 @@ public class TranslateToolTests
             await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
     }
 
+    private static Vector3 ToGodot(NumericsVector3 value) => new(value.X, value.Y, value.Z);
+
     // Everything a translate test needs: a running application with a seeded cube and cylinder, one
     // registered viewport, and the tool under test driven exactly the way the viewport drives it.
     private sealed class Fixture : IDisposable
     {
+        private readonly Node3D _mapRoot;
         private readonly MainViewport _viewport;
 
         private Fixture(
             Application application,
+            Node3D mapRoot,
             MainViewport viewport,
             MeshObjectId cubeId,
             MeshObjectId cylinderId
         )
         {
             Application = application;
+            _mapRoot = mapRoot;
             _viewport = viewport;
             CubeId = cubeId;
             CylinderId = cylinderId;
@@ -530,7 +589,7 @@ public class TranslateToolTests
             // Colliders only exist after a flush, and the ray they answer needs a physics frame.
             application.Update(0.0);
             await tree.ToSignal(tree, SceneTree.SignalName.PhysicsFrame);
-            return new Fixture(application, viewport, cubeId, cylinderId);
+            return new Fixture(application, mapRoot, viewport, cubeId, cylinderId);
         }
 
         public void Select(MeshObjectId id) => Selection.Select(id);
@@ -544,6 +603,13 @@ public class TranslateToolTests
 
         public Vector2 ScreenPositionOf(MeshObjectId id) =>
             Camera.UnprojectPosition(TransformOf(id).Origin);
+
+        public Vector3[] RenderedVertices(MeshObjectId id)
+        {
+            var instance = _mapRoot.GetNode<MeshInstance3D>($"Render/MeshObject_{id.Value}");
+            var mesh = (ArrayMesh)instance.Mesh;
+            return mesh.SurfaceGetArrays(0)[(int)Godot.Mesh.ArrayType.Vertex].AsVector3Array();
+        }
 
         public void MouseDown(Vector2 position) =>
             Application.HandleToolMouseDown(new EditorMouseInput(Camera, position));
