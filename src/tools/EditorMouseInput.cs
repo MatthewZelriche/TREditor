@@ -8,5 +8,6 @@ public readonly record struct EditorMouseInput(
     Vector2 ScreenPosition,
     bool IsShiftPressed = false,
     bool IsCtrlPressed = false,
-    bool IsAltPressed = false
+    bool IsAltPressed = false,
+    bool IsDoubleClick = false
 );

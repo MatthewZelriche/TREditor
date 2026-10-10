@@ -144,6 +144,7 @@ public class MainViewportTests
         ((SceneTree)Engine.GetMainLoop()).Root.AddChild(viewport);
         var phases = new List<string>();
         var positions = new List<Vector2>();
+        var doubleClicks = new List<bool>();
         viewport.ToolMouseDown += input => Record("down", input);
         viewport.ToolMouseDrag += input => Record("drag", input);
         viewport.ToolMouseUp += input => Record("up", input);
@@ -154,6 +155,7 @@ public class MainViewportTests
             Pressed = true,
             Position = new Vector2(10.0f, 20.0f),
             ShiftPressed = true,
+            DoubleClick = true,
         };
         viewport.HandleGuiInput(leftPress);
         AssertBool(viewport.IsToolDragging).IsTrue();
@@ -182,11 +184,13 @@ public class MainViewportTests
         AssertThat(positions[0]).IsEqual(new Vector2(10.0f, 20.0f));
         AssertThat(positions[1]).IsEqual(new Vector2(30.0f, 40.0f));
         AssertThat(positions[2]).IsEqual(new Vector2(50.0f, 60.0f));
+        AssertThat(string.Join(",", doubleClicks)).IsEqual("True,False,False");
 
         void Record(string phase, EditorMouseInput input)
         {
             phases.Add(phase);
             positions.Add(input.ScreenPosition);
+            doubleClicks.Add(input.IsDoubleClick);
             AssertThat(input.Camera).IsSame(viewport.Camera);
         }
     }

@@ -243,7 +243,8 @@ public partial class MainViewport : SubViewportContainer
             localPosition,
             modifiers.ShiftPressed,
             modifiers.CtrlPressed,
-            modifiers.AltPressed
+            modifiers.AltPressed,
+            modifiers is InputEventMouseButton { DoubleClick: true }
         );
 
     private void BeginNavigation()

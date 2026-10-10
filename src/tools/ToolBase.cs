@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 
 // Shared selection and hover behavior for editor tools.
@@ -71,7 +72,12 @@ public abstract class ToolBase : IEditorTool
         );
         context.Selection.SetHoveredComponent(componentHit?.Component);
         SelectionValue beforeComponentSelection = context.Selection.Current;
-        SelectionValue afterComponentSelection = input.IsShiftPressed
+        SelectionValue afterComponentSelection = componentHit is ComponentPickingHit loopHit
+            && input.IsDoubleClick
+            && loopHit.Component.Type == MeshComponentType.Edge
+            && context.Document.TryGetObject(loopHit.Component.ObjectId, out MeshObject meshObject)
+                ? SelectEdgeLoop(beforeComponentSelection, loopHit.Component, meshObject, input.IsShiftPressed)
+            : input.IsShiftPressed
             ? componentHit is ComponentPickingHit toggledHit
                 ? beforeComponentSelection.Toggle(toggledHit.Component)
                 : beforeComponentSelection
@@ -82,6 +88,29 @@ public abstract class ToolBase : IEditorTool
         {
             context.Commands.Submit(context.Selection.CreateCommand(afterComponentSelection));
         }
+    }
+
+    private static SelectionValue SelectEdgeLoop(
+        SelectionValue before,
+        MeshComponentId seed,
+        MeshObject meshObject,
+        bool preserveSelection
+    )
+    {
+        IReadOnlyList<int> edgeSlots = EdgeLoopSelection.Collect(
+            meshObject.Mesh.SpatialMesh,
+            seed.Slot
+        );
+        var components = preserveSelection
+            ? new List<MeshComponentId>(before.OrderedComponents)
+            : [];
+        foreach (int slot in edgeSlots)
+            components.Add(new MeshComponentId(seed.ObjectId, MeshComponentType.Edge, slot));
+
+        return SelectionValue.ForSelections(
+            preserveSelection ? before.ObjectIds : [],
+            components
+        );
     }
 
     private static void HandleObjectSelection(IEditorToolContext context, EditorMouseInput input)

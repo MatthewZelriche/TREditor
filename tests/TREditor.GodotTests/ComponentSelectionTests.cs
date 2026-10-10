@@ -4,6 +4,7 @@ using GdUnit4;
 using Godot;
 using TRMesh.Mesh;
 using static GdUnit4.Assertions;
+using NumericsVector2 = System.Numerics.Vector2;
 using NumericsVector3 = System.Numerics.Vector3;
 
 namespace TREditor.GodotTests;
@@ -11,6 +12,14 @@ namespace TREditor.GodotTests;
 [TestSuite]
 public class ComponentSelectionTests
 {
+    private static readonly NumericsVector2[] QuadUvs =
+    [
+        NumericsVector2.Zero,
+        NumericsVector2.UnitX,
+        NumericsVector2.One,
+        NumericsVector2.UnitY,
+    ];
+
     [TestCase]
     [RequireGodotRuntime]
     public async Task ComponentModeClickSelectsAComponentAndSupportsHistory()
@@ -205,6 +214,73 @@ public class ComponentSelectionTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task DoubleClickEdgeSelectsLoopAndShiftPreservesExistingSelection()
+    {
+        var tree = (SceneTree)Engine.GetMainLoop();
+        Node3D mapRoot = AutoFree(new Node3D());
+        tree.Root.AddChild(mapRoot);
+        MainViewport viewport = AutoFree(
+            new MainViewport { Position = Vector2.Zero, Size = new Vector2(640.0f, 480.0f) }
+        );
+        tree.Root.AddChild(viewport);
+        viewport.Camera.LookAtFromPosition(new Vector3(0.0f, 0.0f, 5.0f), Vector3.Zero, Vector3.Up);
+
+        using var application = new Application(mapRoot);
+        SpatialMesh grid = CreateGrid(out int[,] vertices);
+        MeshObject meshObject = application.CurrentDocument!.Add(
+            "Grid",
+            Transform3D.Identity,
+            new GDMesh(grid)
+        );
+        application.SelectionMode.ToggleComponent(ComponentMask.Edge);
+        application.Update(0.0);
+        await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+
+        Vector2 loopScreen = viewport.Camera.UnprojectPosition(Vector3.Zero);
+        application.HandleToolMouseDown(
+            new EditorMouseInput(viewport.Camera, loopScreen, IsDoubleClick: true)
+        );
+
+        int[] expectedLoop =
+        [
+            FindEdge(grid, vertices[0, 1], vertices[1, 1]),
+            FindEdge(grid, vertices[1, 1], vertices[2, 1]),
+            FindEdge(grid, vertices[2, 1], vertices[3, 1]),
+        ];
+        AssertThat(application.Selection.Current.Components.Count).IsEqual(3);
+        foreach (int slot in expectedLoop)
+        {
+            AssertBool(
+                application.Selection.Current.Components.Contains(
+                    new MeshComponentId(meshObject.Id, MeshComponentType.Edge, slot)
+                )
+            ).IsTrue();
+        }
+
+        int boundarySlot = FindEdge(grid, vertices[0, 0], vertices[0, 1]);
+        Vector2 boundaryScreen = viewport.Camera.UnprojectPosition(new Vector3(-1.5f, -0.5f, 0.0f));
+        application.HandleToolMouseDown(new EditorMouseInput(viewport.Camera, boundaryScreen));
+        application.HandleToolMouseDown(
+            new EditorMouseInput(
+                viewport.Camera,
+                loopScreen,
+                IsShiftPressed: true,
+                IsDoubleClick: true
+            )
+        );
+
+        AssertThat(application.Selection.Current.Components.Count).IsEqual(4);
+        AssertBool(
+            application.Selection.Current.Components.Contains(
+                new MeshComponentId(meshObject.Id, MeshComponentType.Edge, boundarySlot)
+            )
+        ).IsTrue();
+        AssertBool(application.Undo()).IsTrue();
+        AssertThat(application.Selection.Current.Components.Single().Slot).IsEqual(boundarySlot);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public void GlobalXRaySwitchesMutedComponentsToDepthlessMaterials()
     {
         var tree = (SceneTree)Engine.GetMainLoop();
@@ -235,6 +311,50 @@ public class ComponentSelectionTests
         edgeMaterial = (StandardMaterial3D)edges.MaterialOverride;
         AssertBool(vertexMaterial.Shader.Code.Contains("depth_test_disabled")).IsFalse();
         AssertBool(edgeMaterial.NoDepthTest).IsFalse();
+    }
+
+    private static SpatialMesh CreateGrid(out int[,] vertices)
+    {
+        var mesh = new SpatialMesh();
+        vertices = new int[4, 3];
+        for (int y = 0; y < 3; y++)
+        {
+            for (int x = 0; x < 4; x++)
+                vertices[x, y] = mesh.AddVertex(new NumericsVector3(x - 1.5f, y - 1.0f, 0.0f));
+        }
+
+        for (int y = 0; y < 2; y++)
+        {
+            for (int x = 0; x < 3; x++)
+            {
+                mesh.AddFace(
+                    [
+                        vertices[x, y],
+                        vertices[x + 1, y],
+                        vertices[x + 1, y + 1],
+                        vertices[x, y + 1],
+                    ],
+                    QuadUvs
+                );
+            }
+        }
+
+        return mesh;
+    }
+
+    private static int FindEdge(SpatialMesh mesh, int from, int to)
+    {
+        int start = mesh.GetVertexData(from).topology.OutgoingHalfEdge;
+        int halfEdge = start;
+        do
+        {
+            int twin = mesh.GetHalfEdgeData(halfEdge).topology.TwinHalfEdge;
+            if (mesh.GetHalfEdgeData(twin).topology.SourceVertex == to)
+                return System.Math.Min(halfEdge, twin);
+            halfEdge = mesh.GetHalfEdgeData(twin).topology.NextHalfEdge;
+        } while (halfEdge != start);
+
+        throw new System.InvalidOperationException($"No edge connects vertices {from} and {to}.");
     }
 
     private static void AssertStencilXRayPass(ShaderMaterial material, int reference)
