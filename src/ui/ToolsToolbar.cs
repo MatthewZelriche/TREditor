@@ -7,32 +7,22 @@ public partial class ToolsToolbar : HBoxContainer
 {
     private SelectionModeState? _selectionMode;
     private EditorToolRegistry? _tools;
-    private Button _newPrimitiveButton = null!;
-    private Button _mergeVerticesButton = null!;
-    private Button _collapseEdgesButton = null!;
-    private Button _collapseFacesButton = null!;
+    private (Button Button, string ToolId, Func<SelectionModeState, bool> Visible)[] _entries =
+        null!;
 
     public override void _Ready()
     {
-        _newPrimitiveButton = BindToggleButton("NewPrimitiveButton", () => ToggleTool(PrimitiveTool.ToolId));
-        _mergeVerticesButton = BindToggleButton(
-            "MergeVerticesButton",
-            () => ToggleTool(MergeVerticesTool.ToolId)
-        );
-        _collapseEdgesButton = BindToggleButton(
-            "CollapseEdgesButton",
-            () => ToggleTool(CollapseEdgesTool.ToolId)
-        );
-        _collapseFacesButton = BindToggleButton(
-            "CollapseFacesButton",
-            () => ToggleTool(CollapseFacesTool.ToolId)
-        );
+        _entries =
+        [
+            Entry("NewPrimitiveButton", PrimitiveTool.ToolId, mode => mode.Mode == EditorMode.Object),
+            ComponentEntry("MergeVerticesButton", MergeVerticesTool.ToolId, ComponentMask.Vertex),
+            ComponentEntry("CollapseEdgesButton", CollapseEdgesTool.ToolId, ComponentMask.Edge),
+            ComponentEntry("ExtendEdgesButton", ExtendEdgesTool.ToolId, ComponentMask.Edge),
+            ComponentEntry("CollapseFacesButton", CollapseFacesTool.ToolId, ComponentMask.Face),
+        ];
     }
 
-    public override void _ExitTree()
-    {
-        Unbind();
-    }
+    public override void _ExitTree() => Unbind();
 
     public void Bind(SelectionModeState selectionMode, EditorToolRegistry tools)
     {
@@ -62,20 +52,12 @@ public partial class ToolsToolbar : HBoxContainer
         if (_selectionMode is null)
             return;
 
-        _newPrimitiveButton.Visible = _selectionMode.Mode == EditorMode.Object;
-        _mergeVerticesButton.Visible =
-            _selectionMode.Mode == EditorMode.Component
-            && _selectionMode.Components.HasFlag(ComponentMask.Vertex);
-        _collapseEdgesButton.Visible =
-            _selectionMode.Mode == EditorMode.Component
-            && _selectionMode.Components.HasFlag(ComponentMask.Edge);
-        _collapseFacesButton.Visible =
-            _selectionMode.Mode == EditorMode.Component
-            && _selectionMode.Components.HasFlag(ComponentMask.Face);
-        DeactivateIfHidden(_newPrimitiveButton, PrimitiveTool.ToolId);
-        DeactivateIfHidden(_mergeVerticesButton, MergeVerticesTool.ToolId);
-        DeactivateIfHidden(_collapseEdgesButton, CollapseEdgesTool.ToolId);
-        DeactivateIfHidden(_collapseFacesButton, CollapseFacesTool.ToolId);
+        foreach (var (button, toolId, visible) in _entries)
+        {
+            button.Visible = visible(_selectionMode);
+            if (!button.Visible && _tools?.ActiveTool?.Id == toolId)
+                _tools.Deactivate();
+        }
     }
 
     private void SyncActiveTool()
@@ -83,24 +65,31 @@ public partial class ToolsToolbar : HBoxContainer
         if (_tools is null)
             return;
 
-        _newPrimitiveButton.ButtonPressed = _tools.ActiveTool?.Id == PrimitiveTool.ToolId;
-        _mergeVerticesButton.ButtonPressed = _tools.ActiveTool?.Id == MergeVerticesTool.ToolId;
-        _collapseEdgesButton.ButtonPressed = _tools.ActiveTool?.Id == CollapseEdgesTool.ToolId;
-        _collapseFacesButton.ButtonPressed = _tools.ActiveTool?.Id == CollapseFacesTool.ToolId;
+        foreach (var (button, toolId, _) in _entries)
+            button.ButtonPressed = _tools.ActiveTool?.Id == toolId;
     }
 
-    private Button BindToggleButton(string path, Action pressed)
+    private (Button Button, string ToolId, Func<SelectionModeState, bool> Visible) ComponentEntry(
+        string path,
+        string toolId,
+        ComponentMask mask
+    ) =>
+        Entry(
+            path,
+            toolId,
+            mode => mode.Mode == EditorMode.Component && mode.Components.HasFlag(mask)
+        );
+
+    private (Button Button, string ToolId, Func<SelectionModeState, bool> Visible) Entry(
+        string path,
+        string toolId,
+        Func<SelectionModeState, bool> visible
+    )
     {
         Button button = GetNode<Button>(path);
         button.ToggleMode = true;
-        button.Pressed += pressed;
-        return button;
-    }
-
-    private void DeactivateIfHidden(Button button, string toolId)
-    {
-        if (!button.Visible && _tools?.ActiveTool?.Id == toolId)
-            _tools.Deactivate();
+        button.Pressed += () => ToggleTool(toolId);
+        return (button, toolId, visible);
     }
 
     private void ToggleTool(string toolId)

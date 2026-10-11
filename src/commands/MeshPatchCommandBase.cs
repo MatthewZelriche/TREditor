@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TRMesh.Mesh;
 
 // Shared execute/undo for commands that record one MeshPatch on a single object,
@@ -72,5 +73,46 @@ internal abstract class MeshPatchCommandBase : IEditorCommand
         {
             return new EditorToolAction(null, FirstLine(exception.Message));
         }
+    }
+
+    internal static MeshObject RequireHomogeneousComponents(
+        IEditorDocumentReader document,
+        SelectionValue selection,
+        MeshComponentType type,
+        string staleMessage,
+        string objectsMessage,
+        string emptyMessage,
+        string wrongTypeMessage,
+        out IReadOnlyList<MeshComponentId> components,
+        int minimumCount = 1,
+        string? insufficientMessage = null
+    )
+    {
+        components = selection.OrderedComponents;
+        if (selection.ObjectIds.Count != 0)
+            throw new ArgumentException(objectsMessage);
+        if (components.Count == 0)
+            throw new ArgumentException(emptyMessage);
+        if (components.Count < minimumCount)
+            throw new ArgumentException(insufficientMessage ?? emptyMessage);
+
+        MeshComponentId first = components[0];
+        string plural = type switch
+        {
+            MeshComponentType.Vertex => "vertices",
+            MeshComponentType.Edge => "edges",
+            MeshComponentType.Face => "faces",
+            _ => "components",
+        };
+        foreach (MeshComponentId component in components)
+        {
+            if (component.Type != type)
+                throw new ArgumentException(wrongTypeMessage);
+            if (component.ObjectId != first.ObjectId)
+                throw new ArgumentException($"Selected {plural} must belong to one mesh.");
+        }
+        if (!document.TryGetObject(first.ObjectId, out MeshObject meshObject))
+            throw new ArgumentException(staleMessage);
+        return meshObject;
     }
 }

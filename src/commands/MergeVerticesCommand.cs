@@ -61,36 +61,18 @@ internal sealed class MergeVerticesCommand : MeshPatchCommandBase
         IEditorSelection editorSelection
     )
     {
-        IReadOnlyList<MeshComponentId> components = selection.OrderedComponents;
-        if (selection.ObjectIds.Count != 0)
-        {
-            throw new ArgumentException(
-                "Deselect all objects; Merge Vertices only accepts vertex selections."
-            );
-        }
-        if (components.Count < 2)
-        {
-            throw new ArgumentException(
-                components.Count == 0
-                    ? "Select at least two vertices from one mesh."
-                    : "Select at least one more vertex from the same mesh."
-            );
-        }
-
-        MeshComponentId first = components[0];
-        foreach (MeshComponentId component in components)
-        {
-            if (component.Type != MeshComponentType.Vertex)
-            {
-                throw new ArgumentException(
-                    "Only vertices can be merged; deselect all selected edges and faces."
-                );
-            }
-            if (component.ObjectId != first.ObjectId)
-                throw new ArgumentException("Selected vertices must belong to one mesh.");
-        }
-        if (!document.TryGetObject(first.ObjectId, out MeshObject meshObject))
-            throw new ArgumentException(StaleSelection);
+        MeshObject meshObject = RequireHomogeneousComponents(
+            document,
+            selection,
+            MeshComponentType.Vertex,
+            StaleSelection,
+            "Deselect all objects; Merge Vertices only accepts vertex selections.",
+            "Select at least two vertices from one mesh.",
+            "Only vertices can be merged; deselect all selected edges and faces.",
+            out IReadOnlyList<MeshComponentId> components,
+            minimumCount: 2,
+            insufficientMessage: "Select at least one more vertex from the same mesh."
+        );
 
         SpatialMesh mesh = meshObject.Mesh.SpatialMesh;
         var vertices = new int[components.Count];

@@ -194,7 +194,7 @@ public partial class ToolSettingsSidebar : Control
         _emptyLabel = new Label { Text = "No settings for the active tool." };
         root.AddChild(_emptyLabel);
 
-        _settingsHost = new VBoxContainer();
+        _settingsHost = new VBoxContainer { Name = "SettingsHost" };
         _settingsHost.AddThemeConstantOverride("separation", 8);
         root.AddChild(_settingsHost);
 

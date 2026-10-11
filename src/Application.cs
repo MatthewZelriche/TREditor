@@ -80,6 +80,7 @@ public sealed class Application : IDisposable
             _toolRegistry.Register(new PrimitiveTool());
             _toolRegistry.Register(new MergeVerticesTool(_selectionMode));
             _toolRegistry.Register(new CollapseEdgesTool(_selectionMode));
+            _toolRegistry.Register(new ExtendEdgesTool(_selectionMode));
             _toolRegistry.Register(new CollapseFacesTool(_selectionMode));
             _toolRegistry.SetDefaultTool(TranslateTool.ToolId);
             _toolRegistry.ActiveToolChanged += OnActiveToolChanged;

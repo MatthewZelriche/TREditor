@@ -55,7 +55,7 @@
   - Merge 2 edges together. 
 - [ ] Bevel
   - Bevel N Edges. Provides configurable options for: 1. Steps (number of new edges to create), 2. Shape (How angled from 0 - 90 degrees), 3. Width (How thick the bevel will be).
-- [ ] Extend
+- [x] Extend
   - Extends an open edge outward in the planar direction of where the edge is pointed. Default extend length: Grid Snap. Configurable more or less. 
 - [ ] Bridge Edges
   - Bridge N (?) edges together, optionally with interpolation and a number of intermediate steps with controls to configure the resulting shape/number of steps.

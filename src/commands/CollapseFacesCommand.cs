@@ -57,30 +57,16 @@ internal sealed class CollapseFacesCommand : MeshPatchCommandBase
         IEditorSelection editorSelection
     )
     {
-        IReadOnlyList<MeshComponentId> components = selection.OrderedComponents;
-        if (selection.ObjectIds.Count != 0)
-        {
-            throw new ArgumentException(
-                "Deselect all objects; Collapse Faces only accepts face selections."
-            );
-        }
-        if (components.Count == 0)
-            throw new ArgumentException("Select at least one face from one mesh.");
-
-        MeshComponentId first = components[0];
-        foreach (MeshComponentId component in components)
-        {
-            if (component.Type != MeshComponentType.Face)
-            {
-                throw new ArgumentException(
-                    "Only faces can be collapsed; deselect all selected vertices and edges."
-                );
-            }
-            if (component.ObjectId != first.ObjectId)
-                throw new ArgumentException("Selected faces must belong to one mesh.");
-        }
-        if (!document.TryGetObject(first.ObjectId, out MeshObject meshObject))
-            throw new ArgumentException(StaleSelection);
+        MeshObject meshObject = RequireHomogeneousComponents(
+            document,
+            selection,
+            MeshComponentType.Face,
+            StaleSelection,
+            "Deselect all objects; Collapse Faces only accepts face selections.",
+            "Select at least one face from one mesh.",
+            "Only faces can be collapsed; deselect all selected vertices and edges.",
+            out IReadOnlyList<MeshComponentId> _
+        );
         if (
             !ComponentVertexSelectionResolver.TryResolve(
                 document,

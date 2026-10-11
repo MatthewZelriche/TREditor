@@ -59,30 +59,16 @@ internal sealed class CollapseEdgesCommand : MeshPatchCommandBase
         IEditorSelection editorSelection
     )
     {
-        IReadOnlyList<MeshComponentId> components = selection.OrderedComponents;
-        if (selection.ObjectIds.Count != 0)
-        {
-            throw new ArgumentException(
-                "Deselect all objects; Collapse Edges only accepts edge selections."
-            );
-        }
-        if (components.Count == 0)
-            throw new ArgumentException("Select at least one edge from one mesh.");
-
-        MeshComponentId first = components[0];
-        foreach (MeshComponentId component in components)
-        {
-            if (component.Type != MeshComponentType.Edge)
-            {
-                throw new ArgumentException(
-                    "Only edges can be collapsed; deselect all selected vertices and faces."
-                );
-            }
-            if (component.ObjectId != first.ObjectId)
-                throw new ArgumentException("Selected edges must belong to one mesh.");
-        }
-        if (!document.TryGetObject(first.ObjectId, out MeshObject meshObject))
-            throw new ArgumentException(StaleSelection);
+        MeshObject meshObject = RequireHomogeneousComponents(
+            document,
+            selection,
+            MeshComponentType.Edge,
+            StaleSelection,
+            "Deselect all objects; Collapse Edges only accepts edge selections.",
+            "Select at least one edge from one mesh.",
+            "Only edges can be collapsed; deselect all selected vertices and faces.",
+            out IReadOnlyList<MeshComponentId> components
+        );
 
         SpatialMesh mesh = meshObject.Mesh.SpatialMesh;
         var edges = new int[components.Count];

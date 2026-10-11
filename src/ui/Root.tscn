@@ -308,6 +308,20 @@ theme_override_styles/hover = SubResource("StyleBox_mode_hover")
 theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
 text = "Collapse Edges"
 
+[node name="ExtendEdgesButton" type="Button" parent="UI/Toolbar/ToolbarMargin/Tools"]
+custom_minimum_size = Vector2(108, 28)
+layout_mode = 2
+focus_mode = 0
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.819608, 0.811765, 0.847059, 1)
+theme_override_colors/font_hover_color = Color(0.909804, 0.913725, 0.929412, 1)
+theme_override_colors/font_pressed_color = Color(0.929412, 0.956863, 0.945098, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBox_mode_normal")
+theme_override_styles/hover = SubResource("StyleBox_mode_hover")
+theme_override_styles/pressed = SubResource("StyleBox_mode_pressed")
+text = "Extend Edges"
+
 [node name="CollapseFacesButton" type="Button" parent="UI/Toolbar/ToolbarMargin/Tools"]
 custom_minimum_size = Vector2(108, 28)
 layout_mode = 2
