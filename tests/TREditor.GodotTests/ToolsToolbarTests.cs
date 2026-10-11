@@ -99,4 +99,29 @@ public class ToolsToolbarTests
         button.EmitSignal(BaseButton.SignalName.Pressed);
         AssertThat(application.Tools.ActiveTool?.Id).IsEqual(TranslateTool.ToolId);
     }
+
+    [TestCase]
+    [RequireGodotRuntime]
+    public void CollapseFacesToolIsAvailableInFaceSelectionMode()
+    {
+        PackedScene rootScene = ResourceLoader.Load<PackedScene>("res://src/ui/Root.tscn");
+        Root root = AutoFree(rootScene.Instantiate<Root>());
+        ((SceneTree)Engine.GetMainLoop()).Root.AddChild(root);
+
+        Application application = root.CurrentApplication!;
+        Button button = root.GetNode<Button>(
+            "UI/Toolbar/ToolbarMargin/Tools/CollapseFacesButton"
+        );
+
+        AssertBool(button.Visible).IsFalse();
+        application.SelectionMode.ToggleComponent(ComponentMask.Face);
+        AssertBool(button.Visible).IsTrue();
+
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        AssertThat(application.Tools.ActiveTool?.Id).IsEqual(CollapseFacesTool.ToolId);
+        AssertBool(button.ButtonPressed).IsTrue();
+
+        button.EmitSignal(BaseButton.SignalName.Pressed);
+        AssertThat(application.Tools.ActiveTool?.Id).IsEqual(TranslateTool.ToolId);
+    }
 }

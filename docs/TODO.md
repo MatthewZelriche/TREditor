@@ -71,7 +71,7 @@
   - Thickens an open face (a plane) with a desired thickness
 - [ ] Combine Faces
   - Combine N faces together by dissolving the edges between them.
-- [ ] Collapse Faces
+- [x] Collapse Faces
   - Collapse N faces together into a single midpoint vertex
 - [ ] Subdivide Faces
 - [ ] Extrude Face
