@@ -5,10 +5,10 @@
 [sub_resource type="StyleBoxFlat" id="StyleBox_sidebar"]
 bg_color = Color(0.12549, 0.137255, 0.160784, 1)
 border_width_left = 1
-border_width_right = 1
 border_color = Color(0.215686, 0.235294, 0.270588, 1)
 
 [node name="ToolSettingsSidebar" type="Control"]
+clip_contents = true
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -30,7 +30,7 @@ layout_mode = 1
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 2.0
-grow_horizontal = 2
+grow_horizontal = 0
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBox_sidebar")
 
@@ -52,7 +52,9 @@ text = "Tool Settings"
 [node name="EmptyLabel" type="Label" parent="Panel/Margin/Contents"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 text = "No settings for the active tool."
+autowrap_mode = 3
 
 [node name="SettingsHost" type="VBoxContainer" parent="Panel/Margin/Contents"]
 unique_name_in_owner = true
