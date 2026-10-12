@@ -24,6 +24,7 @@ public static class EditorInputActions
     public const string ToolTranslate = "tool_translate";
     public const string ToolRotate = "tool_rotate";
     public const string ToolScale = "tool_scale";
+    public const string EditDelete = "edit_delete";
 
     public static readonly IReadOnlyDictionary<string, KeybindingDefinition> Definitions =
         new Dictionary<string, KeybindingDefinition>(StringComparer.Ordinal)
@@ -35,6 +36,7 @@ public static class EditorInputActions
             [ToolTranslate] = new("Translate Tool", Key.T),
             [ToolRotate] = new("Rotate Tool", Key.R),
             [ToolScale] = new("Scale Tool", Key.Y),
+            [EditDelete] = new("Delete", Key.Delete),
         };
 
 }

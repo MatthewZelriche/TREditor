@@ -16,6 +16,18 @@ public partial class Root
             return;
         }
 
+        if (
+            InputMap.EventIsAction(@event, EditorInputActions.EditDelete, true)
+            && _application is not null
+        )
+        {
+            if (_application.TryDeleteSelection() is { } deleteFailure)
+                ShowWarningToast(deleteFailure);
+
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
         string? toolId = ToolForInput(@event);
         if (
             toolId is null

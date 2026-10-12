@@ -53,8 +53,8 @@ corner_radius_bottom_left = 2
 visible = false
 title = "Keybindings"
 initial_position = 2
-size = Vector2i(460, 510)
-min_size = Vector2i(420, 480)
+size = Vector2i(460, 580)
+min_size = Vector2i(420, 540)
 exclusive = true
 transient = true
 borderless = true
@@ -267,6 +267,40 @@ theme_override_styles/normal = SubResource("StyleBox_button_normal")
 theme_override_styles/hover = SubResource("StyleBox_button_hover")
 theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
 text = "Y"
+
+[node name="EditHeading" type="Label" parent="Background/Margin/Contents"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.690196, 0.854902, 0.85098, 1)
+theme_override_font_sizes/font_size = 13
+text = "EDIT"
+
+[node name="EditBindings" type="GridContainer" parent="Background/Margin/Contents"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="DeleteLabel" type="Label" parent="Background/Margin/Contents/EditBindings"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.819608, 0.811765, 0.847059, 1)
+theme_override_font_sizes/font_size = 13
+text = "Delete"
+vertical_alignment = 1
+
+[node name="DeleteButton" type="Button" parent="Background/Margin/Contents/EditBindings"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 28)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.847059, 0.858824, 0.886275, 1)
+theme_override_colors/font_hover_color = Color(0.94902, 0.956863, 0.972549, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBox_button_normal")
+theme_override_styles/hover = SubResource("StyleBox_button_hover")
+theme_override_styles/pressed = SubResource("StyleBox_button_pressed")
+text = "Delete"
 
 [node name="StatusLabel" type="Label" parent="Background/Margin/Contents"]
 unique_name_in_owner = true

@@ -166,6 +166,31 @@ public sealed class Application : IDisposable
         return _commandHistory.Redo();
     }
 
+    // Deletes the current object or component selection through command history. Always available,
+    // independent of the active tool. Null on success or when there is nothing to delete.
+    public string? TryDeleteSelection()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        SelectionValue selection = _selectionState.Current;
+        if (selection.IsEmpty || _currentDocument is null)
+            return null;
+
+        CancelActiveInteraction();
+        IEditorCommand command;
+        try
+        {
+            command = selection.ObjectIds.Count != 0
+                ? new DeleteObjectsCommand(_currentDocument, selection, _selectionState)
+                : new DeleteComponentsCommand(_currentDocument, selection, _selectionState);
+        }
+        catch (ArgumentException exception)
+        {
+            return MeshPatchCommandBase.FirstLine(exception.Message);
+        }
+
+        return _commandHistory.TrySubmit(command, out string? failure) ? null : failure;
+    }
+
     // Registers a viewport's camera and 3D overlay root so it gets its own isolated grid and gizmos.
     // The viewport area calls this as panes enter and leave; neither it nor the pane knows which
     // overlays appear.

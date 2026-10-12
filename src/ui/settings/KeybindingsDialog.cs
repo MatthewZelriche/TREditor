@@ -31,6 +31,7 @@ public partial class KeybindingsDialog : Window
         AddBindingButton(EditorInputActions.ToolTranslate, "%TranslateToolButton");
         AddBindingButton(EditorInputActions.ToolRotate, "%RotateToolButton");
         AddBindingButton(EditorInputActions.ToolScale, "%ScaleToolButton");
+        AddBindingButton(EditorInputActions.EditDelete, "%DeleteButton");
 
         GetNode<Button>("%ResetButton").Pressed += ResetDefaults;
         GetNode<Button>("%CloseButton").Pressed += CloseDialog;
