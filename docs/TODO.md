@@ -69,7 +69,7 @@
   - Bridge 2 Faces together, optionally with interpolation and a number of intermediate steps with controls to configure the resulting shape/number of steps. Faces must have the same number of edges.
 - [ ] Thicken Face
   - Thickens an open face (a plane) with a desired thickness
-- [ ] Combine Faces
+- [x] Combine Faces
   - Combine N faces together by dissolving the edges between them.
 - [x] Collapse Faces
   - Collapse N faces together into a single midpoint vertex
