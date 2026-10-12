@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using TRMesh.Mesh;
 using NumericsVector3 = System.Numerics.Vector3;
 
 // Moves selected objects or mesh components with the viewport gizmos. Object drags use the shared
@@ -10,6 +11,7 @@ public sealed class TranslateTool : ObjectTransformTool
     public const string ToolId = "tool.translate";
 
     private ComponentDrag[]? _componentDrags;
+    private ExtrusionDrag? _extrusionDrag;
 
     public TranslateTool(SelectionModeState? selectionMode = null)
         : base(TransformOperation.Translate, selectionMode)
@@ -22,7 +24,7 @@ public sealed class TranslateTool : ObjectTransformTool
 
     protected override void OnPreMouseDown(IEditorToolContext context, EditorMouseInput input)
     {
-        if (_componentDrags is not null)
+        if (_componentDrags is not null || _extrusionDrag is not null)
             Cancel(context);
         else
             base.OnPreMouseDown(context, input);
@@ -30,11 +32,15 @@ public sealed class TranslateTool : ObjectTransformTool
 
     protected override bool TryBeginInteraction(IEditorToolContext context, EditorMouseInput input)
     {
+        if (SelectionMode?.Mode == EditorMode.Component)
+        {
+            if (input.IsShiftPressed)
+                return TryBeginExtrusion(context, input);
+            return TryBeginComponentInteraction(context, input, context.Selection.Current.Components);
+        }
+
         if (input.IsShiftPressed)
             return false;
-
-        if (SelectionMode?.Mode == EditorMode.Component)
-            return TryBeginComponentInteraction(context, input, context.Selection.Current.Components);
 
         return base.TryBeginInteraction(context, input);
     }
@@ -42,6 +48,11 @@ public sealed class TranslateTool : ObjectTransformTool
     public override void OnMouseDrag(IEditorToolContext context, EditorMouseInput input)
     {
         ArgumentNullException.ThrowIfNull(context);
+        if (_extrusionDrag is not null)
+        {
+            UpdateExtrusionDrag(context, input);
+            return;
+        }
         if (_componentDrags is null)
         {
             base.OnMouseDrag(context, input);
@@ -64,6 +75,11 @@ public sealed class TranslateTool : ObjectTransformTool
     public override void OnMouseUp(IEditorToolContext context, EditorMouseInput input)
     {
         ArgumentNullException.ThrowIfNull(context);
+        if (_extrusionDrag is not null)
+        {
+            FinishExtrusionDrag(context, input);
+            return;
+        }
         if (_componentDrags is null)
         {
             base.OnMouseUp(context, input);
@@ -88,7 +104,9 @@ public sealed class TranslateTool : ObjectTransformTool
 
     protected override void OnCancel(IEditorToolContext context)
     {
-        if (_componentDrags is not null)
+        if (_extrusionDrag is not null)
+            CleanUpExtrusion(context);
+        else if (_componentDrags is not null)
             CleanUpComponents(context);
         else
             base.OnCancel(context);
@@ -160,6 +178,126 @@ public sealed class TranslateTool : ObjectTransformTool
         return true;
     }
 
+    private bool TryBeginExtrusion(IEditorToolContext context, EditorMouseInput input)
+    {
+        FaceExtrusionPlan plan;
+        try
+        {
+            plan = ExtrudeFacesCommand.ResolvePlan(
+                context.Document,
+                context.Selection.Current
+            );
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        if (!context.TranslateGizmos.BeginInteraction(input.Camera!, input.ScreenPosition))
+            return false;
+
+        GDMesh? preview = null;
+        bool transferred = false;
+        try
+        {
+            preview = new GDMesh(plan.Object.Mesh.SpatialMesh.Clone());
+            FaceExtrusion extrusion = preview.SpatialMesh.ExtrudeFaces(
+                plan.Faces,
+                NumericsVector3.Zero
+            );
+            var positions = new NumericsVector3[extrusion.Vertices.Length];
+            for (int index = 0; index < positions.Length; index++)
+            {
+                positions[index] = preview.SpatialMesh.GetVertexData(
+                    extrusion.Vertices[index]
+                ).position;
+            }
+
+            context.Preview.SetMesh(plan.Object.Id, preview);
+            transferred = true;
+            _extrusionDrag = new ExtrusionDrag(plan, preview, extrusion.Vertices, positions);
+            BeginDrag(before: null, input.Camera, context.TranslateGizmos.ProxyTransform);
+            return true;
+        }
+        catch
+        {
+            if (!transferred)
+                preview?.Dispose();
+            context.TranslateGizmos.CancelAndSynchronize();
+            throw;
+        }
+    }
+
+    private void UpdateExtrusionDrag(IEditorToolContext context, EditorMouseInput input)
+    {
+        if (
+            !ReferenceEquals(input.Camera, SourceCamera)
+            || !context.TranslateGizmos.UpdateInteraction(input.Camera!, input.ScreenPosition)
+        )
+        {
+            return;
+        }
+
+        ExtrusionDrag drag = _extrusionDrag!;
+        if (
+            !context.Preview.TryGetMesh(drag.Plan.Object.Id, out GDMesh preview)
+            || !ReferenceEquals(preview, drag.Preview)
+        )
+        {
+            CleanUpExtrusion(context);
+            return;
+        }
+
+        Vector3 worldDelta = context.TranslateGizmos.ProxyTransform.Origin - GizmoStart.Origin;
+        preview.SetVertexPositions(
+            drag.CapVertices,
+            OffsetPositions(drag.StartPositions, drag.Plan.Object.Transform, worldDelta)
+        );
+        context.Preview.RefreshMesh(drag.Plan.Object.Id);
+    }
+
+    private void FinishExtrusionDrag(IEditorToolContext context, EditorMouseInput input)
+    {
+        if (!ReferenceEquals(input.Camera, SourceCamera))
+            return;
+
+        try
+        {
+            context.TranslateGizmos.EndInteraction();
+            Vector3 worldDelta =
+                context.TranslateGizmos.ProxyTransform.Origin - GizmoStart.Origin;
+            if (!worldDelta.IsZeroApprox())
+            {
+                context.Commands.Submit(
+                    ExtrudeFacesCommand.Create(
+                        _extrusionDrag!.Plan,
+                        worldDelta,
+                        context.Selection
+                    )
+                );
+            }
+        }
+        finally
+        {
+            CleanUpExtrusion(context);
+        }
+    }
+
+    private void CleanUpExtrusion(IEditorToolContext context)
+    {
+        ExtrusionDrag? drag = _extrusionDrag;
+        _extrusionDrag = null;
+        try
+        {
+            if (drag is not null)
+                context.Preview.ClearMesh(drag.Plan.Object.Id);
+        }
+        finally
+        {
+            CleanUpObjectDrag(context);
+        }
+    }
+
     private bool UpdateComponentPreviews(IEditorToolContext context, Vector3 worldDelta)
     {
         foreach (ComponentDrag drag in _componentDrags!)
@@ -206,15 +344,28 @@ public sealed class TranslateTool : ObjectTransformTool
     private static NumericsVector3[] TranslatedPositions(
         ComponentVertexSelection selection,
         Vector3 worldDelta
+    ) => OffsetPositions(selection.Positions, selection.Object.Transform, worldDelta);
+
+    private static NumericsVector3[] OffsetPositions(
+        NumericsVector3[] start,
+        Transform3D transform,
+        Vector3 worldDelta
     )
     {
-        Vector3 localDelta = selection.Object.Transform.Basis.Inverse() * worldDelta;
-        var positions = new NumericsVector3[selection.Positions.Length];
+        Vector3 localDelta = transform.Basis.Inverse() * worldDelta;
+        var positions = new NumericsVector3[start.Length];
         var numericDelta = new NumericsVector3(localDelta.X, localDelta.Y, localDelta.Z);
         for (int index = 0; index < positions.Length; index++)
-            positions[index] = selection.Positions[index] + numericDelta;
+            positions[index] = start[index] + numericDelta;
         return positions;
     }
 
     private sealed record ComponentDrag(ComponentVertexSelection Selection, GDMesh Preview);
+
+    private sealed record ExtrusionDrag(
+        FaceExtrusionPlan Plan,
+        GDMesh Preview,
+        int[] CapVertices,
+        NumericsVector3[] StartPositions
+    );
 }

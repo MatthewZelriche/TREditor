@@ -74,6 +74,58 @@ public class TranslateToolTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task ShiftDraggingASelectedFaceExtrudesWithAStablePreview()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Application.SelectionMode.ToggleComponent(ComponentMask.Face);
+        var face = new MeshComponentId(fixture.CubeId, MeshComponentType.Face, 5);
+        fixture.Selection.Select(face);
+        await ProcessFrames(3);
+        AssertBool(
+                fixture.Application.CurrentDocument!.TryGetObject(
+                    fixture.CubeId,
+                    out MeshObject cube
+                )
+            )
+            .IsTrue();
+        SpatialMesh mesh = cube.Mesh.SpatialMesh;
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle, shiftPressed: true);
+
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsTrue();
+        AssertBool(fixture.Preview.TryGetMesh(fixture.CubeId, out GDMesh initialPreview))
+            .IsTrue();
+        AssertThat(initialPreview.SpatialMesh.VertexCount).IsEqual(12);
+        AssertThat(initialPreview.SpatialMesh.FaceCount).IsEqual(10);
+        AssertThat(mesh.VertexCount).IsEqual(8);
+        AssertThat(mesh.FaceCount).IsEqual(6);
+
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        fixture.Application.Update(0.0);
+        await ProcessFrames(1);
+        AssertBool(fixture.Preview.TryGetMesh(fixture.CubeId, out GDMesh movedPreview))
+            .IsTrue();
+        AssertBool(ReferenceEquals(initialPreview, movedPreview)).IsTrue();
+
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        AssertBool(fixture.Preview.TryGetMesh(fixture.CubeId, out _)).IsFalse();
+        AssertThat(mesh.VertexCount).IsEqual(12);
+        AssertThat(mesh.FaceCount).IsEqual(10);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Extrude Faces");
+        AssertThat(fixture.Selection.Current.Components.Count).IsEqual(1);
+        AssertBool(fixture.Application.Undo()).IsTrue();
+        AssertThat(mesh.VertexCount).IsEqual(8);
+        AssertThat(mesh.FaceCount).IsEqual(6);
+        AssertBool(fixture.Selection.Current.Components.Contains(face)).IsTrue();
+        AssertBool(fixture.Application.Redo()).IsTrue();
+        AssertThat(mesh.VertexCount).IsEqual(12);
+        AssertThat(mesh.FaceCount).IsEqual(10);
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task ComponentDragPreviewsAfterACollapseLeavesSparseMeshHandles()
     {
         using Fixture fixture = await Fixture.Create();

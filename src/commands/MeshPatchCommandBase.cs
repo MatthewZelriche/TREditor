@@ -25,6 +25,16 @@ internal abstract class MeshPatchCommandBase : IEditorCommand
 
     protected abstract SelectionValue SelectionAfterEdit();
 
+    protected SelectionValue SelectionForComponents(MeshComponentType type, int[] slots)
+    {
+        var selected = new MeshComponentId[slots.Length];
+        for (int index = 0; index < selected.Length; index++)
+        {
+            selected[index] = new MeshComponentId(Object.Id, type, slots[index]);
+        }
+        return SelectionValue.ForSelections([], selected);
+    }
+
     public void Execute(Document document)
     {
         if (_undo is not null)

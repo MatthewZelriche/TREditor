@@ -74,7 +74,7 @@
 - [x] Collapse Faces
   - Collapse N faces together into a single midpoint vertex
 - [ ] Subdivide Faces
-- [ ] Extrude Face
+- [x] Extrude Face
 - [ ] Inset Bevel Face Island
 - [ ] Select Face Loop
 - [ ] Grow/Shrink Selection

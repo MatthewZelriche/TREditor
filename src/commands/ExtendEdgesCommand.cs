@@ -46,20 +46,8 @@ internal sealed class ExtendEdgesCommand : MeshPatchCommandBase
     protected override MeshPatch RecordEdit() =>
         Object.Mesh.SpatialMesh.Record(Extend);
 
-    protected override SelectionValue SelectionAfterEdit()
-    {
-        var selected = new MeshComponentId[_outerEdges.Length];
-        for (int index = 0; index < selected.Length; index++)
-        {
-            selected[index] = new MeshComponentId(
-                Object.Id,
-                MeshComponentType.Edge,
-                _outerEdges[index]
-            );
-        }
-
-        return SelectionValue.ForSelections([], selected);
-    }
+    protected override SelectionValue SelectionAfterEdit() =>
+        SelectionForComponents(MeshComponentType.Edge, _outerEdges);
 
     internal static EditorToolAction CreateAction(IEditorToolContext context, float length)
     {
@@ -104,7 +92,7 @@ internal sealed class ExtendEdgesCommand : MeshPatchCommandBase
         float length
     )
     {
-        if (!float.IsFinite(length) || length < ExtendEdgesTool.MinimumLength)
+        if (!float.IsFinite(length) || length < LengthToolBase.MinimumLength)
             throw new ArgumentException("Extend length must be a positive finite value.");
 
         MeshObject meshObject = RequireHomogeneousComponents(
