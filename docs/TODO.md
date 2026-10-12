@@ -47,8 +47,8 @@
   - Select two vertices or more vertices in sequence. Selects the entire loop  of vertices beloning to those selected vertices
 
 ### Edges
-- [ ] Dissolve
-  - Dissolves N selected edges by repeatedly deleting those edge and merging the faces between them into a single face. 
+- [x] Dissolve
+  - Dissolves N selected edges by deleting those edges and merging the faces between them into a single face.
 - [x] Collapse
   - Collapses N connected edges by merging each edge's two vertices into a single vertex at the midpoint
 - [ ] Merge

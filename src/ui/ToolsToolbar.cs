@@ -17,6 +17,7 @@ public partial class ToolsToolbar : HBoxContainer
             Entry("NewPrimitiveButton", PrimitiveTool.ToolId, mode => mode.Mode == EditorMode.Object),
             ComponentEntry("MergeVerticesButton", MergeVerticesTool.ToolId, ComponentMask.Vertex),
             ComponentEntry("CollapseEdgesButton", CollapseEdgesTool.ToolId, ComponentMask.Edge),
+            ComponentEntry("DissolveEdgesButton", DissolveEdgesTool.ToolId, ComponentMask.Edge),
             ComponentEntry("ExtendEdgesButton", ExtendEdgesTool.ToolId, ComponentMask.Edge),
             ComponentEntry("CollapseFacesButton", CollapseFacesTool.ToolId, ComponentMask.Face),
             ComponentEntry("ExtrudeFacesButton", ExtrudeFacesTool.ToolId, ComponentMask.Face),
