@@ -7,7 +7,7 @@ public sealed class SnapSettingsTests
     {
         var settings = new SnapSettings();
 
-        Assert.Equal(16.0f, settings.GridSnap);
+        Assert.Equal(1.0f, settings.GridSnap);
         Assert.Null(settings.AngleSnap);
     }
 
@@ -18,7 +18,7 @@ public sealed class SnapSettingsTests
         int changedCount = 0;
         settings.Changed += () => changedCount++;
 
-        settings.SetGridSnap(16.0f);
+        settings.SetGridSnap(1.0f);
         settings.SetGridSnap(4.0f);
         settings.SetGridSnap(null);
 

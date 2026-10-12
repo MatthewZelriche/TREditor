@@ -3,7 +3,7 @@ using System;
 // Editor-wide snap increments shared by the bottom-bar UI and tools. Null means snapping is off.
 public sealed class SnapSettings
 {
-    public float? GridSnap { get; private set; } = 16.0f;
+    public float? GridSnap { get; private set; } = 1.0f;
 
     public float? AngleSnap { get; private set; }
 

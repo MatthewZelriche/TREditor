@@ -8,13 +8,13 @@ public partial class ViewportBottomBar : PanelContainer
     private static readonly (string Label, float? Value)[] GridSnapOptions =
     [
         ("Off", null),
+        ("0.125", 0.125f),
+        ("0.25", 0.25f),
+        ("0.5", 0.5f),
         ("1", 1.0f),
         ("2", 2.0f),
         ("4", 4.0f),
         ("8", 8.0f),
-        ("16", 16.0f),
-        ("32", 32.0f),
-        ("64", 64.0f),
     ];
 
     private static readonly (string Label, float? Value)[] AngleSnapOptions =
