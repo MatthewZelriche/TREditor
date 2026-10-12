@@ -1,0 +1,30 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/toolsettings/LengthToolSettings.cs" id="1_script"]
+
+[node name="LengthToolSettings" type="VBoxContainer"]
+theme_override_constants/separation = 8
+script = ExtResource("1_script")
+
+[node name="Title" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Length"
+
+[node name="LengthRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="LengthLabel" type="Label" parent="LengthRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Length"
+
+[node name="LengthSpin" type="SpinBox" parent="LengthRow"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.001
+max_value = 1e+06
+step = 0.001
+allow_greater = true
+
+[connection signal="value_changed" from="LengthRow/LengthSpin" to="." method="OnLengthChanged"]

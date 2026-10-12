@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ui/toolsettings/MergeVerticesSettings.cs" id="1_script"]
+
+[node name="MergeVerticesSettings" type="VBoxContainer"]
+theme_override_constants/separation = 8
+script = ExtResource("1_script")
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 2
+text = "Merge Vertices"
+
+[node name="PositionOption" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+selected = 1
+item_count = 3
+popup/item_0/text = "First"
+popup/item_0/id = 0
+popup/item_1/text = "Last"
+popup/item_1/id = 1
+popup/item_2/text = "Centroid"
+popup/item_2/id = 2
+
+[connection signal="item_selected" from="PositionOption" to="." method="OnPositionSelected"]

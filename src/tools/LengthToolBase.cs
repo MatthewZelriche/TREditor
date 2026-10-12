@@ -2,6 +2,7 @@ using System;
 using Godot;
 
 // Shared length setting + primary action wiring for tools that apply a world-space length.
+// TODO: Don't like this class, will have to think of something else for this. 
 public abstract partial class LengthToolBase
     : ToolBase,
         IEditorToolSettingsProvider,

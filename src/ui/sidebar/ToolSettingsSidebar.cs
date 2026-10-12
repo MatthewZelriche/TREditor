@@ -43,7 +43,12 @@ public partial class ToolSettingsSidebar : Control
         _adjacentContent = GetNode<Control>(AdjacentContentPath);
         _toggleButton = GetNode<Button>(ToggleButtonPath);
         _resizeHandle = GetNode<Control>("ResizeHandle");
-        BuildSettingsUi();
+        _emptyLabel = GetNode<Label>("%EmptyLabel");
+        _settingsHost = GetNode<VBoxContainer>("%SettingsHost");
+        _primaryActionRow = GetNode<HBoxContainer>("%PrimaryActionRow");
+        _primaryActionButton = GetNode<Button>("%PrimaryActionButton");
+        _primaryActionWarning = GetNode<Label>("%PrimaryActionWarning");
+        _primaryActionWarning.AddThemeColorOverride("font_color", new Color("e5b94b"));
 
         _sidebarWidth = GetDefaultWidth();
         _toggleButton.Pressed += Toggle;
@@ -173,51 +178,6 @@ public partial class ToolSettingsSidebar : Control
                 _layoutParent.Size.X - MinimumAdjacentContentWidth - SeparatorWidth
             )
         );
-    }
-
-    // Creates the initial container for tool settings - tools provide the contents themselves
-    private void BuildSettingsUi()
-    {
-        PanelContainer panel = GetNode<PanelContainer>("Panel");
-        var margin = new MarginContainer { Name = "Margin" };
-        margin.AddThemeConstantOverride("margin_left", 14);
-        margin.AddThemeConstantOverride("margin_top", 14);
-        margin.AddThemeConstantOverride("margin_right", 14);
-        margin.AddThemeConstantOverride("margin_bottom", 14);
-        panel.AddChild(margin);
-
-        var root = new VBoxContainer { Name = "Contents" };
-        root.AddThemeConstantOverride("separation", 10);
-        margin.AddChild(root);
-        root.AddChild(new Label { Text = "Tool Settings" });
-
-        _emptyLabel = new Label { Text = "No settings for the active tool." };
-        root.AddChild(_emptyLabel);
-
-        _settingsHost = new VBoxContainer { Name = "SettingsHost" };
-        _settingsHost.AddThemeConstantOverride("separation", 8);
-        root.AddChild(_settingsHost);
-
-        _primaryActionRow = new HBoxContainer { Name = "PrimaryActionRow" };
-        _primaryActionRow.AddThemeConstantOverride("separation", 8);
-        _primaryActionButton = new Button
-        {
-            Name = "PrimaryActionButton",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        _primaryActionButton.Pressed += OnPrimaryActionPressed;
-        _primaryActionRow.AddChild(_primaryActionButton);
-        _primaryActionWarning = new Label
-        {
-            Name = "PrimaryActionWarning",
-            Text = "\u26A0",
-            MouseFilter = MouseFilterEnum.Stop,
-            MouseDefaultCursorShape = CursorShape.Help,
-        };
-        _primaryActionWarning.AddThemeColorOverride("font_color", new Color("e5b94b"));
-        _primaryActionRow.AddChild(_primaryActionWarning);
-        root.AddChild(_primaryActionRow);
-        _primaryActionRow.Visible = false;
     }
 
     private void OnActiveToolChanged()

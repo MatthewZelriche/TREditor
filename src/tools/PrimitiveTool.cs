@@ -67,13 +67,14 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
         }
     }
 
-    private event Action? SettingsChanged;
+    internal event Action? SettingsChanged;
 
     internal bool IsDefiningBase => _phase == InteractionPhase.DefiningBase;
 
     internal bool IsDefiningHeight => _phase == InteractionPhase.DefiningHeight;
 
-    public Control CreateSettingsControl(IEditorToolContext _) => new SettingsControl(this);
+    public Control CreateSettingsControl(IEditorToolContext _) =>
+        PrimitiveToolSettings.Create(this);
 
     public void OnMouseDown(IEditorToolContext context, EditorMouseInput input)
     {
@@ -394,83 +395,5 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
         DefiningBase,
         DefiningHeight,
     }
-
-    // The tool-specific settings UI lives with the tool. The sidebar treats this as an opaque
-    // control and owns only its placement and lifetime.
-    private sealed partial class SettingsControl : VBoxContainer
-    {
-        private readonly PrimitiveTool _tool;
-        private readonly OptionButton _shapeOption;
-        private readonly HBoxContainer _sidesRow;
-        private readonly SpinBox _sidesSpin;
-        private bool _syncing;
-
-        public SettingsControl(PrimitiveTool tool)
-        {
-            _tool = tool;
-            AddThemeConstantOverride("separation", 8);
-            AddChild(new Label { Text = "Primitive" });
-
-            _shapeOption = new OptionButton
-            {
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            };
-            _shapeOption.AddItem("Box", (int)PrimitiveShape.Box);
-            _shapeOption.AddItem("Cylinder", (int)PrimitiveShape.Cylinder);
-            _shapeOption.ItemSelected += OnShapeSelected;
-            AddChild(_shapeOption);
-
-            _sidesRow = new HBoxContainer();
-            _sidesRow.AddChild(
-                new Label
-                {
-                    Text = "Sides",
-                    SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-                }
-            );
-            _sidesSpin = new SpinBox
-            {
-                MinValue = MinimumCylinderSides,
-                MaxValue = MaximumCylinderSides,
-                Step = 1.0,
-                AllowGreater = false,
-                AllowLesser = false,
-            };
-            _sidesSpin.ValueChanged += OnSidesChanged;
-            _sidesRow.AddChild(_sidesSpin);
-            AddChild(_sidesRow);
-
-            _tool.SettingsChanged += Sync;
-            Sync();
-        }
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationPredelete)
-                _tool.SettingsChanged -= Sync;
-        }
-
-        private void Sync()
-        {
-            _syncing = true;
-            _shapeOption.Select((int)_tool.Shape);
-            _sidesSpin.Value = _tool.CylinderSides;
-            _sidesRow.Visible = _tool.Shape == PrimitiveShape.Cylinder;
-            _syncing = false;
-        }
-
-        private void OnShapeSelected(long index)
-        {
-            if (!_syncing)
-            {
-                _tool.Shape = (PrimitiveShape)_shapeOption.GetItemId((int)index);
-            }
-        }
-
-        private void OnSidesChanged(double value)
-        {
-            if (!_syncing)
-                _tool.CylinderSides = Mathf.RoundToInt(value);
-        }
-    }
 }
+
