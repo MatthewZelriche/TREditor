@@ -57,8 +57,7 @@ public class ComponentSelectionTests
         AssertBool(vertices.Visible).IsTrue();
         AssertBool(edges.Visible).IsTrue();
         AssertThat(vertices.Multimesh.InstanceCount).IsEqual(8);
-        var mutedVertexMaterial =
-            (ShaderMaterial)((QuadMesh)vertices.Multimesh.Mesh).Material;
+        var mutedVertexMaterial = (ShaderMaterial)vertices.MaterialOverride;
         Color mutedVertexColor = mutedVertexMaterial.GetShaderParameter("point_color").AsColor();
         AssertFloat(mutedVertexColor.B).IsGreater(mutedVertexColor.R);
         AssertThat(mutedVertexMaterial.RenderPriority)
@@ -69,11 +68,9 @@ public class ComponentSelectionTests
                 System.StringComparison.Ordinal
             )
         ).IsTrue();
-        var mutedEdgeMaterial = (StandardMaterial3D)edges.MaterialOverride;
-        AssertFloat(mutedEdgeMaterial.AlbedoColor.B)
-            .IsGreater(mutedEdgeMaterial.AlbedoColor.R);
-        AssertThat(mutedEdgeMaterial.Transparency)
-            .IsEqual(BaseMaterial3D.TransparencyEnum.Alpha);
+        var mutedEdgeMaterial = (ShaderMaterial)edges.MaterialOverride;
+        Color mutedEdgeColor = mutedEdgeMaterial.GetShaderParameter("edge_color").AsColor();
+        AssertFloat(mutedEdgeColor.B).IsGreater(mutedEdgeColor.R);
         AssertThat(mutedEdgeMaterial.RenderPriority)
             .IsEqual((int)Material.RenderPriorityMax - 5);
 
@@ -281,36 +278,54 @@ public class ComponentSelectionTests
 
     [TestCase]
     [RequireGodotRuntime]
-    public void GlobalXRaySwitchesMutedComponentsToDepthlessMaterials()
+    public void GlobalXRayUsesOwnerStencilForMutedComponents()
     {
         var tree = (SceneTree)Engine.GetMainLoop();
         Node3D mapRoot = AutoFree(new Node3D());
         tree.Root.AddChild(mapRoot);
         using var application = new Application(mapRoot);
-        MeshObjectId id = TestSceneObjects.AddCube(application.CurrentDocument!);
+        MeshObjectId firstId = TestSceneObjects.AddCube(application.CurrentDocument!);
+        MeshObjectId secondId = TestSceneObjects.AddCube(application.CurrentDocument!);
         application.SelectionMode.SelectAllComponents();
         application.Update(0.0);
 
         Node3D componentRoot = mapRoot.GetNode<Node3D>("ComponentSelection");
-        MultiMeshInstance3D vertices = componentRoot.GetNode<MultiMeshInstance3D>(
-            $"MeshObject_{id.Value}/Vertices"
+        MultiMeshInstance3D firstVertices = componentRoot.GetNode<MultiMeshInstance3D>(
+            $"MeshObject_{firstId.Value}/Vertices"
         );
-        MeshInstance3D edges = componentRoot.GetNode<MeshInstance3D>(
-            $"MeshObject_{id.Value}/Edges"
+        MeshInstance3D firstEdges = componentRoot.GetNode<MeshInstance3D>(
+            $"MeshObject_{firstId.Value}/Edges"
         );
+        MultiMeshInstance3D secondVertices = componentRoot.GetNode<MultiMeshInstance3D>(
+            $"MeshObject_{secondId.Value}/Vertices"
+        );
+        MeshInstance3D secondEdges = componentRoot.GetNode<MeshInstance3D>(
+            $"MeshObject_{secondId.Value}/Edges"
+        );
+
+        var firstVertexMaterial = (ShaderMaterial)firstVertices.MaterialOverride;
+        var firstEdgeMaterial = (ShaderMaterial)firstEdges.MaterialOverride;
+        var secondVertexMaterial = (ShaderMaterial)secondVertices.MaterialOverride;
+        var secondEdgeMaterial = (ShaderMaterial)secondEdges.MaterialOverride;
+        AssertThat(firstVertexMaterial.NextPass).IsNull();
+        AssertThat(firstEdgeMaterial.NextPass).IsNull();
+        AssertThat(secondVertexMaterial.NextPass).IsNull();
+        AssertThat(secondEdgeMaterial.NextPass).IsNull();
 
         application.SelectionMode.SetXRayEnabled(true);
 
-        var vertexMaterial = (ShaderMaterial)((QuadMesh)vertices.Multimesh.Mesh).Material;
-        var edgeMaterial = (StandardMaterial3D)edges.MaterialOverride;
-        AssertBool(vertexMaterial.Shader.Code.Contains("depth_test_disabled")).IsTrue();
-        AssertBool(edgeMaterial.NoDepthTest).IsTrue();
+        AssertBool(firstVertexMaterial.Shader.Code.Contains("depth_test_disabled")).IsFalse();
+        AssertBool(firstEdgeMaterial.Shader.Code.Contains("depth_test_disabled")).IsFalse();
+        AssertStencilXRayPass(firstVertexMaterial, 1);
+        AssertStencilXRayPass(firstEdgeMaterial, 1);
+        AssertStencilXRayPass(secondVertexMaterial, 2);
+        AssertStencilXRayPass(secondEdgeMaterial, 2);
 
         application.SelectionMode.SetXRayEnabled(false);
-        vertexMaterial = (ShaderMaterial)((QuadMesh)vertices.Multimesh.Mesh).Material;
-        edgeMaterial = (StandardMaterial3D)edges.MaterialOverride;
-        AssertBool(vertexMaterial.Shader.Code.Contains("depth_test_disabled")).IsFalse();
-        AssertBool(edgeMaterial.NoDepthTest).IsFalse();
+        AssertThat(firstVertexMaterial.NextPass).IsNull();
+        AssertThat(firstEdgeMaterial.NextPass).IsNull();
+        AssertThat(secondVertexMaterial.NextPass).IsNull();
+        AssertThat(secondEdgeMaterial.NextPass).IsNull();
     }
 
     private static SpatialMesh CreateGrid(out int[,] vertices)

@@ -9,6 +9,7 @@ using NumericsVector3 = System.Numerics.Vector3;
 public sealed class ComponentSelectionRenderService : ISceneService
 {
     private const string VertexShaderPath = "res://src/shaders/component_vertex.gdshader";
+    private const string MutedEdgeShaderPath = "res://src/shaders/component_edge_muted.gdshader";
     private const string ActiveEdgeShaderPath = "res://src/shaders/component_edge_active.gdshader";
     private const string FaceShaderPath = "res://src/shaders/component_face.gdshader";
     private const float VertexSizePixels = 8.0f;
@@ -40,14 +41,14 @@ public sealed class ComponentSelectionRenderService : ISceneService
     private readonly SelectionState _selection;
     private readonly MeshStencilReferences _stencilReferences;
     private readonly QuadMesh _vertexQuad;
-    private readonly ShaderMaterial _vertexMaterial;
+    private readonly Shader _vertexShader;
     private readonly Shader _selectedVertexShader;
-    private readonly Shader _xRayVertexShader;
-    private readonly ShaderMaterial _xRayVertexMaterial;
-    private readonly StandardMaterial3D _edgeMaterial;
+    private readonly Shader _mutedEdgeShader;
     private readonly Shader _activeEdgeShader;
     private readonly Dictionary<int, Shader> _vertexXRayShaders = [];
     private readonly Dictionary<int, Shader> _edgeXRayShaders = [];
+    private readonly Dictionary<int, Shader> _mutedVertexXRayShaders = [];
+    private readonly Dictionary<int, Shader> _mutedEdgeXRayShaders = [];
     private readonly ArrayMesh _activeEdgeMesh;
     private readonly ArrayMesh _hoverFaceMesh = new();
     private readonly ShaderMaterial _hoverFaceMaterial;
@@ -82,37 +83,14 @@ public sealed class ComponentSelectionRenderService : ISceneService
         _selection = selection;
         _stencilReferences = stencilReferences;
 
-        Shader vertexShader = LoadShader(VertexShaderPath);
+        _vertexShader = LoadShader(VertexShaderPath);
+        _mutedEdgeShader = LoadShader(MutedEdgeShaderPath);
         _activeEdgeShader = LoadShader(ActiveEdgeShaderPath);
         Shader faceShader = LoadShader(FaceShaderPath);
-        _selectedVertexShader = StencilShader.CreateDepthDrawNever(vertexShader);
-        _xRayVertexShader = StencilShader.CreateDepthTestDisabled(vertexShader);
-        _vertexMaterial = new ShaderMaterial
-        {
-            Shader = vertexShader,
-            RenderPriority = (int)ComponentRenderPriority.MutedVertex,
-        };
-        _vertexMaterial.SetShaderParameter("point_color", MutedVertexColor);
-        _vertexMaterial.SetShaderParameter("point_size_pixels", VertexSizePixels);
-        _xRayVertexMaterial = new ShaderMaterial
-        {
-            Shader = _xRayVertexShader,
-            RenderPriority = (int)ComponentRenderPriority.MutedVertex,
-        };
-        _xRayVertexMaterial.SetShaderParameter("point_color", MutedVertexColor);
-        _xRayVertexMaterial.SetShaderParameter("point_size_pixels", VertexSizePixels);
+        _selectedVertexShader = StencilShader.CreateDepthDrawNever(_vertexShader);
         _vertexQuad = new QuadMesh
         {
             Size = Vector2.One,
-            Material = _vertexMaterial,
-        };
-        _edgeMaterial = new StandardMaterial3D
-        {
-            AlbedoColor = MutedEdgeColor,
-            Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            DisableFog = true,
-            RenderPriority = (int)ComponentRenderPriority.MutedEdge,
         };
         _activeEdgeMesh = CreateActiveEdgeMesh();
         _hoverFaceMaterial = CreateFaceMaterial(faceShader, new Color(1.0f, 0.43f, 0.08f, 0.22f));
@@ -250,7 +228,8 @@ public sealed class ComponentSelectionRenderService : ISceneService
             _root,
             _previews.TransformFor(meshObject),
             _vertexQuad,
-            _edgeMaterial
+            CreateMutedVertexMaterial(_stencilReferences.Get(id)),
+            CreateMutedEdgeMaterial(_stencilReferences.Get(id))
         );
         _entries.Add(id, entry);
         _dirtyMeshes.Add(id);
@@ -296,12 +275,11 @@ public sealed class ComponentSelectionRenderService : ISceneService
         ComponentMask mask = _selectionMode.Mode == EditorMode.Component
             ? _selectionMode.Components
             : ComponentMask.None;
-        _vertexQuad.Material = _selectionMode.XRayEnabled
-            ? _xRayVertexMaterial
-            : _vertexMaterial;
-        _edgeMaterial.NoDepthTest = _selectionMode.XRayEnabled;
         foreach (VisualEntry entry in _entries.Values)
+        {
             entry.SetVisibleComponents(mask);
+            entry.SetXRayEnabled(_selectionMode.XRayEnabled);
+        }
 
         if (_selectedVisualsDirty)
         {
@@ -502,18 +480,19 @@ public sealed class ComponentSelectionRenderService : ISceneService
         _hoverFaceMaterial.Dispose();
         _hoverFaceMesh.Dispose();
         _activeEdgeMesh.Dispose();
-        _edgeMaterial.Dispose();
-        _vertexQuad.Material = null;
         _vertexQuad.Dispose();
-        _xRayVertexMaterial.Dispose();
-        _xRayVertexShader.Dispose();
-        _vertexMaterial.Dispose();
         foreach (Shader shader in _edgeXRayShaders.Values)
             shader.Dispose();
         _edgeXRayShaders.Clear();
         foreach (Shader shader in _vertexXRayShaders.Values)
             shader.Dispose();
         _vertexXRayShaders.Clear();
+        foreach (Shader shader in _mutedEdgeXRayShaders.Values)
+            shader.Dispose();
+        _mutedEdgeXRayShaders.Clear();
+        foreach (Shader shader in _mutedVertexXRayShaders.Values)
+            shader.Dispose();
+        _mutedVertexXRayShaders.Clear();
         _selectedVertexShader.Dispose();
     }
 
@@ -527,14 +506,42 @@ public sealed class ComponentSelectionRenderService : ISceneService
         ComponentRenderPriority renderPriority
     )
     {
-        StencilMaterialPair material = CreateActiveMaterial(
+        StencilMaterialPair material = CreateMaterial(
             _selectedVertexShader,
             _vertexXRayShaders,
             stencilReference,
-            renderPriority
+            renderPriority,
+            xRayEnabled: true
         );
         material.SetShaderParameter("point_color", color);
         material.SetShaderParameter("point_size_pixels", sizePixels);
+        return material;
+    }
+
+    private StencilMaterialPair CreateMutedVertexMaterial(int stencilReference)
+    {
+        StencilMaterialPair material = CreateMaterial(
+            _vertexShader,
+            _mutedVertexXRayShaders,
+            stencilReference,
+            ComponentRenderPriority.MutedVertex,
+            xRayEnabled: false
+        );
+        material.SetShaderParameter("point_color", MutedVertexColor);
+        material.SetShaderParameter("point_size_pixels", VertexSizePixels);
+        return material;
+    }
+
+    private StencilMaterialPair CreateMutedEdgeMaterial(int stencilReference)
+    {
+        StencilMaterialPair material = CreateMaterial(
+            _mutedEdgeShader,
+            _mutedEdgeXRayShaders,
+            stencilReference,
+            ComponentRenderPriority.MutedEdge,
+            xRayEnabled: false
+        );
+        material.SetShaderParameter("edge_color", MutedEdgeColor);
         return material;
     }
 
@@ -545,22 +552,24 @@ public sealed class ComponentSelectionRenderService : ISceneService
         ComponentRenderPriority renderPriority
     )
     {
-        StencilMaterialPair material = CreateActiveMaterial(
+        StencilMaterialPair material = CreateMaterial(
             _activeEdgeShader,
             _edgeXRayShaders,
             stencilReference,
-            renderPriority
+            renderPriority,
+            xRayEnabled: true
         );
         material.SetShaderParameter("edge_color", color);
         material.SetShaderParameter("line_width_pixels", widthPixels);
         return material;
     }
 
-    private static StencilMaterialPair CreateActiveMaterial(
+    private static StencilMaterialPair CreateMaterial(
         Shader source,
         Dictionary<int, Shader> xrayShaders,
         int stencilReference,
-        ComponentRenderPriority renderPriority
+        ComponentRenderPriority renderPriority,
+        bool xRayEnabled = true
     )
     {
         Shader? xrayShader = null;
@@ -573,7 +582,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
             xrayShaders.Add(stencilReference, xrayShader);
         }
 
-        return new StencilMaterialPair(source, xrayShader, renderPriority);
+        return new StencilMaterialPair(source, xrayShader, renderPriority, xRayEnabled);
     }
 
     private static ShaderMaterial CreateFaceMaterial(Shader shader, Color color)
@@ -656,7 +665,8 @@ public sealed class ComponentSelectionRenderService : ISceneService
         public StencilMaterialPair(
             Shader normalShader,
             Shader? xrayShader,
-            ComponentRenderPriority renderPriority
+            ComponentRenderPriority renderPriority,
+            bool xRayEnabled
         )
         {
             int priority = (int)renderPriority;
@@ -673,7 +683,7 @@ public sealed class ComponentSelectionRenderService : ISceneService
                 Shader = xrayShader,
                 RenderPriority = priority,
             };
-            Material.NextPass = _xrayMaterial;
+            SetXRayEnabled(xRayEnabled);
         }
 
         public ShaderMaterial Material { get; }
@@ -683,6 +693,9 @@ public sealed class ComponentSelectionRenderService : ISceneService
             Material.SetShaderParameter(name, value);
             _xrayMaterial?.SetShaderParameter(name, value);
         }
+
+        public void SetXRayEnabled(bool enabled) =>
+            Material.NextPass = enabled ? _xrayMaterial : null;
 
         public void Dispose()
         {
@@ -757,6 +770,8 @@ public sealed class ComponentSelectionRenderService : ISceneService
         private readonly ArrayMesh _edges = new();
         private readonly MultiMeshInstance3D _vertexInstance;
         private readonly MeshInstance3D _edgeInstance;
+        private readonly StencilMaterialPair _vertexMaterial;
+        private readonly StencilMaterialPair _edgeMaterial;
         private bool _disposed;
 
         public VisualEntry(
@@ -764,9 +779,12 @@ public sealed class ComponentSelectionRenderService : ISceneService
             Node3D parent,
             Transform3D transform,
             QuadMesh vertexQuad,
-            Material edgeMaterial
+            StencilMaterialPair vertexMaterial,
+            StencilMaterialPair edgeMaterial
         )
         {
+            _vertexMaterial = vertexMaterial;
+            _edgeMaterial = edgeMaterial;
             Root = new Node3D
             {
                 Name = $"MeshObject_{meshObject.Id.Value}",
@@ -777,13 +795,14 @@ public sealed class ComponentSelectionRenderService : ISceneService
             {
                 Name = "Vertices",
                 Multimesh = _vertices,
+                MaterialOverride = vertexMaterial.Material,
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             };
             _edgeInstance = new MeshInstance3D
             {
                 Name = "Edges",
                 Mesh = _edges,
-                MaterialOverride = edgeMaterial,
+                MaterialOverride = edgeMaterial.Material,
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             };
             Root.AddChild(_vertexInstance);
@@ -849,6 +868,12 @@ public sealed class ComponentSelectionRenderService : ISceneService
             _edgeInstance.Visible = mask.HasFlag(ComponentMask.Edge);
         }
 
+        public void SetXRayEnabled(bool enabled)
+        {
+            _vertexMaterial.SetXRayEnabled(enabled);
+            _edgeMaterial.SetXRayEnabled(enabled);
+        }
+
         public void Dispose()
         {
             if (_disposed)
@@ -856,12 +881,15 @@ public sealed class ComponentSelectionRenderService : ISceneService
             _disposed = true;
             SpatialMesh = null;
             Surface = null;
+            _vertexInstance.MaterialOverride = null;
             _edgeInstance.MaterialOverride = null;
             _edgeInstance.Mesh = null;
             _vertexInstance.Multimesh = null;
             Root.Free();
             _edges.Dispose();
             _vertices.Dispose();
+            _edgeMaterial.Dispose();
+            _vertexMaterial.Dispose();
         }
     }
 }
