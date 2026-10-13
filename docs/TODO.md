@@ -67,7 +67,7 @@
   - Same as above - but selects an edge ring (edges not connected but share faces)
 
 ### Faces 
-- [ ] Bridge Faces
+- [x] Bridge Faces
   - Bridge 2 Faces together, optionally with interpolation and a number of intermediate steps with controls to configure the resulting shape/number of steps. Faces must have the same number of edges.
 - [ ] Thicken Face
   - Thickens an open face (a plane) with a desired thickness

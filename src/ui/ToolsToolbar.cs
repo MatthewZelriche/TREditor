@@ -22,6 +22,7 @@ public partial class ToolsToolbar : HBoxContainer
             ComponentEntry("CombineFacesButton", CombineFacesTool.ToolId, ComponentMask.Face),
             ComponentEntry("CollapseFacesButton", CollapseFacesTool.ToolId, ComponentMask.Face),
             ComponentEntry("ExtrudeFacesButton", ExtrudeFacesTool.ToolId, ComponentMask.Face),
+            ComponentEntry("BridgeFacesButton", BridgeFacesTool.ToolId, ComponentMask.Face),
         ];
     }
 

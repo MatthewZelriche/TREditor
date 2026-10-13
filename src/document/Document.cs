@@ -168,28 +168,75 @@ public sealed class Document : IDisposable, IEditorDocumentReader
     internal bool EditGeometry(IReadOnlyList<MeshObject> expected, Action edit)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        ArgumentNullException.ThrowIfNull(expected);
         ArgumentNullException.ThrowIfNull(edit);
-        if (expected.Count == 0)
+        if (!TryPrepareGeometryChanges(expected, out DocumentObjectChange[] changes))
             return false;
 
-        var ids = new HashSet<MeshObjectId>();
-        var changes = new DocumentObjectChange[expected.Count];
-        for (int index = 0; index < expected.Count; index++)
-        {
-            if (!IsCurrent(expected[index]) || !ids.Add(expected[index].Id))
-                return false;
+        CommitGeometryEdit(expected, changes, edit);
+        return true;
+    }
 
-            changes[index] = new DocumentObjectChange(
-                expected[index].Id,
-                DocumentChangeKind.GeometryChanged
-            );
-        }
+    // Atomically edits existing source meshes and inserts a separately-owned result object. The
+    // caller's edit must roll itself back if it throws, matching EditGeometry's contract.
+    internal MeshObject? EditGeometryAndAdd(
+        IReadOnlyList<MeshObject> expected,
+        string name,
+        Transform3D transform,
+        GDMesh mesh,
+        Action edit
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(mesh);
+        ArgumentNullException.ThrowIfNull(edit);
+        var id = new MeshObjectId(_nextObjectId);
+        var added = new MeshObject(id, name, transform, mesh);
+        return EditGeometryAndUpdateResult(expected, added, addResult: true, edit)
+            ? added
+            : null;
+    }
 
-        edit();
-        foreach (MeshObject meshObject in expected)
-            meshObject.Mesh.MarkDirty();
-        Publish(changes);
+    // Adds or removes a separately-owned result while editing its source meshes in one commit.
+    // Object IDs remain stable across undo and redo and are never reused.
+    internal bool EditGeometryAndUpdateResult(
+        IReadOnlyList<MeshObject> expected,
+        MeshObject result,
+        bool addResult,
+        Action edit
+    )
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(edit);
+        bool exists = _objects.TryGetValue(result.Id, out MeshObject? current);
+        if (
+            (addResult ? exists : !ReferenceEquals(current, result))
+            || !TryPrepareGeometryChanges(expected, out DocumentObjectChange[] changes)
+        )
+            return false;
+
+        int nextObjectId = addResult
+            ? Math.Max(_nextObjectId, checked(result.Id.Value + 1))
+            : _nextObjectId;
+        Array.Resize(ref changes, changes.Length + 1);
+        changes[^1] = new DocumentObjectChange(
+            result.Id,
+            addResult ? DocumentChangeKind.Added : DocumentChangeKind.Removed
+        );
+        CommitGeometryEdit(
+            expected,
+            changes,
+            edit,
+            () =>
+            {
+                if (addResult)
+                    _objects.Add(result.Id, result);
+                else
+                    _objects.Remove(result.Id);
+                _nextObjectId = nextObjectId;
+            }
+        );
         return true;
     }
 
@@ -204,6 +251,43 @@ public sealed class Document : IDisposable, IEditorDocumentReader
         meshObject is not null
         && _objects.TryGetValue(meshObject.Id, out MeshObject? current)
         && ReferenceEquals(current, meshObject);
+
+    private bool TryPrepareGeometryChanges(
+        IReadOnlyList<MeshObject> expected,
+        out DocumentObjectChange[] changes
+    )
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        changes = new DocumentObjectChange[expected.Count];
+        if (expected.Count == 0)
+            return false;
+
+        var ids = new HashSet<MeshObjectId>();
+        for (int index = 0; index < expected.Count; index++)
+        {
+            if (!IsCurrent(expected[index]) || !ids.Add(expected[index].Id))
+                return false;
+            changes[index] = new DocumentObjectChange(
+                expected[index].Id,
+                DocumentChangeKind.GeometryChanged
+            );
+        }
+        return true;
+    }
+
+    private void CommitGeometryEdit(
+        IReadOnlyList<MeshObject> expected,
+        IReadOnlyList<DocumentObjectChange> changes,
+        Action edit,
+        Action? updateObjects = null
+    )
+    {
+        edit();
+        foreach (MeshObject meshObject in expected)
+            meshObject.Mesh.MarkDirty();
+        updateObjects?.Invoke();
+        Publish(changes);
+    }
 
     public void Dispose()
     {

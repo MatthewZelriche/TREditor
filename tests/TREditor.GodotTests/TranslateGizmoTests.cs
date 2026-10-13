@@ -104,6 +104,46 @@ public class TranslateGizmoTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public void TransientTranslationIgnoresSelectionUntilReleased()
+    {
+        Node3D proxyParent = AutoFree(new Node3D());
+        AddToTree(proxyParent);
+        var selection = new SelectionState();
+        using var previews = new PreviewState();
+        using var document = new Document();
+        using var coordinator = new TranslateGizmoCoordinator(
+            proxyParent,
+            selection,
+            new SelectionModeState(),
+            previews,
+            NoSnap()
+        );
+        coordinator.SetDocument(document);
+        MeshObjectId selected = TestSceneObjects.AddCube(document);
+        selection.Select(selected);
+        coordinator.OnSelectionChanged();
+        var transient = new Transform3D(
+            Basis.Identity,
+            new Vector3(8.0f, 3.0f, -2.0f)
+        );
+
+        coordinator.ShowTransientTranslationAt(transient);
+        selection.Clear();
+        coordinator.OnSelectionChanged();
+
+        AssertBool(coordinator.IsTransientTranslation).IsTrue();
+        AssertThat(coordinator.Mode).IsEqual(TransformOperation.Translate);
+        AssertThat(coordinator.ProxyTransform).IsEqual(transient);
+        AssertBool(coordinator.IsVisible).IsTrue();
+
+        coordinator.HideTransientTranslation();
+
+        AssertBool(coordinator.IsTransientTranslation).IsFalse();
+        AssertBool(coordinator.IsVisible).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task GizmoHandlesKeepTheSameScreenSizeFromDifferentDistances()
     {
         Node3D proxyParent = AutoFree(new Node3D());

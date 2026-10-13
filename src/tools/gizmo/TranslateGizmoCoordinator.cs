@@ -19,6 +19,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     private Document? _document;
     private Camera3D? _interactionCamera;
     private bool _attached;
+    private bool _transientTranslation;
     private TransformOperation? _mode = TransformOperation.Translate;
     private bool _disposed;
 
@@ -66,7 +67,10 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     // The proxy's absolute transform, which is what a drag produces and what the tool previews.
     public Transform3D ProxyTransform => _proxy.GlobalTransform;
 
-    public TransformOperation? Mode => _mode;
+    public TransformOperation? Mode =>
+        _transientTranslation ? TransformOperation.Translate : _mode;
+
+    public bool IsTransientTranslation => _transientTranslation;
 
     // Returns the private render layer allocated to this viewport. Other viewport-local overlays
     // may share it and remain isolated by the camera cull mask configured here.
@@ -81,7 +85,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         uint layerMask = _layers.Allocate();
         uint previousCullMask = camera.CullMask;
         var host = new TranslateGizmoHost(_snap);
-        host.SetMode(_mode ?? TransformOperation.Translate);
+        host.SetMode(Mode ?? TransformOperation.Translate);
         host.SetRenderLayer(layerMask);
         try
         {
@@ -183,8 +187,19 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     public void SetMode(TransformOperation? mode)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        bool endedTransientTranslation = _transientTranslation;
+        if (endedTransientTranslation)
+            Hide();
         if (_mode == mode)
+        {
+            if (endedTransientTranslation && mode is TransformOperation restoredOperation)
+            {
+                foreach (HostRegistration registration in _hosts.Values)
+                    registration.Host.SetMode(restoredOperation);
+                Synchronize();
+            }
             return;
+        }
 
         Cancel();
         _mode = mode;
@@ -199,6 +214,38 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         Synchronize();
     }
 
+    // Temporarily lends the proxy to a non-transform tool. Selection and preview notifications leave
+    // its explicitly supplied position alone until the owner releases it.
+    public void ShowTransientTranslationAt(Transform3D transform)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        Cancel();
+        _transientTranslation = true;
+        foreach (HostRegistration registration in _hosts.Values)
+            registration.Host.SetMode(TransformOperation.Translate);
+        PlaceAt(transform);
+    }
+
+    public void HideTransientTranslation()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_transientTranslation)
+            return;
+
+        Cancel();
+        _transientTranslation = false;
+        if (_mode is TransformOperation operation)
+        {
+            foreach (HostRegistration registration in _hosts.Values)
+                registration.Host.SetMode(operation);
+            Synchronize();
+        }
+        else
+        {
+            Hide();
+        }
+    }
+
     // Places the shared proxy and shows a gizmo in every viewport.
     public void ShowAt(Transform3D transform)
     {
@@ -206,6 +253,11 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         if (_mode is null)
             return;
 
+        PlaceAt(transform);
+    }
+
+    private void PlaceAt(Transform3D transform)
+    {
         _proxy.GlobalTransform = transform;
         _attached = true;
         foreach (HostRegistration registration in _hosts.Values)
@@ -219,6 +271,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         Cancel();
+        _transientTranslation = false;
         _attached = false;
         foreach (HostRegistration registration in _hosts.Values)
             registration.Host.Detach();
@@ -294,6 +347,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
         _document = null;
         _interactionCamera = null;
         _attached = false;
+        _transientTranslation = false;
         foreach ((Camera3D camera, HostRegistration registration) in _hosts)
         {
             RestoreCullMask(camera, registration.PreviousCullMask);
@@ -310,7 +364,7 @@ public sealed class TranslateGizmoCoordinator : ISceneService
     // the proxy, so it is left alone.
     private void Synchronize()
     {
-        if (_disposed || IsInteracting || _mode is null)
+        if (_disposed || IsInteracting || _transientTranslation || _mode is null)
             return;
 
         if (_document is Document document && TryGetSelectionTransform(document, out Transform3D transform))

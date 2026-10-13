@@ -90,6 +90,7 @@ public sealed class Application : IDisposable
             _toolRegistry.Register(new CombineFacesTool(_selectionMode));
             _toolRegistry.Register(new CollapseFacesTool(_selectionMode));
             _toolRegistry.Register(new ExtrudeFacesTool(_selectionMode));
+            _toolRegistry.Register(new BridgeFacesTool(_selectionMode));
             _toolRegistry.SetDefaultTool(TranslateTool.ToolId);
             _toolRegistry.ActiveToolChanged += OnActiveToolChanged;
             _toolRegistry.Activate(TranslateTool.ToolId);

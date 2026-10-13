@@ -102,7 +102,13 @@ public sealed class EditorToolRegistry
         if (primaryAction.Command is not { } command)
             return primaryAction.UnavailableReason;
 
-        return _context.Commands.TrySubmit(command, out string? failure) ? null : failure;
+        if (!_context.Commands.TrySubmit(command, out string? failure))
+            return failure;
+
+        // Applying a primary action completes any transient preview or gizmo session owned by the
+        // active tool, while leaving that tool selected for another operation.
+        _activeTool?.Cancel(_context);
+        return null;
     }
 
     internal void RefreshPrimaryAction() => PrimaryActionChanged?.Invoke();

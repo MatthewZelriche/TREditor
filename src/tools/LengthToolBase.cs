@@ -41,7 +41,24 @@ public abstract partial class LengthToolBase
     public Control CreateSettingsControl(IEditorToolContext context)
     {
         InitializeLength(context);
-        return new SettingsControl(this);
+        return new NumericToolSettings(
+            this,
+            SettingsName,
+            SettingsTitle,
+            "Length",
+            "Length",
+            new SpinBox
+            {
+                Name = "LengthSpin",
+                MinValue = MinimumLength,
+                MaxValue = 1000000.0,
+                Step = MinimumLength,
+                AllowGreater = true,
+                AllowLesser = false,
+            },
+            () => Length,
+            value => Length = (float)value
+        );
     }
 
     public EditorToolAction CreatePrimaryAction(IEditorToolContext context)
@@ -67,61 +84,4 @@ public abstract partial class LengthToolBase
                 : DefaultLength;
     }
 
-    private sealed partial class SettingsControl : VBoxContainer
-    {
-        private readonly LengthToolBase _tool;
-        private readonly SpinBox _lengthSpin;
-        private bool _syncing;
-
-        public SettingsControl(LengthToolBase tool)
-        {
-            _tool = tool;
-            Name = tool.SettingsName;
-            AddThemeConstantOverride("separation", 8);
-            AddChild(new Label { Text = tool.SettingsTitle });
-
-            var row = new HBoxContainer { Name = "LengthRow" };
-            row.AddChild(
-                new Label
-                {
-                    Text = "Length",
-                    SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                }
-            );
-            _lengthSpin = new SpinBox
-            {
-                Name = "LengthSpin",
-                MinValue = MinimumLength,
-                MaxValue = 1000000.0,
-                Step = MinimumLength,
-                AllowGreater = true,
-                AllowLesser = false,
-            };
-            _lengthSpin.ValueChanged += OnLengthChanged;
-            row.AddChild(_lengthSpin);
-            AddChild(row);
-
-            _tool.PrimaryActionChanged += Sync;
-            Sync();
-        }
-
-        public override void _Notification(int what)
-        {
-            if (what == NotificationPredelete)
-                _tool.PrimaryActionChanged -= Sync;
-        }
-
-        private void Sync()
-        {
-            _syncing = true;
-            _lengthSpin.Value = _tool.Length;
-            _syncing = false;
-        }
-
-        private void OnLengthChanged(double value)
-        {
-            if (!_syncing)
-                _tool.Length = (float)value;
-        }
-    }
 }
