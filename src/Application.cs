@@ -12,6 +12,7 @@ public sealed class Application : IDisposable
     private readonly SelectionState _selectionState = new();
     private readonly PreviewState _previewState = new();
     private readonly SnapSettings _snapSettings = new();
+    private readonly BezierCurveGizmo _bezierCurveGizmo;
     private Document? _currentDocument;
     private string? _currentFilePath;
     private bool _disposed;
@@ -25,6 +26,7 @@ public sealed class Application : IDisposable
         ComponentSelectionRenderService? componentSelectionRenderer = null;
         PickingService? pickingService = null;
         TranslateGizmoCoordinator? gizmos = null;
+        BezierCurveGizmo? bezierCurveGizmo = null;
         var stencilReferences = new MeshStencilReferences();
         try
         {
@@ -35,6 +37,8 @@ public sealed class Application : IDisposable
                 _previewState,
                 _snapSettings
             );
+            bezierCurveGizmo = new BezierCurveGizmo();
+            _bezierCurveGizmo = bezierCurveGizmo;
             gridRenderer = new GridRenderService();
             _gridRenderer = gridRenderer;
             renderService = new RenderService(
@@ -71,6 +75,7 @@ public sealed class Application : IDisposable
                 _selectionState,
                 _previewState,
                 gizmos,
+                bezierCurveGizmo,
                 _snapSettings
             );
             _toolRegistry = new EditorToolRegistry(_toolContext);
@@ -91,6 +96,7 @@ public sealed class Application : IDisposable
         }
         catch
         {
+            bezierCurveGizmo?.Dispose();
             gizmos?.Dispose();
             pickingService?.Dispose();
             componentSelectionRenderer?.Dispose();
@@ -120,6 +126,9 @@ public sealed class Application : IDisposable
     // The editor-owned transform gizmos. Viewports register with it and transform tools drive it;
     // nothing else needs to know a gizmo library is involved.
     internal TranslateGizmoCoordinator Gizmos => _toolContext.TranslateGizmos;
+
+    // Shared runtime Bezier editor. It remains hidden until a tool supplies a Curve3D.
+    internal BezierCurveGizmo BezierCurveGizmo => _bezierCurveGizmo;
 
     internal SelectionState Selection => _selectionState;
 
@@ -203,10 +212,12 @@ public sealed class Application : IDisposable
         uint layerMask = _toolContext.TranslateGizmos.RegisterViewport(camera, toolOverlayRoot);
         try
         {
+            _bezierCurveGizmo.RegisterViewport(camera, toolOverlayRoot, layerMask);
             _gridRenderer.RegisterViewport(camera, toolOverlayRoot, layerMask);
         }
         catch
         {
+            _bezierCurveGizmo.UnregisterViewport(camera);
             _toolContext.TranslateGizmos.UnregisterViewport(camera);
             throw;
         }
@@ -221,6 +232,7 @@ public sealed class Application : IDisposable
             return;
 
         _gridRenderer.UnregisterViewport(camera);
+        _bezierCurveGizmo.UnregisterViewport(camera);
         _toolContext.TranslateGizmos.UnregisterViewport(camera);
         _selectionState.ClearHover();
     }
@@ -333,6 +345,7 @@ public sealed class Application : IDisposable
             _selectionState.ClearChangedListeners();
             _commandHistory.Dispose();
             _services.Dispose();
+            _bezierCurveGizmo.Dispose();
         }
         finally
         {

@@ -723,6 +723,8 @@ public class TranslateToolTests
 
         public TranslateGizmoCoordinator TranslateGizmos => inner.TranslateGizmos;
 
+        public BezierCurveGizmo BezierCurveGizmo => inner.BezierCurveGizmo;
+
         public SnapSettings Snap => inner.Snap;
 
         public void Submit(IEditorCommand command) =>

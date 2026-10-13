@@ -192,14 +192,14 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
         normal = Vector3.Up;
 
         // TODO: Will want to move this to PickingService at some point
-        return TryIntersectPlane(input.Camera, input.ScreenPosition, Vector3.Zero, normal, out point);
+        return GeometryUtils.TryIntersectPlane(input.Camera, input.ScreenPosition, Vector3.Zero, normal, out point);
     }
 
     private void UpdateBase(IEditorToolContext context, Vector2 screenPosition)
     {
         if (
             _sourceCamera is null
-            || !TryIntersectPlane(
+            || !GeometryUtils.TryIntersectPlane(
                 _sourceCamera,
                 screenPosition,
                 _planeOrigin,
@@ -359,34 +359,6 @@ public sealed partial class PrimitiveTool : IEditorTool, IEditorToolSettingsProv
 
         xAxis = xAxis.Normalized();
         zAxis = xAxis.Cross(normal).Normalized();
-    }
-
-    private static bool TryIntersectPlane(
-        Camera3D camera,
-        Vector2 screenPosition,
-        Vector3 planePoint,
-        Vector3 planeNormal,
-        out Vector3 intersection
-    )
-    {
-        Vector3 rayOrigin = camera.ProjectRayOrigin(screenPosition);
-        Vector3 rayDirection = camera.ProjectRayNormal(screenPosition);
-        float denominator = planeNormal.Dot(rayDirection);
-        if (Mathf.IsZeroApprox(denominator))
-        {
-            intersection = default;
-            return false;
-        }
-
-        float distance = planeNormal.Dot(planePoint - rayOrigin) / denominator;
-        if (!float.IsFinite(distance) || distance < 0.0f)
-        {
-            intersection = default;
-            return false;
-        }
-
-        intersection = rayOrigin + (rayDirection * distance);
-        return intersection.IsFinite();
     }
 
     private enum InteractionPhase

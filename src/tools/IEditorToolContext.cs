@@ -20,6 +20,10 @@ public interface IEditorToolContext
     // coordinator rather than touching viewport-local Gizmo3D nodes.
     TranslateGizmoCoordinator TranslateGizmos { get; }
 
+    // Standalone Curve3D editor used by tools that need an interactive path. It owns no document
+    // state; the active tool supplies the curve and translates completed drags into commands.
+    BezierCurveGizmo BezierCurveGizmo { get; }
+
     // Shared snap increments from the bottom bar. Tools read these; they do not own the settings.
     SnapSettings Snap { get; }
 }

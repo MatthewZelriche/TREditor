@@ -14,6 +14,7 @@ public sealed class EditorToolContext : IEditorToolContext
         SelectionState selection,
         PreviewState preview,
         TranslateGizmoCoordinator translateGizmos,
+        BezierCurveGizmo bezierCurveGizmo,
         SnapSettings snap
     )
     {
@@ -23,6 +24,7 @@ public sealed class EditorToolContext : IEditorToolContext
         ArgumentNullException.ThrowIfNull(selection);
         ArgumentNullException.ThrowIfNull(preview);
         ArgumentNullException.ThrowIfNull(translateGizmos);
+        ArgumentNullException.ThrowIfNull(bezierCurveGizmo);
         ArgumentNullException.ThrowIfNull(snap);
 
         _documentAccessor = documentAccessor;
@@ -31,6 +33,7 @@ public sealed class EditorToolContext : IEditorToolContext
         Selection = selection;
         Preview = preview;
         TranslateGizmos = translateGizmos;
+        BezierCurveGizmo = bezierCurveGizmo;
         Snap = snap;
     }
 
@@ -47,6 +50,8 @@ public sealed class EditorToolContext : IEditorToolContext
     public PreviewState Preview { get; }
 
     public TranslateGizmoCoordinator TranslateGizmos { get; }
+
+    public BezierCurveGizmo BezierCurveGizmo { get; }
 
     public SnapSettings Snap { get; }
 }

@@ -37,6 +37,7 @@
 - [x] Object Rotate
 - [x] Object Scale
 - [x] Create new Primitive
+  - [ ] Create Polygon Primitive
 
 ### Vertices
 - [x] Merge
@@ -61,6 +62,7 @@
   - Bridge N (?) edges together, optionally with interpolation and a number of intermediate steps with controls to configure the resulting shape/number of steps.
 - [x] Edge Loop Selection
   - With zero or more edges selected, double click an edge to select the entire loop it is a part of. 
+  - Needs to be made more robust as it currently only handles valence 4 vertices
 - [ ] Edge Ring Selection
   - Same as above - but selects an edge ring (edges not connected but share faces)
 
