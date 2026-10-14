@@ -234,6 +234,54 @@ public class TranslateToolTests
 
     [TestCase]
     [RequireGodotRuntime]
+    public async Task ShiftDraggingTheGizmoDuplicatesThenTranslatesTheCopy()
+    {
+        using Fixture fixture = await Fixture.Create();
+        fixture.Select(fixture.CubeId);
+        await ProcessFrames(3);
+        Transform3D start = fixture.TransformOf(fixture.CubeId);
+        int objectCountBefore = fixture.Application.Document!.ObjectCount;
+        Vector2 handle = fixture.FindHandle();
+
+        fixture.MouseDown(handle, shiftPressed: true);
+
+        AssertBool(fixture.Application.Gizmos.IsInteracting).IsTrue();
+        AssertThat(fixture.HistoryChanges).IsEqual(1);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Duplicate Object");
+        AssertThat(fixture.Application.Document.ObjectCount).IsEqual(objectCountBefore + 1);
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertThat(fixture.Selection.Current.ObjectIds.Count).IsEqual(1);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CubeId)).IsFalse();
+        MeshObjectId duplicateId = fixture.Selection.Current.ObjectIds.First();
+        AssertThat(fixture.TransformOf(duplicateId)).IsEqual(start);
+
+        fixture.MouseDrag(handle + new Vector2(70.0f, 0.0f));
+        await ProcessFrames(1);
+
+        AssertBool(fixture.Preview.TryGetTransform(duplicateId, out Transform3D preview)).IsTrue();
+        AssertBool(preview.Origin.IsEqualApprox(start.Origin)).IsFalse();
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertThat(fixture.TransformOf(duplicateId)).IsEqual(start);
+
+        fixture.MouseUp(handle + new Vector2(70.0f, 0.0f));
+
+        AssertThat(fixture.HistoryChanges).IsEqual(2);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Translate");
+        AssertThat(fixture.TransformOf(fixture.CubeId)).IsEqual(start);
+        AssertThat(fixture.TransformOf(duplicateId)).IsEqual(preview);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(duplicateId)).IsTrue();
+
+        AssertBool(fixture.Application.Undo()).IsTrue();
+        AssertThat(fixture.TransformOf(duplicateId)).IsEqual(start);
+        AssertThat(fixture.Application.UndoDisplayName).IsEqual("Duplicate Object");
+        AssertBool(fixture.Application.Undo()).IsTrue();
+        AssertThat(fixture.Application.Document.ObjectCount).IsEqual(objectCountBefore);
+        AssertBool(fixture.Selection.Current.ObjectIds.Contains(fixture.CubeId)).IsTrue();
+        AssertBool(fixture.Application.Document.TryGetObject(duplicateId, out _)).IsFalse();
+    }
+
+    [TestCase]
+    [RequireGodotRuntime]
     public async Task PressingTheGizmoDragsAndCommitsOneTranslate()
     {
         using Fixture fixture = await Fixture.Create();

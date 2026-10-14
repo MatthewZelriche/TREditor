@@ -29,7 +29,7 @@
 - [ ] Orthographic 2D View
 - [ ] Display Wireframe Overlay
 
-## Mesh Operations ✔️
+## Mesh Operations
 
 - [x] Translation gizmo for all three component types
   - [x] TranslateTool respects Component Selection Mask
@@ -38,6 +38,7 @@
 - [x] Object Scale
 - [x] Create new Primitive
   - [ ] Create Polygon Primitive
+- [x] Duplicate Mesh (Shift-translate in Object mode)
 
 ### Vertices
 - [x] Merge
@@ -62,7 +63,6 @@
   - Bridge N (?) edges together, optionally with interpolation and a number of intermediate steps with controls to configure the resulting shape/number of steps.
 - [x] Edge Loop Selection
   - With zero or more edges selected, double click an edge to select the entire loop it is a part of. 
-  - Needs to be made more robust as it currently only handles valence 4 vertices
 - [ ] Edge Ring Selection
   - Same as above - but selects an edge ring (edges not connected but share faces)
 

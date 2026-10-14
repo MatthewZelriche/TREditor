@@ -11,8 +11,15 @@ public sealed class EdgeLoopSelectionTests
         Vector2.UnitY,
     ];
 
+    private static readonly Vector2[] TriangleUvs =
+    [
+        Vector2.Zero,
+        Vector2.UnitX,
+        Vector2.UnitY,
+    ];
+
     [Fact]
-    public void CollectTraversesBothDirectionsThroughFourValenceVertices()
+    public void CollectTraversesEvenOppositesAndStopsAtTheBoundary()
     {
         using SpatialMesh mesh = CreateGrid(out int[,] vertices);
         int seed = FindEdge(mesh, vertices[1, 1], vertices[2, 1]);
@@ -29,12 +36,82 @@ public sealed class EdgeLoopSelectionTests
     }
 
     [Fact]
-    public void CollectStopsAtSingularVertices()
+    public void CollectFollowsTheLowerHandleFaceThroughOddValenceVertices()
     {
         using SpatialMesh mesh = SpatialMeshBuilder.CreateAabb(Vector3.Zero, Vector3.One);
-        int seed = Canonical(mesh, mesh.GetFaceData(0).topology.AdjacentHalfEdge);
+        int start = mesh.GetFaceData(0).topology.AdjacentHalfEdge;
+        int seed = Canonical(mesh, start);
 
-        Assert.Equal([seed], EdgeLoopSelection.Collect(mesh, seed));
+        Assert.Equal(FaceEdges(mesh, 0).Order(), EdgeLoopSelection.Collect(mesh, seed).Order());
+    }
+
+    [Fact]
+    public void CollectCompletesTheMarkedFaceAcrossABoundaryEdge()
+    {
+        using SpatialMesh mesh = SpatialMeshBuilder.CreateAabb(Vector3.Zero, Vector3.One);
+        int[] expected = FaceEdges(mesh, 0);
+        HalfEdge first = mesh.GetHalfEdgeData(expected[0]).topology;
+        HalfEdge firstTwin = mesh.GetHalfEdgeData(first.TwinHalfEdge).topology;
+        int adjacentFace = first.AdjacentFace == 0 ? firstTwin.AdjacentFace : first.AdjacentFace;
+        mesh.DeleteFaces([adjacentFace]);
+        int seed = expected[2];
+        int twin = mesh.GetHalfEdgeData(seed).topology.TwinHalfEdge;
+
+        IReadOnlyList<int> loop = EdgeLoopSelection.Collect(mesh, seed);
+
+        Assert.Equal(expected.Order(), loop.Order());
+        Assert.Equal(loop.Order(), EdgeLoopSelection.Collect(mesh, twin).Order());
+    }
+
+    [Fact]
+    public void CollectFollowsBoundaryThroughAnEvenValenceVertex()
+    {
+        using var mesh = new SpatialMesh();
+        int center = mesh.AddVertex(Vector3.Zero);
+        int a = mesh.AddVertex(new Vector3(1.0f, 0.0f, 0.0f));
+        int b = mesh.AddVertex(new Vector3(0.5f, 1.0f, 0.0f));
+        int c = mesh.AddVertex(new Vector3(-0.5f, 1.0f, 0.0f));
+        int d = mesh.AddVertex(new Vector3(-1.0f, 0.0f, 0.0f));
+        mesh.AddFace([center, a, b], TriangleUvs);
+        mesh.AddFace([center, b, c], TriangleUvs);
+        mesh.AddFace([center, c, d], TriangleUvs);
+
+        int[] expected =
+        [
+            FindEdge(mesh, center, a),
+            FindEdge(mesh, a, b),
+            FindEdge(mesh, b, c),
+            FindEdge(mesh, c, d),
+            FindEdge(mesh, d, center),
+        ];
+
+        Assert.Equal(
+            expected.Order(),
+            EdgeLoopSelection.Collect(mesh, FindEdge(mesh, center, a)).Order()
+        );
+    }
+
+    [Fact]
+    public void CollectUsesTheOppositeEdgeAtHigherEvenValence()
+    {
+        const int Sides = 6;
+        using var mesh = new SpatialMesh();
+        int center = mesh.AddVertex(Vector3.Zero);
+        var ring = new int[Sides];
+        for (int i = 0; i < Sides; i++)
+        {
+            float angle = MathF.Tau * i / Sides;
+            ring[i] = mesh.AddVertex(new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0.0f));
+        }
+        for (int i = 0; i < Sides; i++)
+            mesh.AddFace([center, ring[i], ring[(i + 1) % Sides]], TriangleUvs);
+
+        IReadOnlyList<int> loop = EdgeLoopSelection.Collect(
+            mesh,
+            FindOutgoing(mesh, center, ring[0])
+        );
+
+        Assert.Contains(FindEdge(mesh, center, ring[Sides / 2]), loop);
     }
 
     [Fact]
@@ -130,6 +207,20 @@ public sealed class EdgeLoopSelectionTests
 
     private static int FindEdge(SpatialMesh mesh, int from, int to) =>
         Canonical(mesh, FindOutgoing(mesh, from, to));
+
+    private static int[] FaceEdges(SpatialMesh mesh, int face)
+    {
+        var edges = new List<int>();
+        int start = mesh.GetFaceData(face).topology.AdjacentHalfEdge;
+        int current = start;
+        do
+        {
+            edges.Add(Canonical(mesh, current));
+            current = mesh.GetHalfEdgeData(current).topology.NextHalfEdge;
+        } while (current != start);
+
+        return [.. edges];
+    }
 
     private static int FindOutgoing(SpatialMesh mesh, int from, int to)
     {

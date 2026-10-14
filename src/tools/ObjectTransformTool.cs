@@ -148,7 +148,7 @@ public abstract class ObjectTransformTool : ToolBase
             context.Preview.SetTransform(before.Id, delta * before.Transform);
     }
 
-    private static bool TryCaptureSelectedObjects(
+    protected static bool TryCaptureSelectedObjects(
         IEditorToolContext context,
         IReadOnlySet<MeshObjectId> selectedIds,
         out MeshObject[] selected

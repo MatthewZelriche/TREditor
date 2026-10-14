@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using TRMesh.Mesh;
 
-// A quad edge loop continues straight through each four-valence vertex. Singular vertices and
-// boundaries terminate the walk; encountering an edge already collected closes the loop.
+// Boundary seeds follow their boundary loop. Interior loops cross even valence vertices and follow
+// one adjacent face through odd or valence-two vertices, including onto boundary edges. Interior
+// walks stop at higher even-valence boundary vertices. Repeated edges close or merge the walk.
 internal static class EdgeLoopSelection
 {
     public static IReadOnlyList<int> Collect(SpatialMesh mesh, int seed)
@@ -16,50 +17,147 @@ internal static class EdgeLoopSelection
         if (!mesh.IsHalfEdgeAlive(twin))
             return [];
 
+        bool followBoundary = IsBoundaryEdge(mesh, seed);
         var slots = new List<int> { Math.Min(seed, twin) };
         var visited = new HashSet<int>(slots);
-        Walk(mesh, seed, slots, visited);
-        Walk(mesh, twin, slots, visited);
+        Walk(mesh, seed, followBoundary, slots, visited);
+        Walk(mesh, twin, followBoundary, slots, visited);
         return slots;
     }
 
     private static void Walk(
         SpatialMesh mesh,
-        int outgoing,
+        int backEdge,
+        bool followBoundary,
         List<int> slots,
         HashSet<int> visited
     )
     {
-        while (TryGetOppositeAtVertex(mesh, outgoing, out int opposite))
+        int markedFace = SpatialMesh.INVALID_HANDLE;
+        while (
+            TryGetNextAtVertex(mesh, backEdge, followBoundary, ref markedFace, out int next)
+        )
         {
-            HalfEdge edge = mesh.GetHalfEdgeData(opposite).topology;
-            int slot = Math.Min(opposite, edge.TwinHalfEdge);
+            HalfEdge edge = mesh.GetHalfEdgeData(next).topology;
+            int slot = Math.Min(next, edge.TwinHalfEdge);
             if (!visited.Add(slot))
                 return;
 
             slots.Add(slot);
-            outgoing = edge.TwinHalfEdge;
+            backEdge = edge.TwinHalfEdge;
         }
     }
 
-    private static bool TryGetOppositeAtVertex(
+    private static bool TryGetNextAtVertex(
         SpatialMesh mesh,
-        int outgoing,
-        out int opposite
+        int backEdge,
+        bool followBoundary,
+        ref int markedFace,
+        out int next
     )
     {
-        opposite = SpatialMesh.INVALID_HANDLE;
-        if (!TryRotateAroundVertex(mesh, outgoing, out int first) || first == outgoing)
-            return false;
-        if (!TryRotateAroundVertex(mesh, first, out int second) || second == outgoing)
-            return false;
-        if (!TryRotateAroundVertex(mesh, second, out int third) || third == outgoing)
-            return false;
-        if (!TryRotateAroundVertex(mesh, third, out int fourth) || fourth != outgoing)
+        next = SpatialMesh.INVALID_HANDLE;
+        if (!mesh.IsHalfEdgeAlive(backEdge))
             return false;
 
-        opposite = second;
+        HalfEdge back = mesh.GetHalfEdgeData(backEdge).topology;
+        if (!mesh.IsHalfEdgeAlive(back.TwinHalfEdge))
+            return false;
+
+        HalfEdge twin = mesh.GetHalfEdgeData(back.TwinHalfEdge).topology;
+        bool backIsOpen = !mesh.IsFaceAlive(back.AdjacentFace);
+        bool twinIsOpen = !mesh.IsFaceAlive(twin.AdjacentFace);
+        if (followBoundary)
+        {
+            if (!backIsOpen && !twinIsOpen)
+                return false;
+
+            markedFace = SpatialMesh.INVALID_HANDLE;
+            next = backIsOpen
+                ? mesh.GetHalfEdgeData(back.PrevHalfEdge).topology.TwinHalfEdge
+                : twin.NextHalfEdge;
+            return IsOutgoingFromSameVertex(mesh, backEdge, next);
+        }
+
+        if (!TryGetValence(mesh, backEdge, out int valence, out bool isBoundary))
+            return false;
+
+        if (valence % 2 == 0 && valence != 2)
+        {
+            if (isBoundary)
+                return false;
+
+            markedFace = SpatialMesh.INVALID_HANDLE;
+            next = backEdge;
+            for (int step = 0; step < valence / 2; step++)
+            {
+                if (!TryRotateAroundVertex(mesh, next, out next))
+                    return false;
+            }
+            return next != backEdge;
+        }
+
+        if (
+            !mesh.IsFaceAlive(markedFace)
+            || (markedFace != back.AdjacentFace && markedFace != twin.AdjacentFace)
+        )
+        {
+            if (isBoundary)
+                return false;
+
+            bool backFaceIsLive = mesh.IsFaceAlive(back.AdjacentFace);
+            bool twinFaceIsLive = mesh.IsFaceAlive(twin.AdjacentFace);
+            if (!backFaceIsLive && !twinFaceIsLive)
+                return false;
+
+            markedFace = backFaceIsLive && twinFaceIsLive
+                ? Math.Min(back.AdjacentFace, twin.AdjacentFace)
+                : backFaceIsLive
+                    ? back.AdjacentFace
+                    : twin.AdjacentFace;
+        }
+
+        next = markedFace == back.AdjacentFace
+            ? mesh.GetHalfEdgeData(back.PrevHalfEdge).topology.TwinHalfEdge
+            : twin.NextHalfEdge;
+        return IsOutgoingFromSameVertex(mesh, backEdge, next);
+    }
+
+    private static bool TryGetValence(
+        SpatialMesh mesh,
+        int start,
+        out int valence,
+        out bool isBoundary
+    )
+    {
+        valence = 0;
+        isBoundary = false;
+        int current = start;
+        do
+        {
+            valence++;
+            isBoundary |= IsBoundaryEdge(mesh, current);
+            if (valence > mesh.HalfEdgeCount || !TryRotateAroundVertex(mesh, current, out current))
+                return false;
+        } while (current != start);
+
         return true;
+    }
+
+    private static bool IsBoundaryEdge(SpatialMesh mesh, int halfEdge)
+    {
+        HalfEdge edge = mesh.GetHalfEdgeData(halfEdge).topology;
+        return !mesh.IsFaceAlive(edge.AdjacentFace)
+            || !mesh.IsFaceAlive(mesh.GetHalfEdgeData(edge.TwinHalfEdge).topology.AdjacentFace);
+    }
+
+    private static bool IsOutgoingFromSameVertex(SpatialMesh mesh, int source, int candidate)
+    {
+        if (!mesh.IsHalfEdgeAlive(candidate))
+            return false;
+
+        return mesh.GetHalfEdgeData(candidate).topology.SourceVertex
+            == mesh.GetHalfEdgeData(source).topology.SourceVertex;
     }
 
     private static bool TryRotateAroundVertex(SpatialMesh mesh, int outgoing, out int next)

@@ -40,9 +40,61 @@ public sealed class TranslateTool : ObjectTransformTool
         }
 
         if (input.IsShiftPressed)
-            return false;
+            return TryBeginDuplicate(context, input);
 
         return base.TryBeginInteraction(context, input);
+    }
+
+    // Shift-translate in object mode duplicates the selection, then drags the copies so the
+    // originals stay put. The duplicate is recorded immediately; the following translate is a
+    // separate undo step when the drag moves.
+    private bool TryBeginDuplicate(IEditorToolContext context, EditorMouseInput input)
+    {
+        if (
+            !CanBeginObjectTransform
+            || !TryCaptureSelectedObjects(
+                context,
+                context.Selection.Current.ObjectIds,
+                out MeshObject[] sources
+            )
+            || !context.TranslateGizmos.BeginInteraction(input.Camera!, input.ScreenPosition)
+        )
+        {
+            return false;
+        }
+
+        var command = new DuplicateObjectsCommand(sources, context.Selection);
+        try
+        {
+            if (!context.Commands.TrySubmit(command, out _))
+            {
+                command.Dispose();
+                context.TranslateGizmos.CancelAndSynchronize();
+                return false;
+            }
+        }
+        catch
+        {
+            command.Dispose();
+            context.TranslateGizmos.CancelAndSynchronize();
+            throw;
+        }
+
+        if (
+            !TryCaptureSelectedObjects(
+                context,
+                context.Selection.Current.ObjectIds,
+                out MeshObject[] duplicates
+            )
+        )
+        {
+            // Duplicate already committed; consume the press so selection is left alone.
+            context.TranslateGizmos.CancelAndSynchronize();
+            return true;
+        }
+
+        BeginDrag(duplicates, input.Camera, context.TranslateGizmos.ProxyTransform);
+        return true;
     }
 
     public override void OnMouseDrag(IEditorToolContext context, EditorMouseInput input)
